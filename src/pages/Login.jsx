@@ -1,125 +1,103 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
-import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
+import React, { useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { useCustomAuth } from '@/lib/CustomAuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { LogIn, Loader2, User, Lock } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const { employee, login } = useCustomAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  if (employee) {
+    return <Navigate to="/" replace />;
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+    setError('');
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(email, password);
-      window.location.href = "/";
+      const success = await login(username, password);
+      if (success) {
+        navigate('/');
+      } else {
+        setError('Usuario o contraseña incorrectos');
+      }
     } catch (err) {
-      setError(err.message || "Invalid email or password");
+      setError('Error al iniciar sesión');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", "/");
-  };
+  }
 
   return (
-    <AuthLayout
-      icon={LogIn}
-      title="Welcome back"
-      subtitle="Log in to your account"
-      footer={
-        <>
-          Don't have an account?{" "}
-          <Link to="/register" className="text-primary font-medium hover:underline">
-            Create one
-          </Link>
-        </>
-      }
-    >
-      <Button
-        variant="outline"
-        className="w-full h-12 text-sm font-medium mb-6"
-        onClick={handleGoogle}
-      >
-        <GoogleIcon className="w-5 h-5 mr-2" />
-        Continue with Google
-      </Button>
-
-      <div className="relative mb-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-3 text-muted-foreground">or</span>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              autoFocus
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="pl-10 h-12"
-              required
-            />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(35,92%,55%)] to-[hsl(25,90%,45%)] items-center justify-center mb-4 shadow-lg shadow-[hsl(35,92%,55%)]/25">
+            <span className="text-2xl font-bold text-black">N</span>
           </div>
+          <h1 className="text-3xl font-bold tracking-tight">Noucolor</h1>
+          <p className="text-muted-foreground mt-2">Gestió Interna — Pintura i Decoració</p>
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link to="/forgot-password" className="text-xs text-primary hover:underline">
-              Forgot password?
-            </Link>
+
+        <form onSubmit={handleSubmit} className="bg-card rounded-xl border border-border p-6 space-y-5">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Usuario</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Introduce tu usuario"
+                className="pl-10 bg-secondary border-border h-11"
+                autoFocus
+                required
+              />
+            </div>
           </div>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 h-12"
-              required
-            />
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Contraseña</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Introduce tu contraseña"
+                className="pl-10 bg-secondary border-border h-11"
+                required
+              />
+            </div>
           </div>
-        </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Logging in...
-            </>
-          ) : (
-            "Log in"
+          {error && (
+            <div className="p-3 rounded-lg bg-red-500/10 text-red-400 text-sm text-center">
+              {error}
+            </div>
           )}
-        </Button>
-      </form>
-    </AuthLayout>
+          <Button
+            type="submit"
+            disabled={!username || !password || loading}
+            className="w-full h-11 bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black font-medium gap-2"
+          >
+            {loading ? (
+              <><Loader2 size={18} className="animate-spin" /> Iniciando sesión...</>
+            ) : (
+              <><LogIn size={18} /> Iniciar Sesión</>
+            )}
+          </Button>
+        </form>
+
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          Principat d'Andorra © {new Date().getFullYear()} Noucolor
+        </p>
+      </div>
+    </div>
   );
 }

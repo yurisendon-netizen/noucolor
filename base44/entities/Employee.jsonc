@@ -23,8 +23,7 @@
       "type": "string"
     },
     "nss": {
-      "type": "string",
-      "description": "N\u00famero Seguretat Social"
+      "type": "string"
     },
     "dni": {
       "type": "string"
@@ -43,6 +42,23 @@
     },
     "avatar_url": {
       "type": "string"
+    },
+    "employee_code": {
+      "type": "string",
+      "description": "Codi d'empleat"
+    },
+    "user": {
+      "type": "string",
+      "description": "Nom d'usuari per login"
+    },
+    "pass": {
+      "type": "string",
+      "description": "Contrasenya"
+    },
+    "precioHora": {
+      "type": "number",
+      "description": "Preu per hora (\u20ac)",
+      "default": 0
     }
   },
   "required": [

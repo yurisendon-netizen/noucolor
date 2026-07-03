@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Clock, FileText, ShieldCheck, Users, 
   CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft
 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { useCustomAuth } from '@/lib/CustomAuthContext';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
@@ -20,11 +20,12 @@ const navItems = [
 
 export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleCollapse }) {
   const location = useLocation();
+  const { logout } = useCustomAuth();
 
   const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   const handleLogout = () => {
-    base44.auth.logout('/login');
+    logout();
   };
 
   return (
