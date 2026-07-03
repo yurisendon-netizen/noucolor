@@ -1,0 +1,111 @@
+import React, { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
+import { Clock, FileText, Users, Receipt, TrendingUp, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import useEmployeeProfile from '@/hooks/useEmployeeProfile';
+import PageHeader from '@/components/shared/PageHeader';
+
+function StatCard({ icon: Icon, label, value, color, to }) {
+  const content = (
+    <div className="bg-card rounded-xl border border-border p-5 hover:border-[hsl(35,92%,55%)]/30 transition-all duration-300 group">
+      <div className="flex items-center justify-between mb-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
+          <Icon size={20} />
+        </div>
+        <TrendingUp size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-sm text-muted-foreground mt-1">{label}</p>
+    </div>
+  );
+  return to ? <Link to={to}>{content}</Link> : content;
+}
+
+export default function Dashboard() {
+  const { employee, isAdmin, user } = useEmployeeProfile();
+  const [stats, setStats] = useState({ entries: 0, orders: 0, employees: 0, payrolls: 0, pending: 0 });
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const [entries, orders, employees, payrolls] = await Promise.all([
+          base44.entities.TimeEntry.filter({ date: today }),
+          base44.entities.WorkOrder.list('-created_date', 5),
+          isAdmin ? base44.entities.Employee.filter({ is_active: true }) : Promise.resolve([]),
+          isAdmin ? base44.entities.Payroll.list('-created_date', 5) : Promise.resolve([]),
+        ]);
+        const pendingOrders = orders.filter(o => o.status === 'pendiente');
+        setStats({
+          entries: entries.length,
+          orders: orders.length,
+          employees: employees.length,
+          payrolls: payrolls.length,
+          pending: pendingOrders.length,
+        });
+        setRecentOrders(orders.slice(0, 5));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [isAdmin]);
+
+  const displayName = employee?.full_name || user?.full_name || 'Usuario';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      <PageHeader
+        title={`Hola, ${displayName}`}
+        subtitle={isAdmin ? 'Panel de Administración — Noucolor' : 'Panel de Operario — Noucolor'}
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard icon={Clock} label="Fichajes Hoy" value={stats.entries} color="bg-blue-500/15 text-blue-400" to="/control-horario" />
+        <StatCard icon={FileText} label="Partes de Trabajo" value={stats.orders} color="bg-emerald-500/15 text-emerald-400" to="/partes-trabajo" />
+        {isAdmin && <StatCard icon={Users} label="Empleados Activos" value={stats.employees} color="bg-purple-500/15 text-purple-400" to="/empleados" />}
+        {isAdmin && <StatCard icon={Receipt} label="Nóminas" value={stats.payrolls} color="bg-[hsl(35,92%,55%)]/15 text-[hsl(35,92%,55%)]" to="/nominas" />}
+        {!isAdmin && <StatCard icon={AlertCircle} label="Pendientes" value={stats.pending} color="bg-yellow-500/15 text-yellow-400" to="/partes-trabajo" />}
+      </div>
+
+      <div className="bg-card rounded-xl border border-border">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="font-semibold">Últimos Partes de Trabajo</h2>
+        </div>
+        <div className="divide-y divide-border">
+          {recentOrders.length === 0 ? (
+            <div className="px-5 py-8 text-center text-muted-foreground text-sm">No hay partes recientes</div>
+          ) : (
+            recentOrders.map(order => (
+              <div key={order.id} className="px-5 py-3 flex items-center justify-between hover:bg-secondary/30 transition-colors">
+                <div>
+                  <p className="text-sm font-medium">{order.title}</p>
+                  <p className="text-xs text-muted-foreground">{order.client_name} · {order.date}</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  order.status === 'completado' ? 'bg-emerald-500/15 text-emerald-400' :
+                  order.status === 'en_progreso' ? 'bg-blue-500/15 text-blue-400' :
+                  'bg-yellow-500/15 text-yellow-400'
+                }`}>
+                  {order.status === 'completado' ? 'Completado' : order.status === 'en_progreso' ? 'En Progreso' : 'Pendiente'}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

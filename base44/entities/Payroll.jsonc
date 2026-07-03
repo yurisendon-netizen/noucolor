@@ -1,0 +1,73 @@
+{
+  "name": "Payroll",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "employee_dni": {
+      "type": "string"
+    },
+    "employee_nss": {
+      "type": "string"
+    },
+    "period_month": {
+      "type": "number"
+    },
+    "period_year": {
+      "type": "number"
+    },
+    "base_salary": {
+      "type": "number"
+    },
+    "overtime_hours": {
+      "type": "number",
+      "default": 0
+    },
+    "overtime_pay": {
+      "type": "number",
+      "default": 0
+    },
+    "bonus": {
+      "type": "number",
+      "default": 0
+    },
+    "gross_salary": {
+      "type": "number"
+    },
+    "cass_employee": {
+      "type": "number",
+      "description": "Cotitzaci\u00f3 CASS treballador (6.5%)"
+    },
+    "irpf": {
+      "type": "number",
+      "description": "Retenci\u00f3 IRPF"
+    },
+    "other_deductions": {
+      "type": "number",
+      "default": 0
+    },
+    "net_salary": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "borrador",
+        "emitida",
+        "pagada"
+      ],
+      "default": "borrador"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "period_month",
+    "period_year",
+    "base_salary"
+  ]
+}

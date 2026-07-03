@@ -1,0 +1,52 @@
+{
+  "name": "Justificante",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "baja_medica",
+        "vacaciones",
+        "permiso_personal",
+        "otro"
+      ],
+      "default": "otro"
+    },
+    "date_from": {
+      "type": "string",
+      "format": "date"
+    },
+    "date_to": {
+      "type": "string",
+      "format": "date"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "aprobado",
+        "rechazado"
+      ],
+      "default": "pendiente"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "type",
+    "date_from",
+    "date_to"
+  ]
+}

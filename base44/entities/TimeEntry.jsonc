@@ -1,0 +1,53 @@
+{
+  "name": "TimeEntry",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "clock_in": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clock_out": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clock_in_lat": {
+      "type": "number"
+    },
+    "clock_in_lng": {
+      "type": "number"
+    },
+    "clock_out_lat": {
+      "type": "number"
+    },
+    "clock_out_lng": {
+      "type": "number"
+    },
+    "total_hours": {
+      "type": "number"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "abierto",
+        "cerrado"
+      ],
+      "default": "abierto"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "clock_in",
+    "date"
+  ]
+}
