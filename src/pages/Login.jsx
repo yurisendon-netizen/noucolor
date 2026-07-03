@@ -39,11 +39,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(35,92%,55%)] to-[hsl(25,90%,45%)] items-center justify-center mb-4 shadow-lg shadow-[hsl(35,92%,55%)]/25">
-            <span className="text-2xl font-bold text-black">N</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Noucolor</h1>
-          <p className="text-muted-foreground mt-2">Gestió Interna — Pintura i Decoració</p>
+          <img src="https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png" alt="Noucolor" className="mx-auto h-20 w-auto mb-2 rounded-lg" />
+          <p className="text-muted-foreground mt-2">Gestió Interna</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card rounded-xl border border-border p-6 space-y-5">

@@ -44,17 +44,10 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
       `}>
         <div className={`flex items-center h-16 border-b border-border px-4 ${collapsed ? 'justify-center' : 'justify-between'}`}>
           {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(35,92%,55%)] to-[hsl(25,90%,45%)] flex items-center justify-center">
-                <span className="text-sm font-bold text-black">N</span>
-              </div>
-              <span className="font-bold text-lg tracking-tight">Noucolor</span>
-            </div>
+            <img src="https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png" alt="Noucolor" className="h-9 w-auto" />
           )}
           {collapsed && (
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(35,92%,55%)] to-[hsl(25,90%,45%)] flex items-center justify-center">
-              <span className="text-sm font-bold text-black">N</span>
-            </div>
+            <img src="https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png" alt="Noucolor" className="h-9 w-auto" />
           )}
           <button onClick={onClose} className="lg:hidden text-muted-foreground hover:text-foreground">
             <X size={20} />
