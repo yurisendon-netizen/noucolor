@@ -12,6 +12,7 @@ import Login from '@/pages/Login';
 import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import ControlHorario from '@/pages/ControlHorario';
+import HorasExtras from '@/pages/HorasExtras';
 import PartesTrabajo from '@/pages/PartesTrabajo';
 import Justificantes from '@/pages/Justificantes';
 import Empleados from '@/pages/Empleados';
@@ -33,6 +34,7 @@ function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/control-horario" element={<ControlHorario />} />
+                <Route path="/horas-extras" element={<HorasExtras />} />
                   <Route path="/partes-trabajo" element={<PartesTrabajo />} />
                   <Route path="/justificantes" element={<Justificantes />} />
                   <Route path="/empleados" element={<Empleados />} />

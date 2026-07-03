@@ -1,0 +1,65 @@
+{
+  "name": "OvertimeHour",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "start_time": {
+      "type": "string"
+    },
+    "end_time": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "number",
+      "description": "Duraci\u00f3n en horas"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "nocturna",
+        "festivo",
+        "urgente"
+      ],
+      "default": "normal"
+    },
+    "obra_motivo": {
+      "type": "string"
+    },
+    "precio_hora": {
+      "type": "number"
+    },
+    "multiplier": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "aprobado",
+        "rechazado"
+      ],
+      "default": "pendiente"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "date",
+    "start_time",
+    "end_time",
+    "type"
+  ]
+}
