@@ -4,7 +4,7 @@ import { Plus, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -94,6 +94,7 @@ export default function Justificantes() {
 
       <DataTable
         data={items}
+        onRefresh={loadItems}
         columns={columns}
         searchField="employee_name"
         filterField="status"
@@ -121,15 +122,17 @@ export default function Justificantes() {
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader><DialogTitle>Nuevo Justificante</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
-            <Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}>
-              <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="baja_medica">Baja Médica</SelectItem>
-                <SelectItem value="vacaciones">Vacaciones</SelectItem>
-                <SelectItem value="permiso_personal">Permiso Personal</SelectItem>
-                <SelectItem value="otro">Otro</SelectItem>
-              </SelectContent>
-            </Select>
+            <ResponsiveSelect
+              value={form.type}
+              onValueChange={v => setForm({ ...form, type: v })}
+              options={[
+                { value: 'baja_medica', label: 'Baja Médica' },
+                { value: 'vacaciones', label: 'Vacaciones' },
+                { value: 'permiso_personal', label: 'Permiso Personal' },
+                { value: 'otro', label: 'Otro' },
+              ]}
+              className="bg-secondary border-border"
+            />
             <div className="grid grid-cols-2 gap-3">
               <Input type="date" value={form.date_from} onChange={e => setForm({ ...form, date_from: e.target.value })} className="bg-secondary border-border" />
               <Input type="date" value={form.date_to} onChange={e => setForm({ ...form, date_to: e.target.value })} className="bg-secondary border-border" />

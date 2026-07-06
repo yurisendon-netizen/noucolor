@@ -4,7 +4,7 @@ import { Plus, Edit, Trash2, Check, X, Clock, Euro, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -183,18 +183,19 @@ export default function HorasExtras() {
           <SummaryCard icon={Timer} label="Pendientes" value={summary.pending} color="bg-yellow-500/15 text-yellow-400" />
         </div>
         <div className="flex gap-2">
-          <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
-            <SelectTrigger className="w-40 bg-secondary border-border"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m, i) => <SelectItem key={i} value={String(i)}>{m}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <ResponsiveSelect
+            value={String(month)}
+            onValueChange={v => setMonth(Number(v))}
+            options={MONTHS.map((m, i) => ({ value: String(i), label: m }))}
+            className="w-40 bg-secondary border-border"
+          />
           <Input type="number" value={year} onChange={e => setYear(Number(e.target.value))} className="w-28 bg-secondary border-border" />
         </div>
       </div>
 
       <DataTable
         data={monthData}
+        onRefresh={loadItems}
         columns={columns}
         searchField={isAdmin ? 'employee_name' : 'obra_motivo'}
         filterField="status"
@@ -248,15 +249,17 @@ export default function HorasExtras() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Tipo</label>
-              <Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="normal">Normal (x1.5)</SelectItem>
-                  <SelectItem value="nocturna">Nocturna (x2)</SelectItem>
-                  <SelectItem value="festivo">Festivo (x2.5)</SelectItem>
-                  <SelectItem value="urgente">Urgente (x2)</SelectItem>
-                </SelectContent>
-              </Select>
+              <ResponsiveSelect
+                value={form.type}
+                onValueChange={v => setForm({ ...form, type: v })}
+                options={[
+                  { value: 'normal', label: 'Normal (x1.5)' },
+                  { value: 'nocturna', label: 'Nocturna (x2)' },
+                  { value: 'festivo', label: 'Festivo (x2.5)' },
+                  { value: 'urgente', label: 'Urgente (x2)' },
+                ]}
+                className="bg-secondary border-border"
+              />
             </div>
             <Textarea placeholder="Obra / Motivo" value={form.obra_motivo} onChange={e => setForm({ ...form, obra_motivo: e.target.value })} className="bg-secondary border-border" />
             {previewDuration > 0 && (

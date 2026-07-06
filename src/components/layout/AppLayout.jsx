@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import BottomTabs from '@/components/layout/BottomTabs';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
+
+const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png';
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,18 +29,25 @@ export default function AppLayout() {
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
       />
-      <main className="flex-1 overflow-y-auto">
-        <div className="page-transition">
-          <Outlet />
-        </div>
-      </main>
-
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed bottom-6 right-6 z-30 lg:hidden w-14 h-14 rounded-full bg-[hsl(35,92%,55%)] text-black shadow-lg shadow-[hsl(35,92%,55%)]/25 flex items-center justify-center hover:scale-105 transition-transform"
-      >
-        <Menu size={24} />
-      </button>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <header
+          className="lg:hidden bg-sidebar border-b border-border shrink-0"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          <div className="flex items-center justify-between h-14 px-4">
+            <img src={LOGO} alt="Noucolor" className="h-7 w-auto" />
+            <button onClick={() => setSidebarOpen(true)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground" aria-label="Abrir menú">
+              <Menu size={22} />
+            </button>
+          </div>
+        </header>
+        <main className="flex-1 overflow-y-auto overscroll-none">
+          <div className="page-transition pb-24 lg:pb-0">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+      <BottomTabs />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
 import { CustomAuthProvider } from '@/lib/CustomAuthContext';
+import { ThemeProvider } from 'next-themes';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 import Login from '@/pages/Login';
@@ -23,9 +24,10 @@ import Normas from '@/pages/Normas';
 
 function App() {
   return (
-    <AuthProvider>
-      <CustomAuthProvider>
-        <QueryClientProvider client={queryClientInstance}>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+      <AuthProvider>
+        <CustomAuthProvider>
+          <QueryClientProvider client={queryClientInstance}>
           <Router>
             <ScrollToTop />
             <Routes>
@@ -48,9 +50,10 @@ function App() {
             </Routes>
           </Router>
           <Toaster />
-        </QueryClientProvider>
-      </CustomAuthProvider>
-    </AuthProvider>
+          </QueryClientProvider>
+        </CustomAuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

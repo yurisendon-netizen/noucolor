@@ -4,7 +4,7 @@ import { Plus, Trash2, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/components/ui/use-toast';
@@ -113,12 +113,12 @@ export default function Normas() {
           <DialogHeader><DialogTitle>Nueva Norma</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <Input placeholder="Título *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-secondary border-border" />
-            <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
-              <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(categoryLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <ResponsiveSelect
+              value={form.category}
+              onValueChange={v => setForm({ ...form, category: v })}
+              options={Object.entries(categoryLabels).map(([k, v]) => ({ value: k, label: v }))}
+              className="bg-secondary border-border"
+            />
             <Textarea placeholder="Contenido de la norma *" rows={6} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} className="bg-secondary border-border" />
             <Button onClick={handleCreate} disabled={!form.title || !form.content} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
               Publicar Norma

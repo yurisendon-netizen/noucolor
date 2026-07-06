@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Plus, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/shared/PageHeader';
@@ -220,6 +220,7 @@ export default function Nominas() {
 
       <DataTable
         data={payrolls}
+        onRefresh={loadData}
         columns={columns}
         searchField="employee_name"
         filterField="status"
@@ -240,19 +241,20 @@ export default function Nominas() {
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader><DialogTitle>Generar Nómina</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
-            <Select value={form.employee_id} onValueChange={v => setForm({ ...form, employee_id: v })}>
-              <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Seleccionar empleado" /></SelectTrigger>
-              <SelectContent>
-                {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.full_name} — {(e.base_salary || 0).toFixed(2)}€/mes</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <ResponsiveSelect
+              value={form.employee_id}
+              onValueChange={v => setForm({ ...form, employee_id: v })}
+              placeholder="Seleccionar empleado"
+              options={employees.map(e => ({ value: e.id, label: `${e.full_name} — ${(e.base_salary || 0).toFixed(2)}€/mes` }))}
+              className="bg-secondary border-border"
+            />
             <div className="grid grid-cols-2 gap-3">
-              <Select value={String(form.period_month)} onValueChange={v => setForm({ ...form, period_month: v })}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <ResponsiveSelect
+                value={String(form.period_month)}
+                onValueChange={v => setForm({ ...form, period_month: v })}
+                options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+                className="bg-secondary border-border"
+              />
               <Input type="number" placeholder="Año" value={form.period_year} onChange={e => setForm({ ...form, period_year: e.target.value })} className="bg-secondary border-border" />
             </div>
             <Input type="number" placeholder="Horas extras" value={form.overtime_hours} onChange={e => setForm({ ...form, overtime_hours: e.target.value })} className="bg-secondary border-border" />

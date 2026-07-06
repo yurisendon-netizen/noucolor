@@ -4,7 +4,7 @@ import { Plus, Trash2, CheckCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -87,6 +87,7 @@ export default function PartesTrabajo() {
 
       <DataTable
         data={orders}
+        onRefresh={loadOrders}
         columns={columns}
         searchField={['title', 'client_name']}
         filterField="status"
@@ -125,14 +126,16 @@ export default function PartesTrabajo() {
             <Input placeholder="Cliente *" value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Dirección" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="bg-secondary border-border" />
             <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
-            <Select value={form.priority} onValueChange={v => setForm({ ...form, priority: v })}>
-              <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="baja">Baja</SelectItem>
-                <SelectItem value="media">Media</SelectItem>
-                <SelectItem value="alta">Alta</SelectItem>
-              </SelectContent>
-            </Select>
+            <ResponsiveSelect
+              value={form.priority}
+              onValueChange={v => setForm({ ...form, priority: v })}
+              options={[
+                { value: 'baja', label: 'Baja' },
+                { value: 'media', label: 'Media' },
+                { value: 'alta', label: 'Alta' },
+              ]}
+              className="bg-secondary border-border"
+            />
             <Textarea placeholder="Descripción" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Materiales" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
             <Textarea placeholder="Notas" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />
