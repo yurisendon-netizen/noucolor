@@ -19,7 +19,7 @@ export default function BottomTabs({ isJefe }) {
   const tabs = isJefe ? jefeTabs : defaultTabs;
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-30 lg:hidden bg-sidebar border-t border-border"
+      className="fixed bottom-0 inset-x-0 z-[1100] lg:hidden bg-sidebar border-t border-border"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex items-center justify-around h-16">
