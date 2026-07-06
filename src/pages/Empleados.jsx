@@ -75,11 +75,15 @@ export default function Empleados() {
     { key: 'email', label: 'Email' },
     { key: 'position', label: 'Puesto', render: r => r.position || '—' },
     { key: 'precioHora', label: '€/hora', render: r => r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—' },
-    { key: 'role', label: 'Rol', render: r => (
-      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.role === 'administrador' ? 'bg-purple-500/15 text-purple-400' : 'bg-blue-500/15 text-blue-400'}`}>
-        {r.role === 'administrador' ? 'Admin' : 'Operario'}
-      </span>
-    )},
+    { key: 'role', label: 'Rol', render: r => {
+      const styles = {
+        jefe: 'bg-red-500/15 text-red-400',
+        administrador: 'bg-purple-500/15 text-purple-400',
+        operario: 'bg-blue-500/15 text-blue-400'
+      };
+      const labels = { jefe: 'Jefe', administrador: 'Admin', operario: 'Operario' };
+      return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[r.role] || styles.operario}`}>{labels[r.role] || r.role}</span>;
+    }},
     { key: 'is_active', label: 'Estado', render: r => (
       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.is_active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
         {r.is_active ? 'Activo' : 'Inactivo'}
