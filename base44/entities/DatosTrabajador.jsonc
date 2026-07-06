@@ -11,6 +11,31 @@
     "phone": {
       "type": "string"
     },
+    "dni": {
+      "type": "string",
+      "description": "DNI o Pasaporte"
+    },
+    "cass": {
+      "type": "string",
+      "description": "N\u00famero de Tarjeta CASS"
+    },
+    "iban": {
+      "type": "string",
+      "description": "N\u00famero de cuenta bancaria (IBAN)"
+    },
+    "cargo": {
+      "type": "string",
+      "enum": [
+        "operario",
+        "administrador"
+      ],
+      "default": "operario"
+    },
+    "hire_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de incorporaci\u00f3n"
+    },
     "user": {
       "type": "string",
       "description": "Nom d'usuari per login"
@@ -27,7 +52,9 @@
   "required": [
     "full_name",
     "email",
-    "user",
-    "pass"
+    "phone",
+    "dni",
+    "cass",
+    "iban"
   ]
 }

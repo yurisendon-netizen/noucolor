@@ -1,21 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { UserPlus, Download, Trash2 } from 'lucide-react';
+import { UserPlus, Download, Users, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import PageHeader from '@/components/shared/PageHeader';
+import RecogidaForm from '@/components/recogida-datos/RecogidaForm';
+import RecogidaTable from '@/components/recogida-datos/RecogidaTable';
 import * as XLSX from 'xlsx';
 import moment from 'moment';
+
+const EMPTY_FORM = {
+  full_name: '', email: '', phone: '', dni: '', cass: '', iban: '',
+  cargo: 'operario', hire_date: '', user: '', pass: ''
+};
+const REQUIRED = ['full_name', 'email', 'phone', 'dni', 'cass', 'iban', 'user', 'pass'];
+const LABELS = {
+  full_name: 'Nombre', email: 'Correo', phone: 'Teléfono', dni: 'DNI',
+  cass: 'CASS', iban: 'IBAN', user: 'Usuario', pass: 'Contraseña'
+};
 
 export default function RecogidaDatos() {
   const { isAdmin } = useEmployeeProfile();
   const { toast } = useToast();
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '', user: '', pass: '' });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState(new Set());
 
   useEffect(() => {
     if (isAdmin === false) return;
@@ -30,32 +45,67 @@ export default function RecogidaDatos() {
     finally { setLoading(false); }
   }
 
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!form.full_name.trim() || !form.email.trim() || !form.user.trim() || !form.pass.trim()) return;
+  function openAdd() {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setDialogOpen(true);
+  }
+
+  function openEdit(w) {
+    setEditing(w);
+    setForm({ ...EMPTY_FORM, ...w });
+    setDialogOpen(true);
+  }
+
+  function validate() {
+    for (const f of REQUIRED) {
+      if (!String(form[f] || '').trim()) {
+        toast({ title: 'Campo obligatorio', description: `Falta: ${LABELS[f]}`, variant: 'destructive' });
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function handleSave() {
+    if (!validate()) return;
     setSaving(true);
     try {
-      const emp = await base44.entities.Employee.create({
+      const payload = {
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
+        dni: form.dni.trim(),
+        cass: form.cass.trim(),
+        iban: form.iban.trim(),
+        cargo: form.cargo || 'operario',
+        hire_date: form.hire_date || null,
         user: form.user.trim().toLowerCase(),
         pass: form.pass,
-        role: 'operario',
-        precioHora: 0,
-        base_salary: 0,
-        is_active: true,
-      });
-      await base44.entities.DatosTrabajador.create({
-        full_name: form.full_name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        user: form.user.trim().toLowerCase(),
-        pass: form.pass,
-        employee_id: emp.id,
-      });
-      toast({ title: '✅ Trabajador añadido', description: `${form.full_name} ya puede fichar` });
-      setForm({ full_name: '', email: '', phone: '', user: '', pass: '' });
+      };
+      if (editing) {
+        await base44.entities.DatosTrabajador.update(editing.id, payload);
+        if (editing.employee_id) {
+          await base44.entities.Employee.update(editing.employee_id, {
+            full_name: payload.full_name, email: payload.email, phone: payload.phone,
+            dni: payload.dni, nss: payload.cass, hire_date: payload.hire_date,
+            role: payload.cargo, user: payload.user, pass: payload.pass,
+          }).catch(() => {});
+        }
+        toast({ title: '✅ Trabajador actualizado' });
+      } else {
+        const emp = await base44.entities.Employee.create({
+          full_name: payload.full_name, email: payload.email, phone: payload.phone,
+          dni: payload.dni, nss: payload.cass, hire_date: payload.hire_date,
+          role: payload.cargo, user: payload.user, pass: payload.pass,
+          base_salary: 0, precioHora: 0, is_active: true,
+        });
+        await base44.entities.DatosTrabajador.create({ ...payload, employee_id: emp.id });
+        toast({ title: '✅ Trabajador añadido', description: `${payload.full_name} ya puede fichar` });
+      }
+      setDialogOpen(false);
+      setForm(EMPTY_FORM);
+      setEditing(null);
       loadWorkers();
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -64,37 +114,63 @@ export default function RecogidaDatos() {
     }
   }
 
-  async function handleDelete(worker) {
+  async function handleDelete(w) {
+    if (!confirm(`¿Eliminar a ${w.full_name}?`)) return;
     try {
-      if (worker.employee_id) {
-        await base44.entities.Employee.delete(worker.employee_id).catch(() => {});
+      if (w.employee_id) {
+        await base44.entities.Employee.delete(w.employee_id).catch(() => {});
       }
-      await base44.entities.DatosTrabajador.delete(worker.id);
+      await base44.entities.DatosTrabajador.delete(w.id);
       toast({ title: 'Trabajador eliminado' });
+      setSelected(prev => { const n = new Set(prev); n.delete(w.id); return n; });
       loadWorkers();
     } catch (e) {
       toast({ title: 'Error', variant: 'destructive' });
     }
   }
 
+  function toggleSelect(id) {
+    setSelected(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }
+
+  function toggleSelectAll(filtered) {
+    setSelected(prev => {
+      const allSel = filtered.every(w => prev.has(w.id));
+      const n = new Set(prev);
+      if (allSel) filtered.forEach(w => n.delete(w.id));
+      else filtered.forEach(w => n.add(w.id));
+      return n;
+    });
+  }
+
   function handleExportExcel() {
-    if (workers.length === 0) {
+    const toExport = selected.size > 0 ? workers.filter(w => selected.has(w.id)) : workers;
+    if (toExport.length === 0) {
       toast({ title: 'No hay datos para exportar' });
       return;
     }
-    const rows = workers.map(w => ({
+    const rows = toExport.map(w => ({
       'Nombre': w.full_name || '',
       'Correo': w.email || '',
       'Teléfono': w.phone || '',
-      'Usuario': w.user || '',
-      'Fecha': w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '',
+      'DNI/Pasaporte': w.dni || '',
+      'CASS': w.cass || '',
+      'IBAN': w.iban || '',
+      'Cargo': w.cargo === 'administrador' ? 'Administrador' : 'Operario',
+      'Fecha incorporación': w.hire_date ? moment(w.hire_date).format('DD/MM/YYYY') : '',
+      'Fecha registro': w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 30 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 22 }];
+    ws['!cols'] = [{ wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 30 }, { wch: 14 }, { wch: 18 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trabajadores');
-    XLSX.writeFile(wb, `Recogida_Datos_Noucolor_${moment().format('DD-MM-YYYY')}.xlsx`);
-    toast({ title: '📊 Excel exportado', description: `${workers.length} trabajadores` });
+    const suffix = selected.size > 0 ? `_seleccionados` : '';
+    XLSX.writeFile(wb, `Recogida_Datos_Noucolor${suffix}_${moment().format('DD-MM-YYYY')}.xlsx`);
+    toast({ title: '📊 Excel exportado', description: `${toExport.length} trabajador${toExport.length !== 1 ? 'es' : ''}` });
   }
 
   if (isAdmin === false) {
@@ -112,124 +188,71 @@ export default function RecogidaDatos() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
         title="Recogida de Datos"
-        subtitle="Registro de trabajadores en oficina — Uso administrativo"
+        subtitle="Registro de datos de trabajadores — Uso administrativo"
+        actions={
+          <Button onClick={openAdd} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+            <UserPlus size={18} /> Añadir
+          </Button>
+        }
       />
 
-      <form onSubmit={handleAdd} className="bg-card rounded-xl border border-border p-6 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Nombre completo *</label>
-            <Input
-              value={form.full_name}
-              onChange={e => setForm({ ...form, full_name: e.target.value })}
-              placeholder="Ej: Juan Pérez"
-              required
-              className="bg-secondary border-border"
-            />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-card rounded-xl border border-border p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg bg-[hsl(35,92%,55%)]/10 flex items-center justify-center shrink-0">
+            <Users size={24} className="text-[hsl(35,92%,55%)]" />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Correo electrónico *</label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={e => setForm({ ...form, email: e.target.value })}
-              placeholder="ejemplo@correo.com"
-              required
-              className="bg-secondary border-border"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Teléfono</label>
-            <Input
-              value={form.phone}
-              onChange={e => setForm({ ...form, phone: e.target.value })}
-              placeholder="+376 123 456"
-              className="bg-secondary border-border"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Usuario *</label>
-            <Input
-              value={form.user}
-              onChange={e => setForm({ ...form, user: e.target.value })}
-              placeholder="ej: jperez"
-              required
-              className="bg-secondary border-border"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-sm text-muted-foreground mb-1.5 block">Contraseña *</label>
-            <Input
-              value={form.pass}
-              onChange={e => setForm({ ...form, pass: e.target.value })}
-              placeholder="Contraseña para fichar"
-              required
-              className="bg-secondary border-border"
-            />
+            <p className="text-2xl font-bold">{workers.length}</p>
+            <p className="text-xs text-muted-foreground">Total trabajadores</p>
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
-          <Button type="submit" disabled={saving} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
-            <UserPlus size={18} />
-            {saving ? 'Añadiendo...' : 'Añadir Trabajador'}
+        <div className="bg-card rounded-xl border border-border p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+            <CheckSquare size={24} className="text-blue-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{selected.size}</p>
+            <p className="text-xs text-muted-foreground">Seleccionados</p>
+          </div>
+        </div>
+        <div className="flex items-stretch">
+          <Button
+            onClick={handleExportExcel}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-auto text-base"
+          >
+            <Download size={20} />
+            Exportar Excel
+            <span className="opacity-80 text-sm">({selected.size > 0 ? `${selected.size} sel.` : 'todos'})</span>
           </Button>
-        </div>
-      </form>
-
-      <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <h2 className="font-semibold">Trabajadores Registrados ({workers.length})</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-secondary/30">
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Nombre</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Correo</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Teléfono</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Usuario</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {workers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground text-sm">No hay trabajadores registrados todavía</td>
-                </tr>
-              ) : (
-                workers.map(w => (
-                  <tr key={w.id} className="hover:bg-secondary/30 transition-colors">
-                    <td className="px-5 py-3 text-sm font-medium">{w.full_name}</td>
-                    <td className="px-5 py-3 text-sm text-muted-foreground">{w.email}</td>
-                    <td className="px-5 py-3 text-sm text-muted-foreground">{w.phone || '—'}</td>
-                    <td className="px-5 py-3 text-sm font-mono text-[hsl(35,92%,55%)]">{w.user || '—'}</td>
-                    <td className="px-5 py-3 text-sm text-muted-foreground">{w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '—'}</td>
-                    <td className="px-5 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(w)} className="text-red-400 hover:bg-red-500/10">
-                        <Trash2 size={16} />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
 
-      <Button
-        onClick={handleExportExcel}
-        disabled={workers.length === 0}
-        size="lg"
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-14 text-base"
-      >
-        <Download size={22} />
-        Exportar a Excel ({workers.length} registros)
-      </Button>
+      <RecogidaTable
+        workers={workers}
+        selected={selected}
+        onToggle={toggleSelect}
+        onToggleAll={toggleSelectAll}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+      />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Editar trabajador' : 'Nuevo trabajador'}</DialogTitle>
+          </DialogHeader>
+          <RecogidaForm form={form} setForm={setForm} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
