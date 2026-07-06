@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Clock, LogIn, LogOut, AlertTriangle } from 'lucide-react';
+import { Clock, LogIn, LogOut, AlertTriangle, ShieldCheck, Eye, MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -283,6 +284,29 @@ export default function ControlHorario() {
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+  }
+
+  if (employee?.role === 'jefe') {
+    return (
+      <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+        <PageHeader title="Control Horario" />
+        <div className="bg-card rounded-xl border border-border p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-[hsl(35,92%,55%)]/10 flex items-center justify-center mx-auto mb-4">
+            <ShieldCheck size={32} className="text-[hsl(35,92%,55%)]" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Exento de fichaje</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">Como jefe y propietario, no necesitas fichar entrada ni salida. Tu rol es supervisar al equipo.</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link to="/revision-jornadas" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80 transition-colors">
+              <Eye size={16} /> Ver fichajes del equipo
+            </Link>
+            <Link to="/geolocalizacion" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80 transition-colors">
+              <MapPin size={16} /> Ver ubicaciones
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

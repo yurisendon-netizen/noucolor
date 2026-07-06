@@ -10,7 +10,7 @@ const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { isAdmin, loading } = useEmployeeProfile();
+  const { isAdmin, isJefe, loading } = useEmployeeProfile();
 
   if (loading) {
     return (
@@ -47,7 +47,7 @@ export default function AppLayout() {
           </div>
         </main>
       </div>
-      <BottomTabs />
+      <BottomTabs isJefe={isJefe} />
     </div>
   );
 }

@@ -11,8 +11,8 @@ import { useToast } from '@/components/ui/use-toast';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
-  { path: '/control-horario', label: 'Control Horario', icon: Clock, adminOnly: false },
-  { path: '/horas-extras', label: 'Horas Extras', icon: Timer, adminOnly: false },
+  { path: '/control-horario', label: 'Control Horario', icon: Clock, adminOnly: false, hideForJefe: true },
+  { path: '/horas-extras', label: 'Horas Extras', icon: Timer, adminOnly: false, hideForJefe: true },
   { path: '/partes-trabajo', label: 'Partes de Trabajo', icon: FileText, adminOnly: false },
   { path: '/justificantes', label: 'Justificantes', icon: ShieldCheck, adminOnly: false },
   { path: '/empleados', label: 'Empleados', icon: Users, adminOnly: true },
@@ -20,17 +20,20 @@ const navItems = [
   { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
   { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
   { path: '/recogida-datos', label: 'Recogida Datos', icon: ClipboardList, adminOnly: true },
-  { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false },
+  { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false, hideForJefe: true },
 ];
 
 export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleCollapse }) {
   const location = useLocation();
-  const { employee, logout } = useCustomAuth();
+  const { employee, logout, isJefe } = useCustomAuth();
   const { toast } = useToast();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const filteredItems = navItems.filter(item => {
+    if (isJefe) return !item.hideForJefe;
+    return !item.adminOnly || isAdmin;
+  });
 
   const handleLogout = () => {
     logout();

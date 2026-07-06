@@ -51,7 +51,8 @@ export function CustomAuthProvider({ children }) {
       loading,
       login,
       logout,
-      isAdmin: employee?.role === 'administrador'
+      isAdmin: employee?.role === 'administrador',
+      isJefe: employee?.role === 'jefe'
     }}>
       {children}
     </AuthContext.Provider>

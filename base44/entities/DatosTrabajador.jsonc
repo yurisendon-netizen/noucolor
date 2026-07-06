@@ -36,7 +36,8 @@
       "type": "string",
       "enum": [
         "operario",
-        "administrador"
+        "administrador",
+        "jefe"
       ],
       "default": "operario"
     },

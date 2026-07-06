@@ -90,7 +90,8 @@ export default function RecogidaForm({ form, setForm }) {
             onValueChange={v => update('cargo', v)}
             options={[
               { value: 'operario', label: 'Operario' },
-              { value: 'administrador', label: 'Administrador' }
+              { value: 'administrador', label: 'Administrador' },
+              { value: 'jefe', label: 'Jefe / Propietario' }
             ]}
             className="bg-secondary border-border"
           />

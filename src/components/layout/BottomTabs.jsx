@@ -1,15 +1,22 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Clock, FileText } from 'lucide-react';
+import { LayoutDashboard, Clock, FileText, Users } from 'lucide-react';
 
-const tabs = [
+const defaultTabs = [
   { path: '/', label: 'Inicio', icon: LayoutDashboard },
   { path: '/control-horario', label: 'Horario', icon: Clock },
   { path: '/partes-trabajo', label: 'Partes', icon: FileText },
 ];
 
-export default function BottomTabs() {
+const jefeTabs = [
+  { path: '/', label: 'Inicio', icon: LayoutDashboard },
+  { path: '/partes-trabajo', label: 'Partes', icon: FileText },
+  { path: '/empleados', label: 'Equipo', icon: Users },
+];
+
+export default function BottomTabs({ isJefe }) {
   const location = useLocation();
+  const tabs = isJefe ? jefeTabs : defaultTabs;
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-30 lg:hidden bg-sidebar border-t border-border"
