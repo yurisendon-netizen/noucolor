@@ -32,11 +32,7 @@ export default function Geolocalizacion() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    load();
-    const interval = setInterval(load, 15000);
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const center = locations.length > 0
     ? [locations[0].latitude, locations[0].longitude]
@@ -46,7 +42,7 @@ export default function Geolocalizacion() {
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Geolocalización"
-        subtitle="Ubicación en tiempo real de empleados activos"
+        subtitle="Última ubicación registrada al fichar entrada/salida"
         actions={
           <Button variant="outline" onClick={load} className="gap-2 border-border">
             <RefreshCw size={18} /> Actualizar

@@ -19,7 +19,6 @@ export default function ControlHorario() {
   const [clockingIn, setClockingIn] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const watchIdRef = useRef(null);
   const notifiedRef = useRef({ date: '', reminded8: false, absent830: false, notified16: false });
 
   const empId = employee?.id || user?.id;
@@ -27,9 +26,6 @@ export default function ControlHorario() {
 
   useEffect(() => {
     loadEntries();
-    return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    };
   }, [empId]);
 
   useEffect(() => {
@@ -76,20 +72,19 @@ export default function ControlHorario() {
             date: today, type: 'sin_fichar',
             description: 'No fichó la entrada antes de las 8:30'
           });
-          toast({ title: '⚠️ Ausencia injustificada', description: 'No has fichado antes de las 8:30. El día no se cobrará.' });
+          toast({ title: '⚠️ Falta registrada', description: 'No has fichado antes de las 8:30. Falta registrada (no descuenta sueldo).' });
           if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('⚠️ Ausencia injustificada', { body: 'No has fichado antes de las 8:30. El día no se cobrará.' });
+            new Notification('⚠️ Falta registrada', { body: 'No has fichado antes de las 8:30. Falta registrada (no descuenta sueldo).' });
           }
           loadEntries();
         }
 
-        if (hour >= 16 && hasOpen && !notifiedRef.current.notified16) {
+        if (hour === 16 && hasOpen && !notifiedRef.current.notified16) {
           notifiedRef.current.notified16 = true;
-          toast({ title: '🔒 Hora de salida', description: 'Son las 16:00. Tu jornada se cerrará automáticamente.' });
+          toast({ title: '🔒 Hora de salida', description: 'Ventana de fichaje de salida: 16:00 - 16:30' });
           if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('🔒 Hora de salida', { body: 'Son las 16:00. Tu jornada se cerrará automáticamente.' });
+            new Notification('🔒 Hora de salida', { body: 'Ventana de fichaje de salida: 16:00 - 16:30' });
           }
-          loadEntries();
         }
       } catch (e) { /* silent */ }
     }, 30000);
@@ -104,8 +99,10 @@ export default function ControlHorario() {
 
       const now = new Date();
       const hour = now.getHours();
+      const minutes = now.getMinutes();
 
-      if (open && hour >= 16) {
+      // Auto-close at 16:30 (end of salida window) if still open
+      if (open && (hour > 16 || (hour === 16 && minutes >= 30))) {
         const clockOut = new Date();
         clockOut.setHours(16, 0, 0, 0);
         const clockIn = new Date(open.clock_in);
@@ -117,15 +114,14 @@ export default function ControlHorario() {
           status: 'cerrado',
           auto_closed: true
         });
-        stopLocationTracking();
-        toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 8:00' });
+        await deactivateLocation();
+        toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 7:45' });
         data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
         open = null;
       }
 
       setEntries(data);
       setOpenEntry(open || null);
-      if (open) startLocationTracking();
     } catch (e) {
       console.error(e);
     } finally {
@@ -144,35 +140,25 @@ export default function ControlHorario() {
     });
   }
 
-  function startLocationTracking() {
-    if (!navigator.geolocation || watchIdRef.current !== null) return;
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      async (pos) => {
-        try {
-          await base44.entities.EmployeeLocation.filter({ employee_id: empId }).then(async (locs) => {
-            const data = {
-              employee_id: empId, employee_name: empName,
-              latitude: pos.coords.latitude, longitude: pos.coords.longitude,
-              is_active: true, last_update: new Date().toISOString()
-            };
-            if (locs.length > 0) await base44.entities.EmployeeLocation.update(locs[0].id, data);
-            else await base44.entities.EmployeeLocation.create(data);
-          });
-        } catch (e) { /* silent */ }
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
-    );
+  // Capture location ONLY at clock-in / clock-out (no continuous tracking)
+  async function upsertEmployeeLocation(isActive, coords) {
+    try {
+      const locs = await base44.entities.EmployeeLocation.filter({ employee_id: empId });
+      const data = {
+        employee_id: empId, employee_name: empName,
+        latitude: coords.lat, longitude: coords.lng,
+        is_active: isActive, last_update: new Date().toISOString()
+      };
+      if (locs.length > 0) await base44.entities.EmployeeLocation.update(locs[0].id, data);
+      else await base44.entities.EmployeeLocation.create(data);
+    } catch (e) { /* silent */ }
   }
 
-  function stopLocationTracking() {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    base44.entities.EmployeeLocation.filter({ employee_id: empId }).then(locs => {
-      locs.forEach(l => base44.entities.EmployeeLocation.update(l.id, { is_active: false }));
-    });
+  async function deactivateLocation() {
+    try {
+      const locs = await base44.entities.EmployeeLocation.filter({ employee_id: empId });
+      locs.forEach(l => base44.entities.EmployeeLocation.update(l.id, { is_active: false, last_update: new Date().toISOString() }));
+    } catch (e) { /* silent */ }
   }
 
   async function handleClockIn() {
@@ -201,18 +187,20 @@ export default function ControlHorario() {
         });
       }
 
-      if (hour > 8 || (hour === 8 && minutes > 30)) {
+      await upsertEmployeeLocation(true, loc);
+
+      // Late entry: after 8:15 (window is 7:45 - 8:15)
+      if (hour > 8 || (hour === 8 && minutes > 15)) {
         await base44.entities.Incumplimiento.create({
           employee_id: empId, employee_name: empName,
           date: today, type: 'entrada_tardia',
-          description: `Fichó entrada a las ${moment(now).format('HH:mm')} (límite 8:30)`
+          description: `Fichó entrada a las ${moment(now).format('HH:mm')} (límite 8:15)`
         });
         toast({ title: '⚠️ Entrada tardía', description: `${moment(now).format('HH:mm')} — Incumplimiento registrado` });
       } else {
         toast({ title: '✅ Entrada fichada', description: `${moment(now).format('HH:mm')} — Ubicación registrada` });
       }
 
-      startLocationTracking();
       loadEntries();
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -231,13 +219,15 @@ export default function ControlHorario() {
       const sixteenToday = new Date();
       sixteenToday.setHours(16, 0, 0, 0);
 
+      // Flat +2h overtime if clocking out after 16:00; regular hours capped at 8 (until 16:00)
+      const isAfter16 = now > sixteenToday;
       let regularHours, overtimeHours;
-      if (now <= sixteenToday) {
+      if (isAfter16) {
+        regularHours = ((sixteenToday - clockIn) / 3600000);
+        overtimeHours = 2;
+      } else {
         regularHours = ((now - clockIn) / 3600000);
         overtimeHours = 0;
-      } else {
-        regularHours = ((sixteenToday - clockIn) / 3600000);
-        overtimeHours = ((now - sixteenToday) / 3600000);
       }
       regularHours = Math.min(Math.max(regularHours, 0), 8);
 
@@ -247,10 +237,10 @@ export default function ControlHorario() {
         overtime_hours: parseFloat(overtimeHours.toFixed(2)),
         status: 'cerrado'
       });
-      stopLocationTracking();
+      await upsertEmployeeLocation(false, loc);
 
       if (overtimeHours > 0) {
-        toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours.toFixed(1)}h extras` });
+        toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras` });
       } else {
         toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas` });
       }
@@ -265,11 +255,17 @@ export default function ControlHorario() {
   const now = currentTime;
   const today = now.toISOString().split('T')[0];
   const hour = now.getHours();
+  const minutes = now.getMinutes();
   const todayEntry = entries.find(e => e.date === today);
   const hasClosedToday = todayEntry && todayEntry.status === 'cerrado';
   const hasAbsenceToday = todayEntry && todayEntry.status === 'ausencia_injustificada';
-  const canClockIn = !openEntry && hour >= 8 && hour < 16 && !hasClosedToday;
-  const showProximo = !openEntry && !canClockIn;
+  // Entry window: 7:45 - 8:30 (falta fires at 8:30)
+  const inEntryWindow = (hour === 7 && minutes >= 45) || (hour === 8 && minutes < 30);
+  const canClockIn = !openEntry && !hasClosedToday && !hasAbsenceToday && inEntryWindow;
+  // Exit window: 16:00 - 16:30
+  const inExitWindow = hour === 16 && minutes <= 30;
+  const canClockOut = !!openEntry && inExitWindow;
+  const showProximo = !openEntry && !canClockIn && !hasAbsenceToday;
 
   const columns = [
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
@@ -317,7 +313,7 @@ export default function ControlHorario() {
         <AlertTriangle size={20} className="text-blue-400 shrink-0 mt-0.5" />
         <div className="text-sm text-blue-300/90">
           <p className="font-medium mb-1">Normativa de fichaje</p>
-          <p>Entrada antes de las <strong>8:30</strong> · Salida automática a las <strong>16:00</strong> · Horas extras después de las 16:00 se calculan aparte · 3 incumplimientos = amonestación escrita.</p>
+          <p>Entrada <strong>7:45 - 8:15</strong> (falta si no fichas antes de las <strong>8:30</strong>, no descuenta sueldo) · Salida <strong>16:00 - 16:30</strong> · Cierre automático a las <strong>16:00</strong> · <strong>+2h extras</strong> si fichas salida después de las 16:00.</p>
         </div>
       </div>
 
@@ -335,20 +331,27 @@ export default function ControlHorario() {
             {hasAbsenceToday && !openEntry && (
               <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start">
                 <AlertTriangle size={16} className="text-red-400" />
-                <span className="text-sm text-red-400">Ausencia injustificada hoy</span>
+                <span className="text-sm text-red-400">Falta registrada hoy</span>
               </div>
             )}
           </div>
           <div className="flex gap-3">
             {openEntry ? (
-              <Button onClick={handleClockOut} disabled={clockingOut} variant="destructive" className="gap-2">
-                <LogOut size={18} />
-                {clockingOut ? 'Fichando...' : 'Fichar Salida'}
-              </Button>
+              canClockOut ? (
+                <Button onClick={handleClockOut} disabled={clockingOut} variant="destructive" className="gap-2">
+                  <LogOut size={18} />
+                  {clockingOut ? 'Fichando...' : 'Fichar Salida'}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-muted-foreground text-sm">
+                  <Clock size={18} />
+                  <span>Salida: 16:00 - 16:30</span>
+                </div>
+              )
             ) : showProximo ? (
               <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-muted-foreground text-sm">
                 <Clock size={18} />
-                <span>Próximo fichaje a las 8:00</span>
+                <span>Próximo fichaje a las 7:45</span>
               </div>
             ) : (
               <Button onClick={handleClockIn} disabled={clockingIn} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
@@ -369,7 +372,7 @@ export default function ControlHorario() {
         filterOptions={[
           { value: 'abierto', label: 'Abierto' },
           { value: 'cerrado', label: 'Cerrado' },
-          { value: 'ausencia_injustificada', label: 'Ausencia' },
+          { value: 'ausencia_injustificada', label: 'Falta' },
         ]}
         emptyMessage="No hay fichajes registrados"
       />

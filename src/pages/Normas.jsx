@@ -10,6 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import PageHeader from '@/components/shared/PageHeader';
+import ReglamentoInterno from '@/components/normas/ReglamentoInterno';
 
 const categoryLabels = {
   general: 'General', seguridad: 'Seguridad', horarios: 'Horarios',
@@ -68,7 +69,7 @@ export default function Normas() {
     <div className="p-6 lg:p-8 max-w-4xl mx-auto">
       <PageHeader
         title="Normas de Empresa"
-        subtitle="Políticas y normativa interna de Noucolor"
+        subtitle="Reglamento interno y políticas de Noucolor"
         actions={
           isAdmin && (
             <Button onClick={() => setDialogOpen(true)} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
@@ -78,34 +79,37 @@ export default function Normas() {
         }
       />
 
-      {rules.length === 0 ? (
-        <div className="bg-card rounded-xl border border-border p-12 text-center">
-          <BookOpen size={48} className="mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">No hay normas publicadas</p>
+      <ReglamentoInterno />
+
+      {rules.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen size={18} className="text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Normas adicionales</h2>
+          </div>
+          <Accordion type="multiple" className="space-y-3">
+            {rules.map(rule => (
+              <AccordionItem key={rule.id} value={rule.id} className="bg-card rounded-xl border border-border px-5 data-[state=open]:border-[hsl(35,92%,55%)]/30 transition-colors">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3 text-left">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColors[rule.category] || categoryColors.general}`}>
+                      {categoryLabels[rule.category] || rule.category}
+                    </span>
+                    <span className="font-medium">{rule.title}</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{rule.content}</p>
+                  {isAdmin && (
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(rule.id)} className="mt-3 text-red-400 hover:bg-red-500/10">
+                      <Trash2 size={14} className="mr-1" /> Eliminar
+                    </Button>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
-      ) : (
-        <Accordion type="multiple" className="space-y-3">
-          {rules.map(rule => (
-            <AccordionItem key={rule.id} value={rule.id} className="bg-card rounded-xl border border-border px-5 data-[state=open]:border-[hsl(35,92%,55%)]/30 transition-colors">
-              <AccordionTrigger className="hover:no-underline py-4">
-                <div className="flex items-center gap-3 text-left">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColors[rule.category] || categoryColors.general}`}>
-                    {categoryLabels[rule.category] || rule.category}
-                  </span>
-                  <span className="font-medium">{rule.title}</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="pb-4">
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{rule.content}</p>
-                {isAdmin && (
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(rule.id)} className="mt-3 text-red-400 hover:bg-red-500/10">
-                    <Trash2 size={14} className="mr-1" /> Eliminar
-                  </Button>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
