@@ -59,10 +59,10 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/60 z-[1050] lg:hidden" onClick={onClose} />
       )}
       <aside className={`
-        fixed top-0 left-0 h-full z-50 
+        fixed top-0 left-0 h-full z-[1100] 
         bg-sidebar border-r border-border
         transition-all duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} 

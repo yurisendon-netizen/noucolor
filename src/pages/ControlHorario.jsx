@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
+import ClockInBanner from '@/components/clock/ClockInBanner';
 import StatusBadge from '@/components/shared/StatusBadge';
 import moment from 'moment';
 
@@ -55,7 +56,6 @@ export default function ControlHorario() {
 
         if (hour === 8 && !hasOpen && !hasAbsence && !notifiedRef.current.reminded8) {
           notifiedRef.current.reminded8 = true;
-          toast({ title: '⏰ Fichar entrada', description: 'Fichar entrada antes de las 8:30' });
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('⏰ Fichar entrada', { body: 'Fichar entrada antes de las 8:30' });
           }
@@ -261,6 +261,7 @@ export default function ControlHorario() {
   const hasAbsenceToday = todayEntry && todayEntry.status === 'ausencia_injustificada';
   // Entry window: 7:45 - 8:30 (falta fires at 8:30)
   const inEntryWindow = (hour === 7 && minutes >= 45) || (hour === 8 && minutes < 30);
+  const showBanner = hour === 8 && minutes < 30 && !openEntry && !hasAbsenceToday;
   const canClockIn = !openEntry && !hasClosedToday && !hasAbsenceToday && inEntryWindow;
   // Exit window: 16:00 - 16:30
   const inExitWindow = hour === 16 && minutes <= 30;
@@ -308,6 +309,12 @@ export default function ControlHorario() {
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto">
       <PageHeader title="Control Horario" subtitle="Jornada 8:00 - 16:00 · Legislación laboral de Andorra" />
+
+      <ClockInBanner
+        visible={showBanner}
+        onClockIn={handleClockIn}
+        clockingIn={clockingIn}
+      />
 
       <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6 flex items-start gap-3">
         <AlertTriangle size={20} className="text-blue-400 shrink-0 mt-0.5" />

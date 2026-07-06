@@ -50,7 +50,7 @@ export default function Geolocalizacion() {
         }
       />
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden mb-6" style={{ height: '500px' }}>
+      <div className="bg-card rounded-xl border border-border overflow-hidden mb-6 relative z-0" style={{ height: '500px' }}>
         {!loading && (
           <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer
