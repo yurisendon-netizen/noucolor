@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Clock, MapPin, LogIn, LogOut } from 'lucide-react';
+import { Clock, LogIn, LogOut, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -17,9 +17,9 @@ export default function ControlHorario() {
   const [loading, setLoading] = useState(true);
   const [clockingIn, setClockingIn] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
-  const watchIdRef = useRef(null);
-  const notifiedRef = useRef({ date: '', reminded: false, warned: false });
   const [currentTime, setCurrentTime] = useState(new Date());
+  const watchIdRef = useRef(null);
+  const notifiedRef = useRef({ date: '', reminded8: false, absent830: false, notified16: false });
 
   const empId = employee?.id || user?.id;
   const empName = employee?.full_name || user?.full_name || '';
@@ -36,47 +36,64 @@ export default function ControlHorario() {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    const interval = setInterval(async () => {
-      const now = new Date();
-      const hour = now.getHours();
-      const minutes = now.getMinutes();
-      const today = now.toISOString().split('T')[0];
-      if (notifiedRef.current.date !== today) {
-        notifiedRef.current = { date: today, reminded: false, warned: false };
-      }
-      if (hour !== 8) return;
-      try {
-        const todayEntries = await base44.entities.TimeEntry.filter({ employee_id: empId, date: today });
-        if (todayEntries.length > 0) return;
-        if (minutes < 30 && !notifiedRef.current.reminded) {
-          notifiedRef.current.reminded = true;
-          toast({ title: '⏰ Recuerda fichar', description: 'Tienes hasta las 8:30 para fichar tu entrada' });
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('⏰ Recuerda fichar', { body: 'Tienes hasta las 8:30 para fichar tu entrada' });
-          }
-        } else if (minutes >= 30 && !notifiedRef.current.warned) {
-          notifiedRef.current.warned = true;
-          toast({ title: '⚠️ No has fichado', description: 'Has superado el límite de 8:30. Hoy no cobrarás este día.' });
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('⚠️ No has fichado', { body: 'Has superado el límite de 8:30. Hoy no cobrarás este día.' });
-          }
-        }
-      } catch (e) { /* silent */ }
-    }, 60000);
-    return () => clearInterval(interval);
   }, [empId]);
 
   useEffect(() => {
     if (!empId) return;
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       const now = new Date();
       setCurrentTime(now);
-      if (now.getHours() >= 16 && openEntry) {
-        loadEntries();
+      const hour = now.getHours();
+      const minutes = now.getMinutes();
+      const today = now.toISOString().split('T')[0];
+
+      if (notifiedRef.current.date !== today) {
+        notifiedRef.current = { date: today, reminded8: false, absent830: false, notified16: false };
       }
-    }, 60000);
+
+      try {
+        const todayEntries = await base44.entities.TimeEntry.filter({ employee_id: empId, date: today });
+        const hasOpen = todayEntries.some(e => e.status === 'abierto');
+        const hasAbsence = todayEntries.some(e => e.status === 'ausencia_injustificada');
+
+        if (hour === 8 && !hasOpen && !hasAbsence && !notifiedRef.current.reminded8) {
+          notifiedRef.current.reminded8 = true;
+          toast({ title: '⏰ Fichar entrada', description: 'Fichar entrada antes de las 8:30' });
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('⏰ Fichar entrada', { body: 'Fichar entrada antes de las 8:30' });
+          }
+        }
+
+        if (hour === 8 && minutes >= 30 && !hasOpen && !hasAbsence && !notifiedRef.current.absent830) {
+          notifiedRef.current.absent830 = true;
+          await base44.entities.TimeEntry.create({
+            employee_id: empId, employee_name: empName,
+            clock_in: now.toISOString(), date: today, status: 'ausencia_injustificada'
+          });
+          await base44.entities.Incumplimiento.create({
+            employee_id: empId, employee_name: empName,
+            date: today, type: 'sin_fichar',
+            description: 'No fichó la entrada antes de las 8:30'
+          });
+          toast({ title: '⚠️ Ausencia injustificada', description: 'No has fichado antes de las 8:30. El día no se cobrará.' });
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('⚠️ Ausencia injustificada', { body: 'No has fichado antes de las 8:30. El día no se cobrará.' });
+          }
+          loadEntries();
+        }
+
+        if (hour >= 16 && hasOpen && !notifiedRef.current.notified16) {
+          notifiedRef.current.notified16 = true;
+          toast({ title: '🔒 Hora de salida', description: 'Son las 16:00. Tu jornada se cerrará automáticamente.' });
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('🔒 Hora de salida', { body: 'Son las 16:00. Tu jornada se cerrará automáticamente.' });
+          }
+          loadEntries();
+        }
+      } catch (e) { /* silent */ }
+    }, 30000);
     return () => clearInterval(interval);
-  }, [empId, openEntry]);
+  }, [empId]);
 
   async function loadEntries() {
     if (!empId) return;
@@ -85,37 +102,24 @@ export default function ControlHorario() {
       let open = data.find(e => e.status === 'abierto');
 
       const now = new Date();
-      const today = now.toISOString().split('T')[0];
       const hour = now.getHours();
 
-      // Auto-cierre a las 16:00
       if (open && hour >= 16) {
-        const clockOut = new Date(open.clock_in);
+        const clockOut = new Date();
         clockOut.setHours(16, 0, 0, 0);
-        const hours = ((clockOut - new Date(open.clock_in)) / 3600000).toFixed(2);
+        const clockIn = new Date(open.clock_in);
+        const regularHours = Math.min(Math.max(((clockOut - clockIn) / 3600000), 0), 8);
         await base44.entities.TimeEntry.update(open.id, {
           clock_out: clockOut.toISOString(),
-          total_hours: parseFloat(hours),
-          status: 'cerrado'
+          total_hours: parseFloat(regularHours.toFixed(2)),
+          overtime_hours: 0,
+          status: 'cerrado',
+          auto_closed: true
         });
         stopLocationTracking();
         toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 8:00' });
         data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
         open = null;
-      }
-
-      // Auto-reapertura a las 8:00 si el último fichaje es de un día anterior
-      if (!open && data.length > 0 && data[0].status === 'cerrado' && data[0].date < today && hour >= 8) {
-        const eightAm = new Date();
-        eightAm.setHours(8, 0, 0, 0);
-        await base44.entities.TimeEntry.create({
-          employee_id: empId, employee_name: empName,
-          clock_in: eightAm.toISOString(), date: today,
-          status: 'abierto'
-        });
-        toast({ title: '🔄 Jornada iniciada automáticamente', description: 'Entrada a las 08:00' });
-        data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
-        open = data.find(e => e.status === 'abierto');
       }
 
       setEntries(data);
@@ -175,13 +179,39 @@ export default function ControlHorario() {
     try {
       const loc = await getLocation();
       const now = new Date();
-      await base44.entities.TimeEntry.create({
-        employee_id: empId, employee_name: empName,
-        clock_in: now.toISOString(), date: now.toISOString().split('T')[0],
-        clock_in_lat: loc.lat, clock_in_lng: loc.lng, status: 'abierto'
-      });
+      const today = now.toISOString().split('T')[0];
+      const hour = now.getHours();
+      const minutes = now.getMinutes();
+
+      const todayEntries = await base44.entities.TimeEntry.filter({ employee_id: empId, date: today });
+      const absenceEntry = todayEntries.find(e => e.status === 'ausencia_injustificada');
+
+      if (absenceEntry) {
+        await base44.entities.TimeEntry.update(absenceEntry.id, {
+          clock_in: now.toISOString(),
+          clock_in_lat: loc.lat, clock_in_lng: loc.lng,
+          status: 'abierto'
+        });
+      } else {
+        await base44.entities.TimeEntry.create({
+          employee_id: empId, employee_name: empName,
+          clock_in: now.toISOString(), date: today,
+          clock_in_lat: loc.lat, clock_in_lng: loc.lng, status: 'abierto'
+        });
+      }
+
+      if (hour > 8 || (hour === 8 && minutes > 30)) {
+        await base44.entities.Incumplimiento.create({
+          employee_id: empId, employee_name: empName,
+          date: today, type: 'entrada_tardia',
+          description: `Fichó entrada a las ${moment(now).format('HH:mm')} (límite 8:30)`
+        });
+        toast({ title: '⚠️ Entrada tardía', description: `${moment(now).format('HH:mm')} — Incumplimiento registrado` });
+      } else {
+        toast({ title: '✅ Entrada fichada', description: `${moment(now).format('HH:mm')} — Ubicación registrada` });
+      }
+
       startLocationTracking();
-      toast({ title: '✅ Entrada fichada', description: `${moment(now).format('HH:mm')} — Ubicación registrada` });
       loadEntries();
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -196,13 +226,33 @@ export default function ControlHorario() {
     try {
       const loc = await getLocation();
       const now = new Date();
-      const hours = ((now - new Date(openEntry.clock_in)) / 3600000).toFixed(2);
+      const clockIn = new Date(openEntry.clock_in);
+      const sixteenToday = new Date();
+      sixteenToday.setHours(16, 0, 0, 0);
+
+      let regularHours, overtimeHours;
+      if (now <= sixteenToday) {
+        regularHours = ((now - clockIn) / 3600000);
+        overtimeHours = 0;
+      } else {
+        regularHours = ((sixteenToday - clockIn) / 3600000);
+        overtimeHours = ((now - sixteenToday) / 3600000);
+      }
+      regularHours = Math.min(Math.max(regularHours, 0), 8);
+
       await base44.entities.TimeEntry.update(openEntry.id, {
         clock_out: now.toISOString(), clock_out_lat: loc.lat, clock_out_lng: loc.lng,
-        total_hours: parseFloat(hours), status: 'cerrado'
+        total_hours: parseFloat(regularHours.toFixed(2)),
+        overtime_hours: parseFloat(overtimeHours.toFixed(2)),
+        status: 'cerrado'
       });
       stopLocationTracking();
-      toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${hours}h trabajadas` });
+
+      if (overtimeHours > 0) {
+        toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours.toFixed(1)}h extras` });
+      } else {
+        toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas` });
+      }
       loadEntries();
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -214,15 +264,20 @@ export default function ControlHorario() {
   const now = currentTime;
   const today = now.toISOString().split('T')[0];
   const hour = now.getHours();
-  const lastEntry = entries[0];
-  const showProximoFichaje = !openEntry && lastEntry && lastEntry.status === 'cerrado' &&
-    ((lastEntry.date === today && hour >= 16) || (lastEntry.date < today && hour < 8));
+  const todayEntry = entries.find(e => e.date === today);
+  const hasClosedToday = todayEntry && todayEntry.status === 'cerrado';
+  const hasAbsenceToday = todayEntry && todayEntry.status === 'ausencia_injustificada';
+  const canClockIn = !openEntry && hour >= 8 && hour < 16 && !hasClosedToday;
+  const showProximo = !openEntry && !canClockIn;
 
   const columns = [
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
-    { key: 'clock_in', label: 'Entrada', render: r => moment(r.clock_in).format('HH:mm') },
+    { key: 'clock_in', label: 'Entrada', render: r => r.clock_in ? moment(r.clock_in).format('HH:mm') : '—' },
     { key: 'clock_out', label: 'Salida', render: r => r.clock_out ? moment(r.clock_out).format('HH:mm') : '—' },
-    { key: 'total_hours', label: 'Horas', render: r => r.total_hours ? `${r.total_hours}h` : '—' },
+    { key: 'total_hours', label: 'Horas', render: r => {
+      if (!r.total_hours && r.total_hours !== 0) return '—';
+      return r.overtime_hours ? `${r.total_hours}h + ${r.overtime_hours}h ext.` : `${r.total_hours}h`;
+    }},
     { key: 'status', label: 'Estado', render: r => <StatusBadge status={r.status} /> },
   ];
 
@@ -232,17 +287,31 @@ export default function ControlHorario() {
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto">
-      <PageHeader title="Control Horario" subtitle="Registra tu entrada y salida diaria" />
+      <PageHeader title="Control Horario" subtitle="Jornada 8:00 - 16:00 · Legislación laboral de Andorra" />
+
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6 flex items-start gap-3">
+        <AlertTriangle size={20} className="text-blue-400 shrink-0 mt-0.5" />
+        <div className="text-sm text-blue-300/90">
+          <p className="font-medium mb-1">Normativa de fichaje</p>
+          <p>Entrada antes de las <strong>8:30</strong> · Salida automática a las <strong>16:00</strong> · Horas extras después de las 16:00 se calculan aparte · 3 incumplimientos = amonestación escrita.</p>
+        </div>
+      </div>
 
       <div className="bg-card rounded-xl border border-border p-6 mb-8">
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <div className="flex-1 text-center sm:text-left">
-            <p className="text-4xl font-bold font-mono">{moment().format('HH:mm')}</p>
-            <p className="text-muted-foreground mt-1">{moment().format('dddd, D [de] MMMM [de] YYYY')}</p>
+            <p className="text-4xl font-bold font-mono">{moment(now).format('HH:mm')}</p>
+            <p className="text-muted-foreground mt-1">{moment(now).format('dddd, D [de] MMMM [de] YYYY')}</p>
             {openEntry && (
               <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-sm text-emerald-400">Jornada activa desde {moment(openEntry.clock_in).format('HH:mm')}</span>
+              </div>
+            )}
+            {hasAbsenceToday && !openEntry && (
+              <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start">
+                <AlertTriangle size={16} className="text-red-400" />
+                <span className="text-sm text-red-400">Ausencia injustificada hoy</span>
               </div>
             )}
           </div>
@@ -252,10 +321,10 @@ export default function ControlHorario() {
                 <LogOut size={18} />
                 {clockingOut ? 'Fichando...' : 'Fichar Salida'}
               </Button>
-            ) : showProximoFichaje ? (
+            ) : showProximo ? (
               <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-muted-foreground text-sm">
                 <Clock size={18} />
-                <span>Próximo fichaje a las 8:00 del día siguiente</span>
+                <span>Próximo fichaje a las 8:00</span>
               </div>
             ) : (
               <Button onClick={handleClockIn} disabled={clockingIn} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
@@ -269,10 +338,15 @@ export default function ControlHorario() {
 
       <DataTable
         data={entries}
+        onRefresh={loadEntries}
         columns={columns}
         searchField="date"
         filterField="status"
-        filterOptions={[{ value: 'abierto', label: 'Abierto' }, { value: 'cerrado', label: 'Cerrado' }]}
+        filterOptions={[
+          { value: 'abierto', label: 'Abierto' },
+          { value: 'cerrado', label: 'Cerrado' },
+          { value: 'ausencia_injustificada', label: 'Ausencia' },
+        ]}
         emptyMessage="No hay fichajes registrados"
       />
     </div>

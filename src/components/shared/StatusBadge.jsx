@@ -6,8 +6,11 @@ const statusStyles = {
   completado: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
   aprobado: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
   rechazado: 'bg-red-500/15 text-red-400 border-red-500/20',
+  amonestado: 'bg-orange-500/15 text-orange-400 border-orange-500/20',
+  resuelto: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
   abierto: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
   cerrado: 'bg-slate-500/15 text-slate-400 border-slate-500/20',
+  ausencia_injustificada: 'bg-red-500/15 text-red-400 border-red-500/20',
   borrador: 'bg-slate-500/15 text-slate-400 border-slate-500/20',
   emitida: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
   pagada: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
@@ -18,7 +21,8 @@ const statusStyles = {
 
 const labels = {
   pendiente: 'Pendiente', en_progreso: 'En Progreso', completado: 'Completado',
-  aprobado: 'Aprobado', rechazado: 'Rechazado', abierto: 'Abierto', cerrado: 'Cerrado',
+  aprobado: 'Aprobado', rechazado: 'Rechazado', amonestado: 'Amonestado', resuelto: 'Resuelto',
+  abierto: 'Abierto', cerrado: 'Cerrado', ausencia_injustificada: 'Ausencia',
   borrador: 'Borrador', emitida: 'Emitida', pagada: 'Pagada',
   baja: 'Baja', media: 'Media', alta: 'Alta',
 };

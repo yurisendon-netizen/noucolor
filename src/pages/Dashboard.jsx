@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Clock, FileText, Users, Receipt, TrendingUp, AlertCircle } from 'lucide-react';
+import { Clock, FileText, Users, Receipt, TrendingUp, AlertCircle, FileWarning } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import PageHeader from '@/components/shared/PageHeader';
@@ -23,29 +23,41 @@ function StatCard({ icon: Icon, label, value, color, to }) {
 
 export default function Dashboard() {
   const { employee, isAdmin, user } = useEmployeeProfile();
-  const [stats, setStats] = useState({ entries: 0, orders: 0, employees: 0, payrolls: 0, pending: 0 });
+  const [stats, setStats] = useState({ entries: 0, orders: 0, employees: 0, payrolls: 0, pending: 0, incumplimientos: 0 });
   const [recentOrders, setRecentOrders] = useState([]);
+  const [warningEmployees, setWarningEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const [entries, orders, employees, payrolls] = await Promise.all([
+        const [entries, orders, employees, payrolls, incumplimientos] = await Promise.all([
           base44.entities.TimeEntry.filter({ date: today }),
           base44.entities.WorkOrder.list('-created_date', 5),
           isAdmin ? base44.entities.Employee.filter({ is_active: true }) : Promise.resolve([]),
           isAdmin ? base44.entities.Payroll.list('-created_date', 5) : Promise.resolve([]),
+          isAdmin ? base44.entities.Incumplimiento.list('-date', 200) : Promise.resolve([]),
         ]);
         const pendingOrders = orders.filter(o => o.status === 'pendiente');
+
+        const incCounts = {};
+        incumplimientos.forEach(i => {
+          if (!incCounts[i.employee_id]) incCounts[i.employee_id] = { name: i.employee_name, count: 0 };
+          incCounts[i.employee_id].count++;
+        });
+        const warnings = Object.values(incCounts).filter(e => e.count >= 3);
+
         setStats({
           entries: entries.length,
           orders: orders.length,
           employees: employees.length,
           payrolls: payrolls.length,
           pending: pendingOrders.length,
+          incumplimientos: incumplimientos.length,
         });
         setRecentOrders(orders.slice(0, 5));
+        setWarningEmployees(warnings);
       } catch (e) {
         console.error(e);
       } finally {
@@ -72,11 +84,25 @@ export default function Dashboard() {
         subtitle={isAdmin ? 'Panel de Administración — Noucolor' : 'Panel de Operario — Noucolor'}
       />
 
+      {isAdmin && warningEmployees.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <FileWarning size={20} className="text-red-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-red-400 mb-1">Amonestaciones pendientes</p>
+            <p className="text-sm text-red-300/80">
+              {warningEmployees.map(e => `${e.name} (${e.count})`).join(', ')} — 3+ incumplimientos registrados.
+            </p>
+          </div>
+          <Link to="/revision-jornadas" className="text-sm text-red-400 hover:underline shrink-0 mt-0.5">Ver detalle</Link>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard icon={Clock} label="Fichajes Hoy" value={stats.entries} color="bg-blue-500/15 text-blue-400" to="/control-horario" />
         <StatCard icon={FileText} label="Partes de Trabajo" value={stats.orders} color="bg-emerald-500/15 text-emerald-400" to="/partes-trabajo" />
         {isAdmin && <StatCard icon={Users} label="Empleados Activos" value={stats.employees} color="bg-purple-500/15 text-purple-400" to="/empleados" />}
         {isAdmin && <StatCard icon={Receipt} label="Nóminas" value={stats.payrolls} color="bg-[hsl(35,92%,55%)]/15 text-[hsl(35,92%,55%)]" to="/nominas" />}
+        {isAdmin && stats.incumplimientos > 0 && <StatCard icon={AlertCircle} label="Incumplimientos" value={stats.incumplimientos} color="bg-red-500/15 text-red-400" to="/revision-jornadas" />}
         {!isAdmin && <StatCard icon={AlertCircle} label="Pendientes" value={stats.pending} color="bg-yellow-500/15 text-yellow-400" to="/partes-trabajo" />}
       </div>
 

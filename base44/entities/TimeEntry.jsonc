@@ -31,6 +31,16 @@
     "total_hours": {
       "type": "number"
     },
+    "overtime_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Horas extras despues de las 16:00"
+    },
+    "auto_closed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Cerrado automaticamente a las 16:00"
+    },
     "date": {
       "type": "string",
       "format": "date"
@@ -39,7 +49,8 @@
       "type": "string",
       "enum": [
         "abierto",
-        "cerrado"
+        "cerrado",
+        "ausencia_injustificada"
       ],
       "default": "abierto"
     }

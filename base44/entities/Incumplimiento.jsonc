@@ -1,0 +1,42 @@
+{
+  "name": "Incumplimiento",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "entrada_tardia",
+        "sin_fichar"
+      ],
+      "default": "entrada_tardia"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "amonestado",
+        "resuelto"
+      ],
+      "default": "pendiente"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "date",
+    "type"
+  ]
+}
