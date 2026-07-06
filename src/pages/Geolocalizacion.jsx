@@ -22,8 +22,12 @@ export default function Geolocalizacion() {
   async function load() {
     setLoading(true);
     try {
-      const data = await base44.entities.EmployeeLocation.filter({ is_active: true });
-      setLocations(data);
+      const [data, employees] = await Promise.all([
+        base44.entities.EmployeeLocation.filter({ is_active: true }),
+        base44.entities.Employee.filter({ role: 'jefe' })
+      ]);
+      const jefeIds = employees.map(e => e.id);
+      setLocations(data.filter(loc => !jefeIds.includes(loc.employee_id)));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
