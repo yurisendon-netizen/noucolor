@@ -66,6 +66,24 @@ export default function RecogidaForm({ form, setForm }) {
             className="bg-secondary border-border"
           />
         </Field>
+        <Field label="Puesto">
+          <Input
+            value={form.position || ''}
+            onChange={e => update('position', e.target.value)}
+            placeholder="Ej: Pintor, Oficial, Peón..."
+            className="bg-secondary border-border"
+          />
+        </Field>
+        <Field label="Precio/hora (€)">
+          <Input
+            type="number"
+            step="0.01"
+            value={form.precioHora ?? 0}
+            onChange={e => update('precioHora', e.target.value)}
+            placeholder="0.00"
+            className="bg-secondary border-border"
+          />
+        </Field>
         <Field label="Cargo">
           <ResponsiveSelect
             value={form.cargo || 'operario'}

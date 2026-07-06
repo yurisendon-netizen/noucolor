@@ -13,7 +13,7 @@ import moment from 'moment';
 
 const EMPTY_FORM = {
   full_name: '', email: '', phone: '', dni: '', cass: '', iban: '',
-  cargo: 'operario', hire_date: '', user: '', pass: ''
+  position: '', precioHora: 0, cargo: 'operario', hire_date: '', user: '', pass: ''
 };
 const REQUIRED = ['full_name', 'email', 'phone', 'dni', 'cass', 'iban', 'user', 'pass'];
 const LABELS = {
@@ -71,6 +71,7 @@ export default function RecogidaDatos() {
     if (!validate()) return;
     setSaving(true);
     try {
+      const precioHora = parseFloat(form.precioHora) || 0;
       const payload = {
         full_name: form.full_name.trim(),
         email: form.email.trim(),
@@ -78,6 +79,8 @@ export default function RecogidaDatos() {
         dni: form.dni.trim(),
         cass: form.cass.trim(),
         iban: form.iban.trim(),
+        position: form.position.trim(),
+        precioHora,
         cargo: form.cargo || 'operario',
         hire_date: form.hire_date || null,
         user: form.user.trim().toLowerCase(),
@@ -89,6 +92,8 @@ export default function RecogidaDatos() {
           await base44.entities.Employee.update(editing.employee_id, {
             full_name: payload.full_name, email: payload.email, phone: payload.phone,
             dni: payload.dni, nss: payload.cass, hire_date: payload.hire_date,
+            position: payload.position, precioHora: payload.precioHora,
+            base_salary: Math.round(payload.precioHora * 173.33 * 100) / 100,
             role: payload.cargo, user: payload.user, pass: payload.pass,
           }).catch(() => {});
         }
@@ -97,8 +102,10 @@ export default function RecogidaDatos() {
         const emp = await base44.entities.Employee.create({
           full_name: payload.full_name, email: payload.email, phone: payload.phone,
           dni: payload.dni, nss: payload.cass, hire_date: payload.hire_date,
+          position: payload.position, precioHora: payload.precioHora,
+          base_salary: Math.round(payload.precioHora * 173.33 * 100) / 100,
           role: payload.cargo, user: payload.user, pass: payload.pass,
-          base_salary: 0, precioHora: 0, is_active: true,
+          is_active: true,
         });
         await base44.entities.DatosTrabajador.create({ ...payload, employee_id: emp.id });
         toast({ title: '✅ Trabajador añadido', description: `${payload.full_name} ya puede fichar` });
@@ -160,6 +167,8 @@ export default function RecogidaDatos() {
       'DNI/Pasaporte': w.dni || '',
       'CASS': w.cass || '',
       'IBAN': w.iban || '',
+      'Puesto': w.position || '',
+      '€/hora': w.precioHora || '',
       'Usuario': w.user || '',
       'Contraseña': w.pass || '',
       'Cargo': w.cargo === 'administrador' ? 'Administrador' : 'Operario',
@@ -167,7 +176,7 @@ export default function RecogidaDatos() {
       'Fecha registro': w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trabajadores');
     const suffix = selected.size > 0 ? `_seleccionados` : '';

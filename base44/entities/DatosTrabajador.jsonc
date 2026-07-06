@@ -23,6 +23,15 @@
       "type": "string",
       "description": "N\u00famero de cuenta bancaria (IBAN)"
     },
+    "position": {
+      "type": "string",
+      "description": "Puesto de trabajo"
+    },
+    "precioHora": {
+      "type": "number",
+      "description": "Precio por hora (\u20ac)",
+      "default": 0
+    },
     "cargo": {
       "type": "string",
       "enum": [
