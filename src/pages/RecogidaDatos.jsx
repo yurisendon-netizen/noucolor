@@ -160,12 +160,14 @@ export default function RecogidaDatos() {
       'DNI/Pasaporte': w.dni || '',
       'CASS': w.cass || '',
       'IBAN': w.iban || '',
+      'Usuario': w.user || '',
+      'Contraseña': w.pass || '',
       'Cargo': w.cargo === 'administrador' ? 'Administrador' : 'Operario',
       'Fecha incorporación': w.hire_date ? moment(w.hire_date).format('DD/MM/YYYY') : '',
       'Fecha registro': w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 30 }, { wch: 14 }, { wch: 18 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trabajadores');
     const suffix = selected.size > 0 ? `_seleccionados` : '';

@@ -58,6 +58,8 @@ export default function RecogidaTable({ workers, selected, onToggle, onToggleAll
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">DNI</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CASS</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">IBAN</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Usuario</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contraseña</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cargo</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fecha registro</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Acciones</th>
@@ -66,7 +68,7 @@ export default function RecogidaTable({ workers, selected, onToggle, onToggleAll
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={12} className="px-4 py-12 text-center text-muted-foreground">
                     <Inbox size={28} className="mx-auto mb-2 opacity-40" />
                     {search ? 'Sin resultados para la búsqueda' : 'No hay trabajadores registrados todavía'}
                   </td>
@@ -88,6 +90,8 @@ export default function RecogidaTable({ workers, selected, onToggle, onToggleAll
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{w.dni || '—'}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{w.cass || '—'}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono text-xs">{w.iban ? w.iban.substring(0, 8) + '…' + w.iban.slice(-4) : '—'}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-[hsl(35,92%,55%)]">{w.user || '—'}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{w.pass || '—'}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${cargoStyles[w.cargo] || cargoStyles.operario}`}>
                         {cargoLabels[w.cargo] || w.cargo || 'Operario'}
