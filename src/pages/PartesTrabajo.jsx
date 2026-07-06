@@ -49,16 +49,28 @@ export default function PartesTrabajo() {
   }
 
   async function handleStatusChange(id, status) {
-    await base44.entities.WorkOrder.update(id, { status });
-    toast({ title: `Estado actualizado a ${status === 'completado' ? 'Completado' : 'Pendiente'}` });
-    loadOrders();
+    const prev = orders;
+    setOrders(orders.map(o => o.id === id ? { ...o, status } : o));
+    try {
+      await base44.entities.WorkOrder.update(id, { status });
+      toast({ title: `Estado actualizado a ${status === 'completado' ? 'Completado' : 'Pendiente'}` });
+    } catch (e) {
+      setOrders(prev);
+      toast({ title: 'Error al actualizar el estado', variant: 'destructive' });
+    }
   }
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este parte de trabajo?')) return;
-    await base44.entities.WorkOrder.delete(id);
-    toast({ title: 'Parte eliminado' });
-    loadOrders();
+    const prev = orders;
+    setOrders(orders.filter(o => o.id !== id));
+    try {
+      await base44.entities.WorkOrder.delete(id);
+      toast({ title: 'Parte eliminado' });
+    } catch (e) {
+      setOrders(prev);
+      toast({ title: 'Error al eliminar el parte', variant: 'destructive' });
+    }
   }
 
   const columns = [

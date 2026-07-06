@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import BottomTabs from '@/components/layout/BottomTabs';
+import KeepAliveOutlet from '@/components/layout/KeepAliveOutlet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 
 const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png';
@@ -11,6 +13,10 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const { isAdmin, isJefe, loading } = useEmployeeProfile();
+  const isMobile = useIsMobile();
+  const keepAlivePaths = isJefe
+    ? ['/', '/partes-trabajo', '/empleados']
+    : ['/', '/control-horario', '/partes-trabajo'];
 
   if (loading) {
     return (
@@ -41,10 +47,14 @@ export default function AppLayout() {
             </button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto overscroll-none">
-          <div className="page-transition pb-24 lg:pb-0">
-            <Outlet />
-          </div>
+        <main className={`flex-1 overscroll-none relative ${isMobile ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          {isMobile ? (
+            <KeepAliveOutlet keepAlivePaths={keepAlivePaths} />
+          ) : (
+            <div className="page-transition pb-24 lg:pb-0">
+              <Outlet />
+            </div>
+          )}
         </main>
       </div>
       <BottomTabs isJefe={isJefe} />

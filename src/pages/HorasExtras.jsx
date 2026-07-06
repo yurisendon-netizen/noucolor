@@ -133,16 +133,28 @@ export default function HorasExtras() {
   }
 
   async function handleApproval(id, status) {
-    await base44.entities.OvertimeHour.update(id, { status });
-    toast({ title: `Hora extra ${status === 'aprobado' ? 'aprobada' : 'rechazada'}` });
-    loadItems();
+    const prev = items;
+    setItems(items.map(i => i.id === id ? { ...i, status } : i));
+    try {
+      await base44.entities.OvertimeHour.update(id, { status });
+      toast({ title: `Hora extra ${status === 'aprobado' ? 'aprobada' : 'rechazada'}` });
+    } catch (e) {
+      setItems(prev);
+      toast({ title: 'Error al actualizar el estado', variant: 'destructive' });
+    }
   }
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar esta hora extra?')) return;
-    await base44.entities.OvertimeHour.delete(id);
-    toast({ title: 'Hora extra eliminada' });
-    loadItems();
+    const prev = items;
+    setItems(items.filter(i => i.id !== id));
+    try {
+      await base44.entities.OvertimeHour.delete(id);
+      toast({ title: 'Hora extra eliminada' });
+    } catch (e) {
+      setItems(prev);
+      toast({ title: 'Error al eliminar la hora extra', variant: 'destructive' });
+    }
   }
 
   const columns = [
