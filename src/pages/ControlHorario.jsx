@@ -32,9 +32,26 @@ export default function ControlHorario() {
   async function loadEntries() {
     if (!empId) return;
     try {
-      const data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
+      let data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
+      let open = data.find(e => e.status === 'abierto');
+
+      // Auto-reapertura: si no hay jornada abierta y el último fichaje está cerrado
+      // y es de un día anterior, se abre automáticamente a las 08:00 de hoy
+      const today = new Date().toISOString().split('T')[0];
+      if (!open && data.length > 0 && data[0].status === 'cerrado' && data[0].date < today) {
+        const eightAm = new Date();
+        eightAm.setHours(8, 0, 0, 0);
+        await base44.entities.TimeEntry.create({
+          employee_id: empId, employee_name: empName,
+          clock_in: eightAm.toISOString(), date: today,
+          status: 'abierto'
+        });
+        toast({ title: '🔄 Jornada iniciada automáticamente', description: 'Entrada a las 08:00' });
+        data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
+        open = data.find(e => e.status === 'abierto');
+      }
+
       setEntries(data);
-      const open = data.find(e => e.status === 'abierto');
       setOpenEntry(open || null);
       if (open) startLocationTracking();
     } catch (e) {
