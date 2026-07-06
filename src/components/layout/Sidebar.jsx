@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/components/ui/use-toast';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
+  { path: '/', label: 'Inicio', icon: LayoutDashboard, adminOnly: false },
   { path: '/control-horario', label: 'Control Horario', icon: Clock, adminOnly: false, hideForJefe: true },
   { path: '/horas-extras', label: 'Horas Extras', icon: Timer, adminOnly: false, hideForJefe: true },
   { path: '/partes-trabajo', label: 'Partes de Trabajo', icon: FileText, adminOnly: false },
