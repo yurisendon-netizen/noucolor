@@ -28,7 +28,11 @@ export default function Geolocalizacion() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const center = locations.length > 0
     ? [locations[0].latitude, locations[0].longitude]
