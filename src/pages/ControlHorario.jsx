@@ -18,6 +18,8 @@ export default function ControlHorario() {
   const [clockingIn, setClockingIn] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
   const watchIdRef = useRef(null);
+  const notifiedRef = useRef({ date: '', reminded: false, warned: false });
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const empId = employee?.id || user?.id;
   const empName = employee?.full_name || user?.full_name || '';
@@ -29,16 +31,81 @@ export default function ControlHorario() {
     };
   }, [empId]);
 
+  useEffect(() => {
+    if (!empId) return;
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    const interval = setInterval(async () => {
+      const now = new Date();
+      const hour = now.getHours();
+      const minutes = now.getMinutes();
+      const today = now.toISOString().split('T')[0];
+      if (notifiedRef.current.date !== today) {
+        notifiedRef.current = { date: today, reminded: false, warned: false };
+      }
+      if (hour !== 8) return;
+      try {
+        const todayEntries = await base44.entities.TimeEntry.filter({ employee_id: empId, date: today });
+        if (todayEntries.length > 0) return;
+        if (minutes < 30 && !notifiedRef.current.reminded) {
+          notifiedRef.current.reminded = true;
+          toast({ title: '⏰ Recuerda fichar', description: 'Tienes hasta las 8:30 para fichar tu entrada' });
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('⏰ Recuerda fichar', { body: 'Tienes hasta las 8:30 para fichar tu entrada' });
+          }
+        } else if (minutes >= 30 && !notifiedRef.current.warned) {
+          notifiedRef.current.warned = true;
+          toast({ title: '⚠️ No has fichado', description: 'Has superado el límite de 8:30. Hoy no cobrarás este día.' });
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('⚠️ No has fichado', { body: 'Has superado el límite de 8:30. Hoy no cobrarás este día.' });
+          }
+        }
+      } catch (e) { /* silent */ }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [empId]);
+
+  useEffect(() => {
+    if (!empId) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      if (now.getHours() >= 16 && openEntry) {
+        loadEntries();
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [empId, openEntry]);
+
   async function loadEntries() {
     if (!empId) return;
     try {
       let data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
       let open = data.find(e => e.status === 'abierto');
 
-      // Auto-reapertura: si no hay jornada abierta y el último fichaje está cerrado
-      // y es de un día anterior, se abre automáticamente a las 08:00 de hoy
-      const today = new Date().toISOString().split('T')[0];
-      if (!open && data.length > 0 && data[0].status === 'cerrado' && data[0].date < today) {
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const hour = now.getHours();
+
+      // Auto-cierre a las 16:00
+      if (open && hour >= 16) {
+        const clockOut = new Date(open.clock_in);
+        clockOut.setHours(16, 0, 0, 0);
+        const hours = ((clockOut - new Date(open.clock_in)) / 3600000).toFixed(2);
+        await base44.entities.TimeEntry.update(open.id, {
+          clock_out: clockOut.toISOString(),
+          total_hours: parseFloat(hours),
+          status: 'cerrado'
+        });
+        stopLocationTracking();
+        toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 8:00' });
+        data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
+        open = null;
+      }
+
+      // Auto-reapertura a las 8:00 si el último fichaje es de un día anterior
+      if (!open && data.length > 0 && data[0].status === 'cerrado' && data[0].date < today && hour >= 8) {
         const eightAm = new Date();
         eightAm.setHours(8, 0, 0, 0);
         await base44.entities.TimeEntry.create({
@@ -144,6 +211,13 @@ export default function ControlHorario() {
     }
   }
 
+  const now = currentTime;
+  const today = now.toISOString().split('T')[0];
+  const hour = now.getHours();
+  const lastEntry = entries[0];
+  const showProximoFichaje = !openEntry && lastEntry && lastEntry.status === 'cerrado' &&
+    ((lastEntry.date === today && hour >= 16) || (lastEntry.date < today && hour < 8));
+
   const columns = [
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
     { key: 'clock_in', label: 'Entrada', render: r => moment(r.clock_in).format('HH:mm') },
@@ -173,15 +247,20 @@ export default function ControlHorario() {
             )}
           </div>
           <div className="flex gap-3">
-            {!openEntry ? (
-              <Button onClick={handleClockIn} disabled={clockingIn} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-                <LogIn size={18} />
-                {clockingIn ? 'Fichando...' : 'Fichar Entrada'}
-              </Button>
-            ) : (
+            {openEntry ? (
               <Button onClick={handleClockOut} disabled={clockingOut} variant="destructive" className="gap-2">
                 <LogOut size={18} />
                 {clockingOut ? 'Fichando...' : 'Fichar Salida'}
+              </Button>
+            ) : showProximoFichaje ? (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-muted-foreground text-sm">
+                <Clock size={18} />
+                <span>Próximo fichaje a las 8:00 del día siguiente</span>
+              </div>
+            ) : (
+              <Button onClick={handleClockIn} disabled={clockingIn} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+                <LogIn size={18} />
+                {clockingIn ? 'Fichando...' : 'Fichar Entrada'}
               </Button>
             )}
           </div>

@@ -17,7 +17,7 @@ export default function Empleados() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', base_salary: 0 });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', base_salary: 0, precioHora: 0 });
 
   useEffect(() => { loadEmployees(); }, []);
 
@@ -35,24 +35,26 @@ export default function Empleados() {
       full_name: emp.full_name, email: emp.email, role: emp.role,
       position: emp.position || '', phone: emp.phone || '',
       nss: emp.nss || '', dni: emp.dni || '',
-      hire_date: emp.hire_date || '', base_salary: emp.base_salary || 0
+      hire_date: emp.hire_date || '', base_salary: emp.base_salary || 0, precioHora: emp.precioHora || 0
     });
     setDialogOpen(true);
   }
 
   function openCreate() {
     setEditing(null);
-    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', base_salary: 0 });
+    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', base_salary: 0, precioHora: 0 });
     setDialogOpen(true);
   }
 
   async function handleSave() {
     try {
+      const precioHora = parseFloat(form.precioHora) || 0;
+      const base_salary = Math.round(precioHora * 173.33 * 100) / 100;
       if (editing) {
-        await base44.entities.Employee.update(editing.id, { ...form, base_salary: parseFloat(form.base_salary) || 0 });
+        await base44.entities.Employee.update(editing.id, { ...form, precioHora, base_salary });
         toast({ title: 'Empleado actualizado' });
       } else {
-        await base44.entities.Employee.create({ ...form, base_salary: parseFloat(form.base_salary) || 0, is_active: true });
+        await base44.entities.Employee.create({ ...form, precioHora, base_salary, is_active: true });
         toast({ title: 'Empleado creado' });
       }
       setDialogOpen(false);
@@ -72,6 +74,7 @@ export default function Empleados() {
     { key: 'full_name', label: 'Nombre', render: r => <span className="font-medium">{r.full_name}</span> },
     { key: 'email', label: 'Email' },
     { key: 'position', label: 'Puesto', render: r => r.position || '—' },
+    { key: 'precioHora', label: '€/hora', render: r => r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—' },
     { key: 'role', label: 'Rol', render: r => (
       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.role === 'administrador' ? 'bg-purple-500/15 text-purple-400' : 'bg-blue-500/15 text-blue-400'}`}>
         {r.role === 'administrador' ? 'Admin' : 'Operario'}
@@ -143,7 +146,7 @@ export default function Empleados() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value })} className="bg-secondary border-border" />
-              <Input type="number" placeholder="Salario base" value={form.base_salary} onChange={e => setForm({ ...form, base_salary: e.target.value })} className="bg-secondary border-border" />
+              <Input type="number" step="0.01" placeholder="Precio/hora (€)" value={form.precioHora} onChange={e => setForm({ ...form, precioHora: e.target.value })} className="bg-secondary border-border" />
             </div>
             <Button onClick={handleSave} disabled={!form.full_name || !form.email} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
               {editing ? 'Guardar Cambios' : 'Crear Empleado'}

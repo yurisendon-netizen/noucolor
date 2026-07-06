@@ -152,8 +152,9 @@ export default function Nominas() {
   async function handleCreate() {
     const emp = employees.find(e => e.id === form.employee_id);
     if (!emp) return;
+    const precioHora = emp.precioHora || 0;
     const base = emp.base_salary || 0;
-    const overtimePay = (form.overtime_hours || 0) * (base / 160) * 1.5;
+    const overtimePay = (form.overtime_hours || 0) * precioHora * 1.5;
     const gross = base + overtimePay + (parseFloat(form.bonus) || 0);
     const cass = gross * 0.065;
     const irpf = gross > 2000 ? gross * 0.05 : 0;
@@ -245,7 +246,7 @@ export default function Nominas() {
               value={form.employee_id}
               onValueChange={v => setForm({ ...form, employee_id: v })}
               placeholder="Seleccionar empleado"
-              options={employees.map(e => ({ value: e.id, label: `${e.full_name} — ${(e.base_salary || 0).toFixed(2)}€/mes` }))}
+              options={employees.map(e => ({ value: e.id, label: `${e.full_name} — ${(e.precioHora || 0).toFixed(2)}€/h` }))}
               className="bg-secondary border-border"
             />
             <div className="grid grid-cols-2 gap-3">
