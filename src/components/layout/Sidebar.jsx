@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Clock, FileText, ShieldCheck, Users, 
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, UserX
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, UserX, ClipboardList
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 import { base44 } from '@/api/base44Client';
@@ -19,6 +19,7 @@ const navItems = [
   { path: '/revision-jornadas', label: 'Revisión Jornadas', icon: CalendarCheck, adminOnly: true },
   { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
   { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
+  { path: '/recogida-datos', label: 'Recogida Datos', icon: ClipboardList, adminOnly: true },
   { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false },
 ];
 
