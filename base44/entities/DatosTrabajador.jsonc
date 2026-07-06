@@ -10,10 +10,24 @@
     },
     "phone": {
       "type": "string"
+    },
+    "user": {
+      "type": "string",
+      "description": "Nom d'usuari per login"
+    },
+    "pass": {
+      "type": "string",
+      "description": "Contrasenya"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "ID del Employee vinculat per login"
     }
   },
   "required": [
     "full_name",
-    "email"
+    "email",
+    "user",
+    "pass"
   ]
 }

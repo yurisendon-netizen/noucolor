@@ -14,7 +14,7 @@ export default function RecogidaDatos() {
   const { toast } = useToast();
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', phone: '', user: '', pass: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -32,16 +32,30 @@ export default function RecogidaDatos() {
 
   async function handleAdd(e) {
     e.preventDefault();
-    if (!form.full_name.trim() || !form.email.trim()) return;
+    if (!form.full_name.trim() || !form.email.trim() || !form.user.trim() || !form.pass.trim()) return;
     setSaving(true);
     try {
+      const emp = await base44.entities.Employee.create({
+        full_name: form.full_name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        user: form.user.trim().toLowerCase(),
+        pass: form.pass,
+        role: 'operario',
+        precioHora: 0,
+        base_salary: 0,
+        is_active: true,
+      });
       await base44.entities.DatosTrabajador.create({
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
+        user: form.user.trim().toLowerCase(),
+        pass: form.pass,
+        employee_id: emp.id,
       });
-      toast({ title: '✅ Trabajador añadido', description: form.full_name });
-      setForm({ full_name: '', email: '', phone: '' });
+      toast({ title: '✅ Trabajador añadido', description: `${form.full_name} ya puede fichar` });
+      setForm({ full_name: '', email: '', phone: '', user: '', pass: '' });
       loadWorkers();
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -50,9 +64,12 @@ export default function RecogidaDatos() {
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(worker) {
     try {
-      await base44.entities.DatosTrabajador.delete(id);
+      if (worker.employee_id) {
+        await base44.entities.Employee.delete(worker.employee_id).catch(() => {});
+      }
+      await base44.entities.DatosTrabajador.delete(worker.id);
       toast({ title: 'Trabajador eliminado' });
       loadWorkers();
     } catch (e) {
@@ -69,10 +86,11 @@ export default function RecogidaDatos() {
       'Nombre': w.full_name || '',
       'Correo': w.email || '',
       'Teléfono': w.phone || '',
+      'Usuario': w.user || '',
       'Fecha': w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 30 }, { wch: 35 }, { wch: 20 }, { wch: 22 }];
+    ws['!cols'] = [{ wch: 30 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 22 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trabajadores');
     XLSX.writeFile(wb, `Recogida_Datos_Noucolor_${moment().format('DD-MM-YYYY')}.xlsx`);
@@ -101,7 +119,7 @@ export default function RecogidaDatos() {
       />
 
       <form onSubmit={handleAdd} className="bg-card rounded-xl border border-border p-6 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Nombre completo *</label>
             <Input
@@ -132,6 +150,26 @@ export default function RecogidaDatos() {
               className="bg-secondary border-border"
             />
           </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-1.5 block">Usuario *</label>
+            <Input
+              value={form.user}
+              onChange={e => setForm({ ...form, user: e.target.value })}
+              placeholder="ej: jperez"
+              required
+              className="bg-secondary border-border"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-sm text-muted-foreground mb-1.5 block">Contraseña *</label>
+            <Input
+              value={form.pass}
+              onChange={e => setForm({ ...form, pass: e.target.value })}
+              placeholder="Contraseña para fichar"
+              required
+              className="bg-secondary border-border"
+            />
+          </div>
         </div>
         <div className="mt-4 flex justify-end">
           <Button type="submit" disabled={saving} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
@@ -152,6 +190,7 @@ export default function RecogidaDatos() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Nombre</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Correo</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Teléfono</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Usuario</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha</th>
                 <th className="px-5 py-3"></th>
               </tr>
@@ -159,7 +198,7 @@ export default function RecogidaDatos() {
             <tbody className="divide-y divide-border">
               {workers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-muted-foreground text-sm">No hay trabajadores registrados todavía</td>
+                  <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground text-sm">No hay trabajadores registrados todavía</td>
                 </tr>
               ) : (
                 workers.map(w => (
@@ -167,9 +206,10 @@ export default function RecogidaDatos() {
                     <td className="px-5 py-3 text-sm font-medium">{w.full_name}</td>
                     <td className="px-5 py-3 text-sm text-muted-foreground">{w.email}</td>
                     <td className="px-5 py-3 text-sm text-muted-foreground">{w.phone || '—'}</td>
+                    <td className="px-5 py-3 text-sm font-mono text-[hsl(35,92%,55%)]">{w.user || '—'}</td>
                     <td className="px-5 py-3 text-sm text-muted-foreground">{w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '—'}</td>
                     <td className="px-5 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(w.id)} className="text-red-400 hover:bg-red-500/10">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(w)} className="text-red-400 hover:bg-red-500/10">
                         <Trash2 size={16} />
                       </Button>
                     </td>
