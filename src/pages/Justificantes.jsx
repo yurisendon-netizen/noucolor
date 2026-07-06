@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Check, X } from 'lucide-react';
+import { Plus, Check, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,12 @@ const typeLabels = {
   baja_medica: 'Baja Médica', vacaciones: 'Vacaciones',
   permiso_personal: 'Permiso Personal', otro: 'Otro',
 };
+
+function getFileName(url) {
+  if (!url) return '';
+  const decoded = decodeURIComponent(url.split('/').pop());
+  return decoded.length > 25 ? decoded.substring(0, 22) + '...' : decoded;
+}
 
 export default function Justificantes() {
   const { employee, user, isAdmin } = useEmployeeProfile();
@@ -73,6 +79,7 @@ export default function Justificantes() {
     { key: 'type', label: 'Tipo', render: r => typeLabels[r.type] || r.type },
     { key: 'date_from', label: 'Desde', render: r => moment(r.date_from).format('DD/MM/YYYY') },
     { key: 'date_to', label: 'Hasta', render: r => moment(r.date_to).format('DD/MM/YYYY') },
+    { key: 'file_url', label: 'Archivo', render: r => r.file_url ? getFileName(r.file_url) : '—' },
     { key: 'status', label: 'Estado', render: r => <StatusBadge status={r.status} /> },
   ];
 
@@ -92,6 +99,7 @@ export default function Justificantes() {
         }
       />
 
+      <h2 className="text-lg font-semibold mb-3">Justificantes Subidos</h2>
       <DataTable
         data={items}
         onRefresh={loadItems}
@@ -104,18 +112,27 @@ export default function Justificantes() {
           { value: 'rechazado', label: 'Rechazado' },
         ]}
         emptyMessage="No hay justificantes"
-        actions={isAdmin ? (row) => (
-          row.status === 'pendiente' && (
-            <>
-              <Button variant="ghost" size="sm" onClick={() => handleApproval(row.id, 'aprobado')} className="text-emerald-400 hover:bg-emerald-500/10">
-                <Check size={16} />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleApproval(row.id, 'rechazado')} className="text-red-400 hover:bg-red-500/10">
-                <X size={16} />
-              </Button>
-            </>
-          )
-        ) : undefined}
+        actions={(row) => (
+          <div className="flex items-center gap-1">
+            {row.file_url && (
+              <a href={row.file_url} target="_blank" rel="noopener noreferrer" download>
+                <Button variant="ghost" size="sm" className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">
+                  <Download size={16} />
+                </Button>
+              </a>
+            )}
+            {isAdmin && row.status === 'pendiente' && (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => handleApproval(row.id, 'aprobado')} className="text-emerald-400 hover:bg-emerald-500/10">
+                  <Check size={16} />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleApproval(row.id, 'rechazado')} className="text-red-400 hover:bg-red-500/10">
+                  <X size={16} />
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
