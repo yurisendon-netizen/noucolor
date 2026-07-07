@@ -86,73 +86,75 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
           </button>
         </div>
 
-        <nav className="flex-1 min-h-0 py-4 px-2 pb-6 space-y-1 overflow-y-auto overflow-x-hidden">
-          {filteredItems.map(item => {
-            const Icon = item.icon;
-            const active = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={onClose}
-                title={collapsed ? item.label : undefined}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                  transition-all duration-200
-                  ${active 
-                    ? 'bg-[hsl(35,92%,55%)]/10 text-[hsl(35,92%,55%)]' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                  }
-                  ${collapsed ? 'justify-center' : ''}
-                `}
-              >
-                <Icon size={20} className="shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col">
+          <nav className="py-4 px-2 space-y-1">
+            {filteredItems.map(item => {
+              const Icon = item.icon;
+              const active = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={onClose}
+                  title={collapsed ? item.label : undefined}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    transition-all duration-200
+                    ${active 
+                      ? 'bg-[hsl(35,92%,55%)]/10 text-[hsl(35,92%,55%)]' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    }
+                    ${collapsed ? 'justify-center' : ''}
+                  `}
+                >
+                  <Icon size={20} className="shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </nav>
 
-        <div className="shrink-0 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] border-t border-border space-y-1">
-          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-            <AlertDialogTrigger asChild>
-              <button
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
-                  text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all
-                  ${collapsed ? 'justify-center' : ''}
-                `}
-              >
-                <UserX size={20} className="shrink-0" />
-                {!collapsed && <span>Eliminar Cuenta</span>}
-              </button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-card border-border">
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar cuenta?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción es permanente e irreversible. Se eliminarán todos tus datos y no podrás iniciar sesión de nuevo.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteAccount} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <button
-            onClick={handleLogout}
-            className={`
-              flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
-              text-muted-foreground hover:text-foreground hover:bg-secondary transition-all
-              ${collapsed ? 'justify-center' : ''}
-            `}
-          >
-            <LogOut size={20} className="shrink-0" />
-            {!collapsed && <span>Cerrar Sesión</span>}
-          </button>
+          <div className="mt-auto p-2 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-border space-y-1">
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <AlertDialogTrigger asChild>
+                <button
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
+                    text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all
+                    ${collapsed ? 'justify-center' : ''}
+                  `}
+                >
+                  <UserX size={20} className="shrink-0" />
+                  {!collapsed && <span>Eliminar Cuenta</span>}
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-card border-border">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar cuenta?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción es permanente e irreversible. Se eliminarán todos tus datos y no podrás iniciar sesión de nuevo.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAccount} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <button
+              onClick={handleLogout}
+              className={`
+                flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
+                text-muted-foreground hover:text-foreground hover:bg-secondary transition-all
+                ${collapsed ? 'justify-center' : ''}
+              `}
+            >
+              <LogOut size={20} className="shrink-0" />
+              {!collapsed && <span>Cerrar Sesión</span>}
+            </button>
+          </div>
         </div>
       </aside>
     </>
