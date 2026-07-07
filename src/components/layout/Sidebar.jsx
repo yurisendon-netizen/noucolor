@@ -63,11 +63,11 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
         <div className="fixed inset-0 bg-black/60 z-[1050] lg:hidden" onClick={onClose} />
       )}
       <aside className={`
-        fixed top-0 left-0 h-full z-[1100] 
+        fixed top-0 left-0 h-screen z-[1100] 
         bg-sidebar border-r border-border
         transition-all duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
-        lg:translate-x-0 lg:static
+        lg:translate-x-0 lg:static lg:h-screen
         ${collapsed ? 'w-[72px]' : 'w-64'}
         flex flex-col
       `}>
@@ -86,7 +86,7 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
           </button>
         </div>
 
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+        <nav className="flex-1 min-h-0 py-4 px-2 pb-6 space-y-1 overflow-y-auto overflow-x-hidden">
           {filteredItems.map(item => {
             const Icon = item.icon;
             const active = location.pathname === item.path;
@@ -113,7 +113,7 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
           })}
         </nav>
 
-        <div className="p-2 border-t border-border space-y-1">
+        <div className="shrink-0 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] border-t border-border space-y-1">
           <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <AlertDialogTrigger asChild>
               <button
