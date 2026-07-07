@@ -1,0 +1,22 @@
+{
+  "name": "InformeNota",
+  "type": "object",
+  "properties": {
+    "period_month": {
+      "type": "number",
+      "description": "Mes del informe (0-11)"
+    },
+    "period_year": {
+      "type": "number",
+      "description": "A\u00f1o del informe"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Comentarios o notas del administrador sobre el informe mensual"
+    }
+  },
+  "required": [
+    "period_month",
+    "period_year"
+  ]
+}
