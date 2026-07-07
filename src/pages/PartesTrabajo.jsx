@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Trash2, CheckCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,14 @@ import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
+import WorkOrderFilters from '@/components/parts/WorkOrderFilters';
 import moment from 'moment';
 
 export default function PartesTrabajo() {
   const { employee, user, isAdmin } = useEmployeeProfile();
   const { toast } = useToast();
   const [orders, setOrders] = useState([]);
+  const [filters, setFilters] = useState({ employee: '', client: '', dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', client_name: '', address: '', date: '', priority: 'media', materials: '', notes: '' });
@@ -73,9 +75,26 @@ export default function PartesTrabajo() {
     }
   }
 
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      if (filters.employee) {
+        const s = filters.employee.toLowerCase();
+        if (!String(o.assigned_name || '').toLowerCase().includes(s)) return false;
+      }
+      if (filters.client) {
+        const s = filters.client.toLowerCase();
+        if (!String(o.client_name || '').toLowerCase().includes(s)) return false;
+      }
+      if (filters.dateFrom && o.date && o.date < filters.dateFrom) return false;
+      if (filters.dateTo && o.date && o.date > filters.dateTo) return false;
+      return true;
+    });
+  }, [orders, filters]);
+
   const columns = [
     { key: 'title', label: 'Título', render: r => <span className="font-medium">{r.title}</span> },
     { key: 'client_name', label: 'Cliente' },
+    { key: 'assigned_name', label: 'Empleado' },
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
     { key: 'priority', label: 'Prioridad', render: r => <StatusBadge status={r.priority} /> },
     { key: 'status', label: 'Estado', render: r => <StatusBadge status={r.status} /> },
@@ -97,11 +116,12 @@ export default function PartesTrabajo() {
         }
       />
 
+      <WorkOrderFilters filters={filters} onChange={setFilters} />
+
       <DataTable
-        data={orders}
+        data={filteredOrders}
         onRefresh={loadOrders}
         columns={columns}
-        searchField={['title', 'client_name']}
         filterField="status"
         filterOptions={[
           { value: 'pendiente', label: 'Pendiente' },
