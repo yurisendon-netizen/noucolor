@@ -8,6 +8,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import ResponsiveSelect from '@/components/ui/responsive-select';
 import ResumenMensual from '@/components/informes/ResumenMensual';
 import VidaLaboral from '@/components/informes/VidaLaboral';
+import FirmaSeccion from '@/components/informes/FirmaSeccion';
 import * as XLSX from 'xlsx';
 import moment from 'moment';
 
@@ -213,6 +214,11 @@ export default function Informes() {
 
       <div id="print-area">
         <ResumenMensual rows={rows} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} onVerVidaLaboral={setVidaLaboralEmp} />
+        <FirmaSeccion
+          signerName={employee?.full_name}
+          role={isAdmin ? 'administrador' : (employee?.role || 'operario')}
+          periodLabel={periodLabel}
+        />
       </div>
 
       <VidaLaboral
