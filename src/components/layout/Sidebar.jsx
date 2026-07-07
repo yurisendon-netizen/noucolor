@@ -2,12 +2,9 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Clock, FileText, ShieldCheck, Users, 
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, UserX, ClipboardList, BarChart3
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, ClipboardList, BarChart3
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
-import { base44 } from '@/api/base44Client';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useToast } from '@/components/ui/use-toast';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: LayoutDashboard, adminOnly: false },
@@ -26,10 +23,7 @@ const navItems = [
 
 export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleCollapse }) {
   const location = useLocation();
-  const { employee, logout, isJefe } = useCustomAuth();
-  const { toast } = useToast();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const { logout, isJefe } = useCustomAuth();
 
   const filteredItems = navItems.filter(item => {
     if (isJefe) return !item.hideForJefe;
@@ -39,23 +33,6 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
   const handleLogout = () => {
     logout();
   };
-
-  async function handleDeleteAccount() {
-    setDeleting(true);
-    try {
-      if (employee?.id) {
-        await base44.entities.Employee.delete(employee.id);
-      }
-      localStorage.removeItem('noucolor_session');
-      localStorage.removeItem('noucolor_emp_id');
-      toast({ title: 'Cuenta eliminada' });
-      window.location.href = '/login';
-    } catch (e) {
-      toast({ title: 'Error al eliminar la cuenta', variant: 'destructive' });
-      setDeleting(false);
-      setDeleteOpen(false);
-    }
-  }
 
   return (
     <>
@@ -115,34 +92,6 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
           </nav>
 
           <div className="p-2 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-border space-y-1">
-            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <AlertDialogTrigger asChild>
-                <button
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
-                    text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all
-                    ${collapsed ? 'justify-center' : ''}
-                  `}
-                >
-                  <UserX size={20} className="shrink-0" />
-                  {!collapsed && <span>Eliminar Cuenta</span>}
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-card border-border">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar cuenta?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta acción es permanente e irreversible. Se eliminarán todos tus datos y no podrás iniciar sesión de nuevo.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAccount} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
             <button
               onClick={handleLogout}
               className={`
