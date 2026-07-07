@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Clock, FileText, ShieldCheck, Users, 
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, UserX, ClipboardList
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, UserX, ClipboardList, BarChart3
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 import { base44 } from '@/api/base44Client';
@@ -20,6 +20,7 @@ const navItems = [
   { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
   { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
   { path: '/recogida-datos', label: 'Recogida Datos', icon: ClipboardList, adminOnly: true },
+  { path: '/informes', label: 'Informes', icon: BarChart3, adminOnly: true },
   { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false, hideForJefe: true },
 ];
 

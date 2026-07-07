@@ -22,6 +22,7 @@ import Nominas from '@/pages/Nominas';
 import Geolocalizacion from '@/pages/Geolocalizacion';
 import Normas from '@/pages/Normas';
 import RecogidaDatos from '@/pages/RecogidaDatos';
+import Informes from '@/pages/Informes';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
                   <Route path="/geolocalizacion" element={<Geolocalizacion />} />
                   <Route path="/normas" element={<Normas />} />
                   <Route path="/recogida-datos" element={<RecogidaDatos />} />
+                  <Route path="/informes" element={<Informes />} />
                 </Route>
               </Route>
               <Route path="*" element={<PageNotFound />} />
