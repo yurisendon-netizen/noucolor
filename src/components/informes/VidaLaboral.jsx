@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, TrendingUp, AlertCircle, CalendarDays } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, Clock, TrendingUp, AlertCircle, CalendarDays, Printer } from 'lucide-react';
 import moment from 'moment';
 
 const statusStyles = {
@@ -51,17 +52,30 @@ export default function VidaLaboral({ employee, entries, open, onOpenChange }) {
     { icon: Calendar, label: 'Periodo', value: `${moment(summary.firstDate).format('DD/MM/YYYY')} - ${moment(summary.lastDate).format('DD/MM/YYYY')}`, color: 'bg-secondary text-foreground' },
   ] : [];
 
+  function handlePrint() {
+    document.body.classList.add('printing-modal');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-modal'), 500);
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Vida laboral — {employee?.employee_name}</DialogTitle>
+          <div className="flex items-center justify-between pr-8">
+            <DialogTitle>Vida laboral — {employee?.employee_name}</DialogTitle>
+            {summary && (
+              <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 shrink-0">
+                <Printer size={16} /> Imprimir
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {!summary ? (
           <p className="text-center text-muted-foreground py-8">No hay registros de fichajes.</p>
         ) : (
-          <>
+          <div id="vida-laboral-print">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               {stats.map((s, i) => {
                 const Icon = s.icon;
@@ -111,7 +125,7 @@ export default function VidaLaboral({ employee, entries, open, onOpenChange }) {
                 </table>
               </div>
             </div>
-          </>
+          </div>
         )}
       </DialogContent>
     </Dialog>

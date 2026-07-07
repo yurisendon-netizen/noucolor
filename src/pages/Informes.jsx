@@ -21,7 +21,7 @@ const EXPECTED_HOURS_PER_DAY = 8;
 const WORKING_DAYS_PER_MONTH = 22;
 
 export default function Informes() {
-  const { isAdmin } = useEmployeeProfile();
+  const { isAdmin, employee, loading: profileLoading } = useEmployeeProfile();
   const { toast } = useToast();
   const now = moment();
   const [month, setMonth] = useState(now.month());
@@ -33,9 +33,8 @@ export default function Informes() {
   const [vidaLaboralEmp, setVidaLaboralEmp] = useState(null);
 
   useEffect(() => {
-    if (isAdmin === false) return;
     loadEntries();
-  }, [isAdmin, month, year]);
+  }, [month, year]);
 
   async function loadEntries() {
     setLoading(true);
@@ -50,7 +49,10 @@ export default function Informes() {
 
   const rows = useMemo(() => {
     const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const periodEntries = entries.filter(e => e.date && e.date.startsWith(prefix));
+    let periodEntries = entries.filter(e => e.date && e.date.startsWith(prefix));
+    if (!isAdmin && employee) {
+      periodEntries = periodEntries.filter(e => e.employee_id === employee.id);
+    }
     const grouped = {};
     periodEntries.forEach(e => {
       const id = e.employee_id || e.employee_name;
@@ -85,7 +87,7 @@ export default function Informes() {
       total_hours: Number(r.total_hours.toFixed(2)),
       productividad: expected > 0 ? Math.min(150, (r.total_hours / expected) * 100) : 0,
     }));
-  }, [entries, month, year]);
+  }, [entries, month, year, isAdmin, employee]);
 
   const totals = useMemo(() => ({
     empleados: rows.length,
@@ -132,17 +134,7 @@ export default function Informes() {
     return years;
   }, []);
 
-  if (isAdmin === false) {
-    return (
-      <div className="p-8 max-w-3xl mx-auto">
-        <div className="bg-card rounded-xl border border-border p-8 text-center">
-          <p className="text-muted-foreground">Solo los administradores pueden acceder a esta página.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
+  if (profileLoading || loading) {
     return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
   }
 
@@ -157,15 +149,17 @@ export default function Informes() {
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Informes de Productividad"
-        subtitle="Resumen mensual de horas trabajadas por empleado"
-        actions={isAdmin && (
+        subtitle={isAdmin ? "Resumen mensual de horas trabajadas por empleado" : "Tu resumen mensual de horas trabajadas"}
+        actions={!loading && (
           <div className="flex items-center gap-2">
             <Button onClick={() => window.print()} variant="outline" className="gap-2">
               <Printer size={18} /> Imprimir
             </Button>
-            <Button onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-              <Download size={18} /> Exportar Excel
-            </Button>
+            {isAdmin && (
+              <Button onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+                <Download size={18} /> Exportar Excel
+              </Button>
+            )}
           </div>
         )}
       />
@@ -210,7 +204,7 @@ export default function Informes() {
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-medium text-muted-foreground">
-          Detalle por empleado · <span className="text-foreground">{periodLabel}</span>
+          {isAdmin ? 'Detalle por empleado' : 'Mi detalle'} · <span className="text-foreground">{periodLabel}</span>
         </h2>
         <p className="text-xs text-muted-foreground">
           {rows.length} resultado{rows.length !== 1 ? 's' : ''}

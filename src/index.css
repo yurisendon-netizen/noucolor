@@ -154,15 +154,31 @@
     top: 0;
     width: 100%;
   }
-  .dark #print-area {
+  body.printing-modal #print-area,
+  body.printing-modal #print-area * { visibility: hidden; }
+  body.printing-modal #vida-laboral-print,
+  body.printing-modal #vida-laboral-print * { visibility: visible; }
+  body.printing-modal #vida-laboral-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .dark #print-area,
+  .dark #vida-laboral-print {
     color: #000;
   }
   .dark #print-area .bg-card,
-  .dark #print-area .bg-secondary\/50 {
+  .dark #print-area .bg-secondary\/50,
+  .dark #print-area .bg-secondary,
+  .dark #vida-laboral-print .bg-card,
+  .dark #vida-laboral-print .bg-secondary\/50,
+  .dark #vida-laboral-print .bg-secondary {
     background: #fff !important;
     color: #000 !important;
   }
-  .dark #print-area .text-muted-foreground {
+  .dark #print-area .text-muted-foreground,
+  .dark #vida-laboral-print .text-muted-foreground {
     color: #555 !important;
   }
 }
