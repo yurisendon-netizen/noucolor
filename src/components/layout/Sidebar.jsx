@@ -63,7 +63,7 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
         <div className="fixed inset-0 bg-black/60 z-[1050] lg:hidden" onClick={onClose} />
       )}
       <aside className={`
-        fixed top-0 left-0 h-screen z-[1100] 
+        fixed top-0 left-0 h-[100dvh] z-[1100] 
         bg-sidebar border-r border-border
         transition-all duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
