@@ -8,19 +8,12 @@ export function CustomAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const session = localStorage.getItem('noucolor_session');
-    const empId = localStorage.getItem('noucolor_emp_id');
-    if (session === 'active' && empId) {
-      base44.entities.Employee.get(empId)
-        .then(emp => setEmployee(emp))
-        .catch(() => {
-          localStorage.removeItem('noucolor_session');
-          localStorage.removeItem('noucolor_emp_id');
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    // No recordar la sesión: en cada carga de la app se borra cualquier
+    // sesión persistida y se exige login de nuevo. El estado de sesión
+    // vive solo en memoria durante la visita actual.
+    localStorage.removeItem('noucolor_session');
+    localStorage.removeItem('noucolor_emp_id');
+    setLoading(false);
   }, []);
 
   async function login(username, password) {
