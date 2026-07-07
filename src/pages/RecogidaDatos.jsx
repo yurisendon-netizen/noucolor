@@ -161,22 +161,19 @@ export default function RecogidaDatos() {
       return;
     }
     const rows = toExport.map(w => ({
-      'Nombre': w.full_name || '',
-      'Correo': w.email || '',
+      'Nombre completo': w.full_name || '',
+      'Correo electrónico': w.email || '',
       'Teléfono': w.phone || '',
-      'DNI/Pasaporte': w.dni || '',
-      'CASS': w.cass || '',
-      'IBAN': w.iban || '',
-      'Puesto': w.position || '',
-      '€/hora': w.precioHora || '',
-      'Usuario': w.user || '',
+      'DNI / Pasaporte': w.dni || '',
+      'Número de Tarjeta CASS': w.cass || '',
+      'Número de cuenta bancaria (IBAN)': w.iban || '',
+      'Usuario de login': w.user || '',
       'Contraseña': w.pass || '',
-      'Cargo': w.cargo === 'administrador' ? 'Administrador' : 'Operario',
-      'Fecha incorporación': w.hire_date ? moment(w.hire_date).format('DD/MM/YYYY') : '',
-      'Fecha registro': w.created_date ? moment(w.created_date).format('DD/MM/YYYY HH:mm') : '',
+      'Puesto': w.cargo === 'administrador' ? 'Administrador' : (w.cargo === 'jefe' ? 'Jefe' : 'Operario'),
+      'Fecha de incorporación': w.hire_date ? moment(w.hire_date).format('DD/MM/YYYY') : '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 30 }, { wch: 32 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 34 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trabajadores');
     const suffix = selected.size > 0 ? `_seleccionados` : '';
