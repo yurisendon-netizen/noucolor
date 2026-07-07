@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { Inbox, FileText } from 'lucide-react';
+import { Inbox, FileText, Wallet } from 'lucide-react';
 
-export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVidaLaboral }) {
+export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVidaLaboral, onVerSalarial }) {
   const sorted = useMemo(() => {
     const arr = [...rows];
     arr.sort((a, b) => {
@@ -39,7 +39,7 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
               <Th field="total_hours" label="Horas totales" align="right" />
               <Th field="ausencias" label="Ausencias" align="right" />
               <Th field="productividad" label="Productividad" align="right" />
-              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vida laboral</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Detalles</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -75,12 +75,20 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => onVerVidaLaboral(r)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10 transition-colors"
-                    >
-                      <FileText size={14} /> Ver
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => onVerVidaLaboral(r)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10 transition-colors"
+                      >
+                        <FileText size={14} /> Laboral
+                      </button>
+                      <button
+                        onClick={() => onVerSalarial(r)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                      >
+                        <Wallet size={14} /> Salario
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -95,10 +103,9 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
                 <td className="px-4 py-3 text-sm text-right font-bold text-[hsl(35,92%,55%)]">{sorted.reduce((s, r) => s + r.overtime_hours, 0).toFixed(1)}h</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.total_hours, 0).toFixed(1)}h</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.ausencias, 0)}</td>
-                <td className="px-4 py-3 text-sm text-right text-muted-foreground">—</td>
-                <td className="px-4 py-3 text-sm text-right text-muted-foreground">—</td>
-              </tr>
-            </tfoot>
+                <td className="px-4 py-3 text-sm text-right text-muted-foreground" colSpan={2}>—</td>
+                </tr>
+                </tfoot>
           )}
         </table>
       </div>

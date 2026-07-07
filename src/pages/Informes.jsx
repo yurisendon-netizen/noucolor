@@ -8,6 +8,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import ResponsiveSelect from '@/components/ui/responsive-select';
 import ResumenMensual from '@/components/informes/ResumenMensual';
 import VidaLaboral from '@/components/informes/VidaLaboral';
+import HistorialSalarial from '@/components/informes/HistorialSalarial';
 import FirmaSeccion from '@/components/informes/FirmaSeccion';
 import * as XLSX from 'xlsx';
 import moment from 'moment';
@@ -32,9 +33,12 @@ export default function Informes() {
   const [sortBy, setSortBy] = useState('total_hours');
   const [sortDir, setSortDir] = useState('desc');
   const [vidaLaboralEmp, setVidaLaboralEmp] = useState(null);
+  const [salarialEmp, setSalarialEmp] = useState(null);
+  const [payrolls, setPayrolls] = useState([]);
 
   useEffect(() => {
     loadEntries();
+    loadPayrolls();
   }, [month, year]);
 
   async function loadEntries() {
@@ -44,6 +48,13 @@ export default function Informes() {
       setEntries(data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  }
+
+  async function loadPayrolls() {
+    try {
+      const data = await base44.entities.Payroll.list('-period_year', 1000);
+      setPayrolls(data);
+    } catch (e) { console.error(e); }
   }
 
   const periodLabel = `${MONTHS[month].label} ${year}`;
@@ -213,7 +224,7 @@ export default function Informes() {
       </div>
 
       <div id="print-area">
-        <ResumenMensual rows={rows} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} onVerVidaLaboral={setVidaLaboralEmp} />
+        <ResumenMensual rows={rows} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} onVerVidaLaboral={setVidaLaboralEmp} onVerSalarial={setSalarialEmp} />
         <FirmaSeccion
           signerName={employee?.full_name}
           role={isAdmin ? 'administrador' : (employee?.role || 'operario')}
@@ -226,6 +237,13 @@ export default function Informes() {
         entries={entries}
         open={!!vidaLaboralEmp}
         onOpenChange={(v) => !v && setVidaLaboralEmp(null)}
+      />
+
+      <HistorialSalarial
+        employee={salarialEmp}
+        payrolls={payrolls}
+        open={!!salarialEmp}
+        onOpenChange={(v) => !v && setSalarialEmp(null)}
       />
     </div>
   );
