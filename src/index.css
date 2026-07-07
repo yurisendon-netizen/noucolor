@@ -143,3 +143,26 @@
 .leaflet-container {
   background: hsl(var(--background)) !important;
 }
+
+/* Print styles — only the report area is visible */
+@media print {
+  body * { visibility: hidden; }
+  #print-area, #print-area * { visibility: visible; }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .dark #print-area {
+    color: #000;
+  }
+  .dark #print-area .bg-card,
+  .dark #print-area .bg-secondary\/50 {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .dark #print-area .text-muted-foreground {
+    color: #555 !important;
+  }
+}

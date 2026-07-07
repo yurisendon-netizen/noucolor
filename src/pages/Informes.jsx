@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Download, Clock, TrendingUp, Calendar, Users } from 'lucide-react';
+import { Download, Clock, TrendingUp, Calendar, Users, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import PageHeader from '@/components/shared/PageHeader';
 import ResponsiveSelect from '@/components/ui/responsive-select';
 import ResumenMensual from '@/components/informes/ResumenMensual';
+import VidaLaboral from '@/components/informes/VidaLaboral';
 import * as XLSX from 'xlsx';
 import moment from 'moment';
 
@@ -29,6 +30,7 @@ export default function Informes() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('total_hours');
   const [sortDir, setSortDir] = useState('desc');
+  const [vidaLaboralEmp, setVidaLaboralEmp] = useState(null);
 
   useEffect(() => {
     if (isAdmin === false) return;
@@ -156,11 +158,16 @@ export default function Informes() {
       <PageHeader
         title="Informes de Productividad"
         subtitle="Resumen mensual de horas trabajadas por empleado"
-        actions={
-          <Button onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-            <Download size={18} /> Exportar Excel
-          </Button>
-        }
+        actions={isAdmin && (
+          <div className="flex items-center gap-2">
+            <Button onClick={() => window.print()} variant="outline" className="gap-2">
+              <Printer size={18} /> Imprimir
+            </Button>
+            <Button onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+              <Download size={18} /> Exportar Excel
+            </Button>
+          </div>
+        )}
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -210,7 +217,16 @@ export default function Informes() {
         </p>
       </div>
 
-      <ResumenMensual rows={rows} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+      <div id="print-area">
+        <ResumenMensual rows={rows} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} onVerVidaLaboral={setVidaLaboralEmp} />
+      </div>
+
+      <VidaLaboral
+        employee={vidaLaboralEmp}
+        entries={entries}
+        open={!!vidaLaboralEmp}
+        onOpenChange={(v) => !v && setVidaLaboralEmp(null)}
+      />
     </div>
   );
 }

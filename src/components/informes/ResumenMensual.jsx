@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { Inbox } from 'lucide-react';
+import { Inbox, FileText } from 'lucide-react';
 
-export default function ResumenMensual({ rows, sortBy, sortDir, onSort }) {
+export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVidaLaboral }) {
   const sorted = useMemo(() => {
     const arr = [...rows];
     arr.sort((a, b) => {
@@ -39,12 +39,13 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort }) {
               <Th field="total_hours" label="Horas totales" align="right" />
               <Th field="ausencias" label="Ausencias" align="right" />
               <Th field="productividad" label="Productividad" align="right" />
+              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vida laboral</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                   <Inbox size={28} className="mx-auto mb-2 opacity-40" />
                   No hay datos de fichajes para este periodo
                 </td>
@@ -73,6 +74,14 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort }) {
                       <span className="text-xs text-muted-foreground w-10 text-right">{r.productividad.toFixed(0)}%</span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => onVerVidaLaboral(r)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10 transition-colors"
+                    >
+                      <FileText size={14} /> Ver
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -86,6 +95,7 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort }) {
                 <td className="px-4 py-3 text-sm text-right font-bold text-[hsl(35,92%,55%)]">{sorted.reduce((s, r) => s + r.overtime_hours, 0).toFixed(1)}h</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.total_hours, 0).toFixed(1)}h</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.ausencias, 0)}</td>
+                <td className="px-4 py-3 text-sm text-right text-muted-foreground">—</td>
                 <td className="px-4 py-3 text-sm text-right text-muted-foreground">—</td>
               </tr>
             </tfoot>
