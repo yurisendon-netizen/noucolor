@@ -11,6 +11,7 @@ import VidaLaboral from '@/components/informes/VidaLaboral';
 import HistorialSalarial from '@/components/informes/HistorialSalarial';
 import FirmaSeccion from '@/components/informes/FirmaSeccion';
 import NotasInforme from '@/components/informes/NotasInforme';
+import HistorialIncidencias from '@/components/informes/HistorialIncidencias';
 import * as XLSX from 'xlsx';
 import moment from 'moment';
 
@@ -227,6 +228,7 @@ export default function Informes() {
       <div id="print-area">
         <ResumenMensual rows={rows} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} onVerVidaLaboral={setVidaLaboralEmp} onVerSalarial={setSalarialEmp} />
         <NotasInforme month={month} year={year} isAdmin={isAdmin} periodLabel={periodLabel} />
+        <HistorialIncidencias month={month} year={year} isAdmin={isAdmin} employee={employee} periodLabel={periodLabel} />
         <FirmaSeccion
           signerName={employee?.full_name}
           role={isAdmin ? 'administrador' : (employee?.role || 'operario')}
