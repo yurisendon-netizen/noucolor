@@ -41,14 +41,15 @@ export default function HorasExtras() {
   const { employee, user, isAdmin } = useEmployeeProfile();
   const { toast } = useToast();
   const [items, setItems] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
-  const [form, setForm] = useState({ date: '', start_time: '', end_time: '', obra_motivo: '' });
+  const [form, setForm] = useState({ date: '', start_time: '', end_time: '', obra_motivo: '', employee_id: '' });
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => { loadItems(); if (isAdmin) loadEmployees(); }, [isAdmin]);
 
   async function loadItems() {
     try {
@@ -58,6 +59,25 @@ export default function HorasExtras() {
       setItems(data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  }
+
+  async function loadEmployees() {
+    try {
+      const data = await base44.entities.Employee.list('-full_name', 200);
+      setEmployees(data.filter(e => e.is_active !== false));
+    } catch (e) { console.error(e); }
+  }
+
+  function getPrecioHoraForEmployee(empId) {
+    if (!isAdmin) return employee?.precioHora || 0;
+    const emp = employees.find(e => e.id === empId);
+    return emp?.precioHora || 0;
+  }
+
+  function getEmployeeName(empId) {
+    if (!isAdmin) return employee?.full_name || user?.full_name || '';
+    const emp = employees.find(e => e.id === empId);
+    return emp?.full_name || '';
   }
 
   const monthData = useMemo(() => {
@@ -77,13 +97,13 @@ export default function HorasExtras() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ date: new Date().toISOString().split('T')[0], start_time: '', end_time: '', obra_motivo: '' });
+    setForm({ date: new Date().toISOString().split('T')[0], start_time: '', end_time: '', obra_motivo: '', employee_id: employee?.id || '' });
     setDialogOpen(true);
   }
 
   function openEdit(item) {
     setEditing(item);
-    setForm({ date: item.date, start_time: item.start_time, end_time: item.end_time, obra_motivo: item.obra_motivo || '' });
+    setForm({ date: item.date, start_time: item.start_time, end_time: item.end_time, obra_motivo: item.obra_motivo || '', employee_id: item.employee_id });
     setDialogOpen(true);
   }
 
@@ -93,12 +113,17 @@ export default function HorasExtras() {
       toast({ title: 'Error', description: 'La hora de fin debe ser posterior a la de inicio', variant: 'destructive' });
       return;
     }
-    const precioHora = employee?.precioHora || 0;
+    const targetEmployeeId = isAdmin ? form.employee_id : (employee?.id || user?.id);
+    if (!targetEmployeeId) {
+      toast({ title: 'Error', description: 'Selecciona un empleado', variant: 'destructive' });
+      return;
+    }
+    const precioHora = getPrecioHoraForEmployee(targetEmployeeId);
     const multiplier = OVERTIME_MULTIPLIER;
     const total = duration * precioHora * multiplier;
     const payload = {
-      employee_id: employee?.id || user?.id,
-      employee_name: employee?.full_name || user?.full_name || '',
+      employee_id: targetEmployeeId,
+      employee_name: getEmployeeName(targetEmployeeId),
       date: form.date,
       start_time: form.start_time,
       end_time: form.end_time,
@@ -165,7 +190,7 @@ export default function HorasExtras() {
   }
 
   const previewDuration = form.start_time && form.end_time ? calcDuration(form.start_time, form.end_time) : 0;
-  const previewPrecio = (employee?.precioHora || 0) * OVERTIME_MULTIPLIER;
+  const previewPrecio = getPrecioHoraForEmployee(isAdmin ? form.employee_id : employee?.id) * OVERTIME_MULTIPLIER;
 
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
@@ -236,6 +261,17 @@ export default function HorasExtras() {
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader><DialogTitle>{editing ? 'Editar Hora Extra' : 'Registrar Hora Extra'}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
+            {isAdmin && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Empleado</label>
+                <ResponsiveSelect
+                  value={form.employee_id}
+                  onValueChange={v => setForm({ ...form, employee_id: v })}
+                  options={employees.map(e => ({ value: e.id, label: `${e.full_name} — ${e.precioHora?.toFixed(2) || '0.00'} €/h` }))}
+                  className="bg-secondary border-border"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Fecha</label>
               <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
@@ -256,7 +292,7 @@ export default function HorasExtras() {
                 Duración: <span className="text-foreground font-medium">{previewDuration.toFixed(2)}h</span> · Precio/h (+40%): <span className="text-foreground font-medium">{previewPrecio.toFixed(2)} €</span> · Total: <span className="text-emerald-400 font-semibold">{(previewDuration * previewPrecio).toFixed(2)} €</span>
               </div>
             )}
-            <Button onClick={handleSave} disabled={!form.date || !form.start_time || !form.end_time} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+            <Button onClick={handleSave} disabled={!form.date || !form.start_time || !form.end_time || (isAdmin && !form.employee_id)} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
               {editing ? 'Guardar Cambios' : 'Registrar'}
             </Button>
           </div>
