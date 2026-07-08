@@ -144,8 +144,13 @@
   background: hsl(var(--background)) !important;
 }
 
-/* Print styles — only the report area is visible */
+/* Print-only elements (hidden on screen, visible in print) */
+.print-only { display: none; }
+
+/* Print styles — Noucolor branded report format */
 @media print {
+  @page { margin: 1.5cm 1.5cm 2cm; }
+
   body * { visibility: hidden; }
   #print-area, #print-area * { visibility: visible; }
   #print-area {
@@ -164,21 +169,138 @@
     top: 0;
     width: 100%;
   }
+
+  .print-only { display: block !important; }
+
+  /* Force light theme for print */
   .dark #print-area,
-  .dark #vida-laboral-print {
-    color: #000;
-  }
+  .dark #vida-laboral-print { color: #000 !important; }
   .dark #print-area .bg-card,
-  .dark #print-area .bg-secondary\/50,
-  .dark #print-area .bg-secondary,
+  .dark #print-area [class*="bg-secondary"],
   .dark #vida-laboral-print .bg-card,
-  .dark #vida-laboral-print .bg-secondary\/50,
-  .dark #vida-laboral-print .bg-secondary {
+  .dark #vida-laboral-print [class*="bg-secondary"] {
     background: #fff !important;
-    color: #000 !important;
   }
   .dark #print-area .text-muted-foreground,
   .dark #vida-laboral-print .text-muted-foreground {
     color: #555 !important;
   }
+  .dark #print-area .border-border,
+  .dark #print-area [class*="divide-border"] > *,
+  .dark #vida-laboral-print .border-border,
+  .dark #vida-laboral-print [class*="divide-border"] > * {
+    border-color: #e0e0e0 !important;
+  }
+
+  /* Noucolor branded header */
+  .np-header { margin-bottom: 24px; }
+  .np-header-top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 14px;
+  }
+  .np-logo {
+    height: 54px;
+    width: auto;
+    background: #fff;
+    padding: 5px;
+    border-radius: 8px;
+    border: 1px solid #e5e5e5;
+  }
+  .np-company { flex: 1; }
+  .np-company-name {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1a1a1a !important;
+    letter-spacing: 1.5px;
+    margin: 0;
+    line-height: 1.1;
+  }
+  .np-company-sub {
+    font-size: 11px;
+    color: #888 !important;
+    margin: 4px 0 0;
+    letter-spacing: 0.3px;
+  }
+  .np-meta { text-align: right; }
+  .np-meta-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #d97706 !important;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .np-meta-period {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a1a !important;
+    margin: 3px 0 0;
+  }
+  .np-meta-date {
+    font-size: 10px;
+    color: #aaa !important;
+    margin: 3px 0 0;
+  }
+  .np-accent-bar {
+    height: 4px;
+    background: #f59e0b;
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    border-radius: 2px;
+  }
+
+  /* Noucolor footer */
+  .np-footer { margin-top: 36px; }
+  .np-footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    font-size: 10px;
+    color: #aaa !important;
+  }
+  .np-footer-company { font-weight: 600; color: #888 !important; }
+
+  /* Branded table headers — Noucolor orange */
+  #print-area thead,
+  #print-area thead tr,
+  #print-area thead .bg-secondary\/50,
+  .dark #print-area thead,
+  .dark #print-area thead tr,
+  .dark #print-area thead .bg-secondary\/50,
+  #vida-laboral-print thead,
+  #vida-laboral-print thead tr,
+  #vida-laboral-print thead .bg-secondary\/50,
+  .dark #vida-laboral-print thead,
+  .dark #vida-laboral-print thead tr,
+  .dark #vida-laboral-print thead .bg-secondary\/50 {
+    background: #f59e0b !important;
+  }
+  #print-area thead th,
+  #print-area thead th span,
+  #print-area thead th *,
+  .dark #print-area thead th,
+  .dark #print-area thead th span,
+  .dark #print-area thead th *,
+  .dark #print-area thead th.text-muted-foreground,
+  #vida-laboral-print thead th,
+  #vida-laboral-print thead th span,
+  #vida-laboral-print thead th *,
+  .dark #vida-laboral-print thead th,
+  .dark #vida-laboral-print thead th span,
+  .dark #vida-laboral-print thead th *,
+  .dark #vida-laboral-print thead th.text-muted-foreground {
+    color: #fff !important;
+  }
+
+  /* Noucolor orange accents in print */
+  .dark #print-area .text-\[hsl\(35\,92\%\,55\%\)\],
+  .dark #vida-laboral-print .text-\[hsl\(35\,92\%\,55\%\)\] {
+    color: #d97706 !important;
+  }
+
+  /* Hide buttons in print */
+  #print-area button,
+  #vida-laboral-print button { display: none !important; }
 }

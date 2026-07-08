@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Wallet, Euro, TrendingUp, Receipt, Calendar, Printer, Inbox } from 'lucide-react';
+import { PrintHeader, PrintFooter } from '@/components/informes/PrintBranding';
 import moment from 'moment';
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -77,6 +78,7 @@ export default function HistorialSalarial({ employee, payrolls, open, onOpenChan
           <p className="text-center text-muted-foreground py-8">No hay registros de nóminas para este empleado.</p>
         ) : (
           <div id="vida-laboral-print">
+            <PrintHeader title="Historial Salarial" periodLabel={employee?.employee_name || ''} />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               {stats.map((s, i) => {
                 const Icon = s.icon;
@@ -147,6 +149,7 @@ export default function HistorialSalarial({ employee, payrolls, open, onOpenChan
               <Inbox size={12} />
               Registro completo de nóminas: salario base, horas extra, bonus y deducciones por periodo.
             </p>
+            <PrintFooter />
           </div>
         )}
       </DialogContent>

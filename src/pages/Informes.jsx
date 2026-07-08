@@ -13,6 +13,7 @@ import FirmaSeccion from '@/components/informes/FirmaSeccion';
 import NotasInforme from '@/components/informes/NotasInforme';
 import HistorialIncidencias from '@/components/informes/HistorialIncidencias';
 import ProductividadTareas from '@/components/informes/ProductividadTareas';
+import { PrintHeader, PrintFooter } from '@/components/informes/PrintBranding';
 import * as XLSX from 'xlsx';
 import moment from 'moment';
 
@@ -227,6 +228,7 @@ export default function Informes() {
       </div>
 
       <div id="print-area">
+        <PrintHeader periodLabel={periodLabel} />
         <ResumenMensual rows={rows} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} onVerVidaLaboral={setVidaLaboralEmp} onVerSalarial={setSalarialEmp} />
         <ProductividadTareas month={month} year={year} isAdmin={isAdmin} employee={employee} periodLabel={periodLabel} />
         <NotasInforme month={month} year={year} isAdmin={isAdmin} periodLabel={periodLabel} />
@@ -236,6 +238,7 @@ export default function Informes() {
           role={isAdmin ? 'administrador' : (employee?.role || 'operario')}
           periodLabel={periodLabel}
         />
+        <PrintFooter />
       </div>
 
       <VidaLaboral

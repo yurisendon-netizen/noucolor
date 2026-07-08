@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, TrendingUp, AlertCircle, CalendarDays, Printer } from 'lucide-react';
+import { PrintHeader, PrintFooter } from '@/components/informes/PrintBranding';
 import moment from 'moment';
 
 const statusStyles = {
@@ -76,6 +77,7 @@ export default function VidaLaboral({ employee, entries, open, onOpenChange }) {
           <p className="text-center text-muted-foreground py-8">No hay registros de fichajes.</p>
         ) : (
           <div id="vida-laboral-print">
+            <PrintHeader title="Vida Laboral" periodLabel={employee?.employee_name || ''} />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               {stats.map((s, i) => {
                 const Icon = s.icon;
@@ -125,6 +127,7 @@ export default function VidaLaboral({ employee, entries, open, onOpenChange }) {
                 </table>
               </div>
             </div>
+            <PrintFooter />
           </div>
         )}
       </DialogContent>
