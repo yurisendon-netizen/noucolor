@@ -22,16 +22,6 @@
       "type": "number",
       "description": "Duraci\u00f3n en horas"
     },
-    "type": {
-      "type": "string",
-      "enum": [
-        "normal",
-        "nocturna",
-        "festivo",
-        "urgente"
-      ],
-      "default": "normal"
-    },
     "obra_motivo": {
       "type": "string"
     },
@@ -39,7 +29,9 @@
       "type": "number"
     },
     "multiplier": {
-      "type": "number"
+      "type": "number",
+      "default": 1.4,
+      "description": "Incremento del 40% sobre el precio por hora"
     },
     "total": {
       "type": "number"
@@ -59,7 +51,6 @@
     "employee_name",
     "date",
     "start_time",
-    "end_time",
-    "type"
+    "end_time"
   ]
 }

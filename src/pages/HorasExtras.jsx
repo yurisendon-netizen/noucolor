@@ -15,14 +15,7 @@ import moment from 'moment';
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-const typeMultipliers = { normal: 1.5, nocturna: 2, festivo: 2.5, urgente: 2 };
-const typeLabels = { normal: 'Normal', nocturna: 'Nocturna', festivo: 'Festivo', urgente: 'Urgente' };
-const typeColors = {
-  normal: 'bg-blue-500/15 text-blue-400',
-  nocturna: 'bg-purple-500/15 text-purple-400',
-  festivo: 'bg-red-500/15 text-red-400',
-  urgente: 'bg-yellow-500/15 text-yellow-400',
-};
+const OVERTIME_MULTIPLIER = 1.4;
 
 function calcDuration(start, end) {
   const [sh, sm] = start.split(':').map(Number);
@@ -53,7 +46,7 @@ export default function HorasExtras() {
   const [editing, setEditing] = useState(null);
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
-  const [form, setForm] = useState({ date: '', start_time: '', end_time: '', type: 'normal', obra_motivo: '' });
+  const [form, setForm] = useState({ date: '', start_time: '', end_time: '', obra_motivo: '' });
 
   useEffect(() => { loadItems(); }, []);
 
@@ -84,13 +77,13 @@ export default function HorasExtras() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ date: new Date().toISOString().split('T')[0], start_time: '', end_time: '', type: 'normal', obra_motivo: '' });
+    setForm({ date: new Date().toISOString().split('T')[0], start_time: '', end_time: '', obra_motivo: '' });
     setDialogOpen(true);
   }
 
   function openEdit(item) {
     setEditing(item);
-    setForm({ date: item.date, start_time: item.start_time, end_time: item.end_time, type: item.type, obra_motivo: item.obra_motivo || '' });
+    setForm({ date: item.date, start_time: item.start_time, end_time: item.end_time, obra_motivo: item.obra_motivo || '' });
     setDialogOpen(true);
   }
 
@@ -101,7 +94,7 @@ export default function HorasExtras() {
       return;
     }
     const precioHora = employee?.precioHora || 0;
-    const multiplier = typeMultipliers[form.type];
+    const multiplier = OVERTIME_MULTIPLIER;
     const total = duration * precioHora * multiplier;
     const payload = {
       employee_id: employee?.id || user?.id,
@@ -110,7 +103,6 @@ export default function HorasExtras() {
       start_time: form.start_time,
       end_time: form.end_time,
       duration: parseFloat(duration.toFixed(2)),
-      type: form.type,
       obra_motivo: form.obra_motivo,
       precio_hora: precioHora,
       multiplier,
@@ -163,7 +155,6 @@ export default function HorasExtras() {
     { key: 'start_time', label: 'Inicio' },
     { key: 'end_time', label: 'Fin' },
     { key: 'duration', label: 'Duración', render: r => `${r.duration}h` },
-    { key: 'type', label: 'Tipo', render: r => <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[r.type]}`}>{typeLabels[r.type]}</span> },
     { key: 'precio_hora', label: 'Precio/Hora', render: r => `${(r.precio_hora || 0).toFixed(2)} €` },
     { key: 'total', label: 'Total', render: r => <span className="font-semibold text-emerald-400">{(r.total || 0).toFixed(2)} €</span> },
     { key: 'status', label: 'Estado', render: r => <StatusBadge status={r.status} /> },
@@ -174,7 +165,7 @@ export default function HorasExtras() {
   }
 
   const previewDuration = form.start_time && form.end_time ? calcDuration(form.start_time, form.end_time) : 0;
-  const previewPrecio = (employee?.precioHora || 0) * typeMultipliers[form.type];
+  const previewPrecio = (employee?.precioHora || 0) * OVERTIME_MULTIPLIER;
 
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
@@ -259,24 +250,10 @@ export default function HorasExtras() {
                 <Input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} className="bg-secondary border-border" />
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tipo</label>
-              <ResponsiveSelect
-                value={form.type}
-                onValueChange={v => setForm({ ...form, type: v })}
-                options={[
-                  { value: 'normal', label: 'Normal (x1.5)' },
-                  { value: 'nocturna', label: 'Nocturna (x2)' },
-                  { value: 'festivo', label: 'Festivo (x2.5)' },
-                  { value: 'urgente', label: 'Urgente (x2)' },
-                ]}
-                className="bg-secondary border-border"
-              />
-            </div>
             <Textarea placeholder="Obra / Motivo" value={form.obra_motivo} onChange={e => setForm({ ...form, obra_motivo: e.target.value })} className="bg-secondary border-border" />
             {previewDuration > 0 && (
               <div className="p-3 rounded-lg bg-secondary/50 text-sm text-muted-foreground">
-                Duración: <span className="text-foreground font-medium">{previewDuration.toFixed(2)}h</span> · Precio: <span className="text-foreground font-medium">{previewPrecio.toFixed(2)} €/h</span> · Total: <span className="text-emerald-400 font-semibold">{(previewDuration * previewPrecio).toFixed(2)} €</span>
+                Duración: <span className="text-foreground font-medium">{previewDuration.toFixed(2)}h</span> · Precio/h (+40%): <span className="text-foreground font-medium">{previewPrecio.toFixed(2)} €</span> · Total: <span className="text-emerald-400 font-semibold">{(previewDuration * previewPrecio).toFixed(2)} €</span>
               </div>
             )}
             <Button onClick={handleSave} disabled={!form.date || !form.start_time || !form.end_time} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
