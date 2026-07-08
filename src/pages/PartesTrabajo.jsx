@@ -21,7 +21,7 @@ export default function PartesTrabajo() {
   const [filters, setFilters] = useState({ employee: '', client: '', dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', client_name: '', address: '', date: '', priority: 'media', materials: '', notes: '' });
+  const [form, setForm] = useState({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '' });
 
   useEffect(() => { loadOrders(); }, []);
 
@@ -43,7 +43,7 @@ export default function PartesTrabajo() {
       });
       toast({ title: 'Parte creado correctamente' });
       setDialogOpen(false);
-      setForm({ title: '', description: '', client_name: '', address: '', date: '', priority: 'media', materials: '', notes: '' });
+      setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '' });
       loadOrders();
     } catch (e) {
       toast({ title: 'Error al crear parte', variant: 'destructive' });
@@ -156,7 +156,6 @@ export default function PartesTrabajo() {
           <div className="space-y-4 mt-2">
             <Input placeholder="Título *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Cliente *" value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} className="bg-secondary border-border" />
-            <Input placeholder="Dirección" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="bg-secondary border-border" />
             <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
             <ResponsiveSelect
               value={form.priority}
