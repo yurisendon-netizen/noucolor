@@ -24,6 +24,10 @@
       "type": "string",
       "description": "Nom de l'encarregat d'obra"
     },
+    "encargado_firma": {
+      "type": "string",
+      "description": "URL de la firma digital de l'encarregat"
+    },
     "status": {
       "type": "string",
       "enum": [

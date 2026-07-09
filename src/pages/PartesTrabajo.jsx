@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import ResponsiveSelect from '@/components/ui/responsive-select';
+import SignaturePadInput from '@/components/parts/SignaturePadInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -24,6 +25,8 @@ export default function PartesTrabajo() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
+  const [firmaDataUrl, setFirmaDataUrl] = useState(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => { loadOrders(); }, []);
 
@@ -36,9 +39,17 @@ export default function PartesTrabajo() {
   }
 
   async function handleCreate() {
+    setCreating(true);
     try {
+      let firmaUrl = null;
+      if (firmaDataUrl) {
+        const file = await dataUrlToFile(firmaDataUrl, 'firma_encargado.png');
+        const res = await base44.integrations.Core.UploadFile({ file });
+        firmaUrl = res.file_url;
+      }
       await base44.entities.WorkOrder.create({
         ...form,
+        encargado_firma: firmaUrl,
         assigned_to: employee?.id || user?.id,
         assigned_name: employee?.full_name || user?.full_name || '',
         status: 'pendiente'
@@ -46,10 +57,22 @@ export default function PartesTrabajo() {
       toast({ title: 'Parte creado correctamente' });
       setDialogOpen(false);
       setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
+      setFirmaDataUrl(null);
       loadOrders();
     } catch (e) {
       toast({ title: 'Error al crear parte', variant: 'destructive' });
+    } finally {
+      setCreating(false);
     }
+  }
+
+  function dataUrlToFile(dataUrl, filename) {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    const u8 = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+    return new File([u8], filename, { type: mime });
   }
 
   async function handleStatusChange(id, status) {
@@ -189,11 +212,15 @@ export default function PartesTrabajo() {
               <label className="text-xs text-muted-foreground mb-1.5 block">Encargado de Obra</label>
               <Input placeholder="Nombre del encargado" value={form.encargado_obra} onChange={e => setForm({ ...form, encargado_obra: e.target.value })} className="bg-secondary border-border" />
             </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Firma del Encargado</label>
+              <SignaturePadInput onChange={setFirmaDataUrl} />
+            </div>
             <Textarea placeholder="Descripción" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Materiales" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
             <Textarea placeholder="Notas" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />
-            <Button onClick={handleCreate} disabled={!form.title || !form.client_name || !form.date} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
-              Crear Parte
+            <Button onClick={handleCreate} disabled={!form.title || !form.client_name || !form.date || creating} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+              {creating ? <><Loader2 size={16} className="animate-spin" /> Creando...</> : 'Crear Parte'}
             </Button>
           </div>
         </DialogContent>

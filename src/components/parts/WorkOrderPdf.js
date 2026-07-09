@@ -166,23 +166,30 @@ export async function generateWorkOrderPdf(order) {
   doc.setTextColor(26, 26, 26);
   doc.text('Firma del Encargado de Obra:', margin, sigY + 10);
 
-  // Digital signature (encargado name in italic, orange)
+  // Digital signature image
   const nameY = sigY + 30;
-  doc.setFont('times', 'italic');
-  doc.setFontSize(18);
-  doc.setTextColor(217, 119, 6);
-  doc.text(order.encargado_obra || '-', margin, nameY);
+  if (order.encargado_firma) {
+    const firmaBase64 = await loadImageAsBase64(order.encargado_firma);
+    if (firmaBase64) {
+      try { doc.addImage(firmaBase64, 'PNG', margin, nameY - 18, 85, 22); } catch { /* ignore */ }
+    }
+  }
 
   // Signature line
   doc.setDrawColor(26, 26, 26);
   doc.setLineWidth(0.5);
   doc.line(margin, nameY + 3, margin + 85, nameY + 3);
 
-  // Label under signature
+  // Encargado name under signature line
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(26, 26, 26);
+  doc.text(order.encargado_obra || '-', margin, nameY + 9);
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(136, 136, 136);
-  doc.text("Encarregat d'Obra", margin, nameY + 9);
+  doc.text("Encarregat d'Obra", margin, nameY + 14);
 
   // Date on the right
   const dateX = pageWidth - margin - 55;
