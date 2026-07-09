@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Trash2, CheckCircle, X } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, X, Download, Loader2 } from 'lucide-react';
+import { generateWorkOrderPdf } from '@/components/parts/WorkOrderPdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +22,8 @@ export default function PartesTrabajo() {
   const [filters, setFilters] = useState({ employee: '', client: '', dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '' });
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [form, setForm] = useState({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
 
   useEffect(() => { loadOrders(); }, []);
 
@@ -43,7 +45,7 @@ export default function PartesTrabajo() {
       });
       toast({ title: 'Parte creado correctamente' });
       setDialogOpen(false);
-      setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '' });
+      setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
       loadOrders();
     } catch (e) {
       toast({ title: 'Error al crear parte', variant: 'destructive' });
@@ -72,6 +74,19 @@ export default function PartesTrabajo() {
     } catch (e) {
       setOrders(prev);
       toast({ title: 'Error al eliminar el parte', variant: 'destructive' });
+    }
+  }
+
+  async function handleDownloadPdf(order) {
+    setDownloadingId(order.id);
+    try {
+      await generateWorkOrderPdf(order);
+      toast({ title: 'PDF generado correctamente' });
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Error al generar el PDF', variant: 'destructive' });
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -141,6 +156,9 @@ export default function PartesTrabajo() {
                 <X size={16} />
               </Button>
             )}
+            <Button variant="ghost" size="sm" onClick={() => handleDownloadPdf(row)} disabled={downloadingId === row.id} className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10">
+              {downloadingId === row.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => handleDelete(row.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
               <Trash2 size={16} />
             </Button>
@@ -167,6 +185,10 @@ export default function PartesTrabajo() {
               ]}
               className="bg-secondary border-border"
             />
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Encargado de Obra</label>
+              <Input placeholder="Nombre del encargado" value={form.encargado_obra} onChange={e => setForm({ ...form, encargado_obra: e.target.value })} className="bg-secondary border-border" />
+            </div>
             <Textarea placeholder="Descripción" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Materiales" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
             <Textarea placeholder="Notas" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />

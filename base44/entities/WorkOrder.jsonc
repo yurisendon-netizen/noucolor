@@ -20,6 +20,10 @@
     "assigned_name": {
       "type": "string"
     },
+    "encargado_obra": {
+      "type": "string",
+      "description": "Nom de l'encarregat d'obra"
+    },
     "status": {
       "type": "string",
       "enum": [
