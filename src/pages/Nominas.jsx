@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Download, FileText, Calculator, CheckCircle2 } from 'lucide-react';
+import { Plus, Download, FileText, Calculator, CheckCircle2, Pen } from 'lucide-react';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import NominaSignDialog from '@/components/nominas/NominaSignDialog';
 import { Button } from '@/components/ui/button';
@@ -130,11 +130,11 @@ export default function Nominas() {
   }
 
   function handleDownload(payroll) {
-    if (payroll.employee_id === employee?.id && !payroll.worker_signature_name) {
-      setSignPayroll(payroll);
-    } else {
-      generateNominaPdf(payroll);
-    }
+    generateNominaPdf(payroll);
+  }
+
+  function handleSign(payroll) {
+    setSignPayroll(payroll);
   }
 
   function handleSigned(updatedPayroll) {
@@ -191,10 +191,15 @@ export default function Nominas() {
         emptyMessage="No hay nóminas generadas"
         actions={(row) => (
           <div className="flex items-center gap-1">
-            {row.worker_signature_name && (
-              <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+            {row.employee_id === employee?.id && !row.worker_signature_name && (
+              <Button variant="ghost" size="sm" onClick={() => handleSign(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10 gap-1" title="Firmar nómina">
+                <Pen size={16} />
+              </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">
+            {row.worker_signature_name && (
+              <CheckCircle2 size={16} className="text-emerald-400 shrink-0" title={`Firmada per ${row.worker_signature_name}`} />
+            )}
+            <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10" title="Descarregar PDF">
               <FileText size={16} />
             </Button>
           </div>
