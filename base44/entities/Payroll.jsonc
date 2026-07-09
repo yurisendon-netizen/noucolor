@@ -20,6 +20,16 @@
     "period_year": {
       "type": "number"
     },
+    "precio_hora": {
+      "type": "number",
+      "description": "Preu per hora del treballador (\u20ac)",
+      "default": 0
+    },
+    "total_hours": {
+      "type": "number",
+      "description": "Hores treballades totals del per\u00edode",
+      "default": 0
+    },
     "base_salary": {
       "type": "number"
     },

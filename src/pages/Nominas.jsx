@@ -103,6 +103,8 @@ export default function Nominas() {
         employee_id: emp.id, employee_name: emp.full_name,
         employee_dni: emp.dni || '', employee_nss: emp.nss || '',
         period_month: month, period_year: year,
+        precio_hora: parseFloat(precioHora.toFixed(2)),
+        total_hours: parseFloat((calcSummary?.regularHours || 0).toFixed(2)),
         base_salary: parseFloat(adjustedBase.toFixed(2)),
         overtime_hours: parseFloat(form.overtime_hours) || 0,
         overtime_pay: parseFloat(overtimePay.toFixed(2)),

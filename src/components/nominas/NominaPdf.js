@@ -22,25 +22,45 @@ export async function generateNominaPdf(payroll) {
       { label: 'DNI / NIF', value: payroll.employee_dni || '—' },
       { label: 'Núm. CASS / N.S.S.', value: payroll.employee_nss || '—' },
       { label: 'Període', value: periodLabel },
+      { label: 'Preu per hora', value: eur(payroll.precio_hora) },
     ],
     startY: y, pageHeight, margin,
   });
 
   y += 6;
+  const precioHora = Number(payroll.precio_hora) || 0;
+  const totalHours = Number(payroll.total_hours) || 0;
+  const overtimeHours = Number(payroll.overtime_hours) || 0;
+  const regularHours = Math.max(0, totalHours - overtimeHours);
+
   y = addTable(doc, {
     columns: [
       { label: 'DEVENGAMENTS', key: 'label', width: 0.75 },
       { label: 'EUR', key: 'value', align: 'right', width: 0.25 },
     ],
     rows: [
+      { label: 'Preu per hora', value: eur(precioHora) },
+      { label: `Hores treballades (${regularHours.toFixed(1)}h regulars + ${overtimeHours.toFixed(1)}h extres)`, value: `${totalHours.toFixed(1)}h` },
       { label: 'Salari base (8:00-16:00)', value: eur(payroll.base_salary) },
-      { label: `Hores extres (${(Number(payroll.overtime_hours) || 0).toFixed(1)}h)`, value: eur(payroll.overtime_pay) },
+      { label: `Hores extres (${overtimeHours.toFixed(1)}h × ${eur(precioHora)} × 1,5)`, value: eur(payroll.overtime_pay) },
       { label: 'Bonificacions', value: eur(payroll.bonus) },
     ],
     startY: y, pageHeight, margin,
   });
 
-  y += 4;
+  y += 5;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(136, 136, 136);
+  const refText = `Càlcul: Hores × Preu per hora = ${totalHours.toFixed(1)}h × ${eur(precioHora)} = ${eur(totalHours * precioHora)}`;
+  const breakdownText = `Desglossament: Salari base ${eur(payroll.base_salary)} + Hores extres ${eur(payroll.overtime_pay)} + Bonificacions ${eur(payroll.bonus)} = ${eur(payroll.gross_salary)}`;
+  const refLines = doc.splitTextToSize(refText, pageWidth - margin * 2);
+  doc.text(refLines, margin, y);
+  y += refLines.length * 4 + 1;
+  const breakLines = doc.splitTextToSize(breakdownText, pageWidth - margin * 2);
+  doc.text(breakLines, margin, y);
+  y += breakLines.length * 4 + 4;
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(26, 26, 26);
