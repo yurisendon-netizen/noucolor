@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Check, X, Download } from 'lucide-react';
+import { Plus, Check, X, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +12,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import moment from 'moment';
+import { generateJustificantePdf } from '@/components/justificantes/JustificantePdf';
 
 const typeLabels = {
   baja_medica: 'Baja Médica', vacaciones: 'Vacaciones',
@@ -114,6 +115,9 @@ export default function Justificantes() {
         emptyMessage="No hay justificantes"
         actions={(row) => (
           <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => generateJustificantePdf(row)} className="text-blue-400 hover:bg-blue-500/10">
+              <FileText size={16} />
+            </Button>
             {row.file_url && (
               <a href={row.file_url} target="_blank" rel="noopener noreferrer" download>
                 <Button variant="ghost" size="sm" className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">

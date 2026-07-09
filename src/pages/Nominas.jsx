@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
-import jsPDF from 'jspdf';
+import { generateNominaPdf } from '@/components/nominas/NominaPdf';
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -23,113 +23,7 @@ function getWorkingDaysInMonth(year, month) {
   return count;
 }
 
-function generatePayslipPDF(payroll) {
-  const doc = new jsPDF();
-  const w = doc.internal.pageSize.getWidth();
-
-  doc.setFillColor(30, 36, 50);
-  doc.rect(0, 0, w, 45, 'F');
-  doc.setTextColor(230, 175, 60);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('NOUCOLOR S.L.', 20, 20);
-  doc.setFontSize(10);
-  doc.setTextColor(200, 200, 210);
-  doc.text('Pintura i Decoració — Principat d\'Andorra', 20, 28);
-  doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
-  doc.text('BUTLLETÍ DE SALARI', 20, 40);
-
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(10);
-  let y = 58;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Treballador:', 20, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(payroll.employee_name, 70, y);
-  y += 8;
-  doc.setFont('helvetica', 'bold');
-  doc.text('DNI:', 20, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(payroll.employee_dni || '—', 70, y);
-  doc.setFont('helvetica', 'bold');
-  doc.text('N.S.S.:', 110, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(payroll.employee_nss || '—', 140, y);
-  y += 8;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Període:', 20, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${MONTHS[payroll.period_month - 1]} ${payroll.period_year}`, 70, y);
-
-  y += 15;
-  doc.setFillColor(240, 240, 245);
-  doc.rect(15, y, w - 30, 10, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 36, 50);
-  doc.text('DEVENGAMENTS', 20, y + 7);
-  doc.text('EUR', w - 35, y + 7, { align: 'right' });
-
-  y += 14;
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 60, 60);
-  const items = [
-    ['Salari base (8:00-16:00)', payroll.base_salary],
-    ['Hores extres', payroll.overtime_pay || 0],
-    ['Bonificacions', payroll.bonus || 0],
-  ];
-  items.forEach(([label, val]) => {
-    doc.text(label, 20, y);
-    doc.text((val || 0).toFixed(2), w - 35, y, { align: 'right' });
-    y += 7;
-  });
-  y += 3;
-  doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL DEVENGAT', 20, y);
-  doc.text((payroll.gross_salary || 0).toFixed(2), w - 35, y, { align: 'right' });
-
-  y += 15;
-  doc.setFillColor(240, 240, 245);
-  doc.rect(15, y, w - 30, 10, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 36, 50);
-  doc.text('DEDUCCIONS', 20, y + 7);
-  doc.text('EUR', w - 35, y + 7, { align: 'right' });
-
-  y += 14;
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 60, 60);
-  const deductions = [
-    ['Cotització CASS treballador (6,5%)', payroll.cass_employee || 0],
-    ['Retenció IRPF', payroll.irpf || 0],
-    ['Altres deduccions', payroll.other_deductions || 0],
-  ];
-  deductions.forEach(([label, val]) => {
-    doc.text(label, 20, y);
-    doc.text((val || 0).toFixed(2), w - 35, y, { align: 'right' });
-    y += 7;
-  });
-  y += 3;
-  doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL DEDUCCIONS', 20, y);
-  const totalDed = (payroll.cass_employee || 0) + (payroll.irpf || 0) + (payroll.other_deductions || 0);
-  doc.text(totalDed.toFixed(2), w - 35, y, { align: 'right' });
-
-  y += 15;
-  doc.setFillColor(30, 36, 50);
-  doc.rect(15, y, w - 30, 12, 'F');
-  doc.setTextColor(230, 175, 60);
-  doc.setFontSize(12);
-  doc.text('LÍQUID A PERCEBRE', 20, y + 9);
-  doc.text(`${(payroll.net_salary || 0).toFixed(2)} EUR`, w - 35, y + 9, { align: 'right' });
-
-  y += 25;
-  doc.setTextColor(150, 150, 150);
-  doc.setFontSize(8);
-  doc.text('Document generat per Noucolor — Gestió Interna', 20, y);
-
-  doc.save(`Nomina_${payroll.employee_name.replace(/\s/g, '_')}_${MONTHS[payroll.period_month - 1]}_${payroll.period_year}.pdf`);
-}
+// PDF generation moved to src/components/nominas/NominaPdf.js
 
 export default function Nominas() {
   const { toast } = useToast();
@@ -224,8 +118,10 @@ export default function Nominas() {
     }
   }
 
-  function downloadAll() {
-    payrolls.forEach(p => generatePayslipPDF(p));
+  async function downloadAll() {
+    for (const p of payrolls) {
+      await generateNominaPdf(p);
+    }
     toast({ title: `${payrolls.length} nóminas descargadas` });
   }
 
@@ -275,7 +171,7 @@ export default function Nominas() {
         ]}
         emptyMessage="No hay nóminas generadas"
         actions={(row) => (
-          <Button variant="ghost" size="sm" onClick={() => generatePayslipPDF(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">
+          <Button variant="ghost" size="sm" onClick={() => generateNominaPdf(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">
             <FileText size={16} />
           </Button>
         )}
