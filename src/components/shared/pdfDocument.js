@@ -192,7 +192,7 @@ export function addTextBlock(doc, { label, content, startY, pageHeight, margin }
   return y + 4;
 }
 
-export async function addSignature(doc, { encargadoName, firmaUrl, startY, pageHeight, margin }) {
+export async function addSignature(doc, { encargadoName, firmaUrl, startY, pageHeight, margin, label = 'Firma del Encargado de Obra:', roleLabel = "Encarregat d'Obra", signatureDate = null }) {
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = startY;
 
@@ -211,7 +211,7 @@ export async function addSignature(doc, { encargadoName, firmaUrl, startY, pageH
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...C.black);
-  doc.text('Firma del Encargado de Obra:', margin, y);
+  doc.text(label, margin, y);
 
   const sigY = y + 22;
   if (firmaUrl) {
@@ -235,7 +235,7 @@ export async function addSignature(doc, { encargadoName, firmaUrl, startY, pageH
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...C.gray);
-  doc.text("Encarregat d'Obra", margin, sigY + 15);
+  doc.text(roleLabel, margin, sigY + 15);
 
   const dateX = pageWidth - margin - 60;
   doc.setFontSize(8);
@@ -246,7 +246,8 @@ export async function addSignature(doc, { encargadoName, firmaUrl, startY, pageH
   doc.line(dateX + 12, sigY + 3, pageWidth - margin, sigY + 3);
   doc.setTextColor(...C.black);
   doc.setFontSize(9);
-  doc.text(moment().format('DD/MM/YYYY'), dateX + 12, sigY + 10);
+  const dateStr = signatureDate ? moment(signatureDate).format('DD/MM/YYYY') : moment().format('DD/MM/YYYY');
+  doc.text(dateStr, dateX + 12, sigY + 10);
 
   return sigY + 20;
 }

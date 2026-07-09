@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Download, FileText, Calculator } from 'lucide-react';
+import { Plus, Download, FileText, Calculator, CheckCircle2 } from 'lucide-react';
+import useEmployeeProfile from '@/hooks/useEmployeeProfile';
+import NominaSignDialog from '@/components/nominas/NominaSignDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ResponsiveSelect from '@/components/ui/responsive-select';
@@ -27,6 +29,7 @@ function getWorkingDaysInMonth(year, month) {
 
 export default function Nominas() {
   const { toast } = useToast();
+  const { employee } = useEmployeeProfile();
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +37,7 @@ export default function Nominas() {
   const [form, setForm] = useState({ employee_id: '', period_month: new Date().getMonth() + 1, period_year: new Date().getFullYear(), overtime_hours: 0, bonus: 0, other_deductions: 0 });
   const [calcSummary, setCalcSummary] = useState(null);
   const [calculating, setCalculating] = useState(false);
+  const [signPayroll, setSignPayroll] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -125,6 +129,21 @@ export default function Nominas() {
     toast({ title: `${payrolls.length} nóminas descargadas` });
   }
 
+  function handleDownload(payroll) {
+    if (payroll.employee_id === employee?.id && !payroll.worker_signature_name) {
+      setSignPayroll(payroll);
+    } else {
+      generateNominaPdf(payroll);
+    }
+  }
+
+  function handleSigned(updatedPayroll) {
+    setSignPayroll(null);
+    generateNominaPdf(updatedPayroll);
+    toast({ title: 'Nòmina firmada correctament' });
+    loadData();
+  }
+
   const columns = [
     { key: 'employee_name', label: 'Empleado', render: r => <span className="font-medium">{r.employee_name}</span> },
     { key: 'period', label: 'Período', render: r => `${MONTHS[r.period_month - 1]} ${r.period_year}` },
@@ -171,9 +190,14 @@ export default function Nominas() {
         ]}
         emptyMessage="No hay nóminas generadas"
         actions={(row) => (
-          <Button variant="ghost" size="sm" onClick={() => generateNominaPdf(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">
-            <FileText size={16} />
-          </Button>
+          <div className="flex items-center gap-1">
+            {row.worker_signature_name && (
+              <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+            )}
+            <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">
+              <FileText size={16} />
+            </Button>
+          </div>
         )}
       />
 
@@ -222,6 +246,15 @@ export default function Nominas() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {signPayroll && (
+        <NominaSignDialog
+          payroll={signPayroll}
+          employeeName={employee?.full_name}
+          onClose={() => setSignPayroll(null)}
+          onSigned={handleSigned}
+        />
+      )}
     </div>
   );
 }

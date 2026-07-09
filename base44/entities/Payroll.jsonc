@@ -61,6 +61,15 @@
         "pagada"
       ],
       "default": "borrador"
+    },
+    "worker_signature_name": {
+      "type": "string",
+      "description": "Nom del treballador que ha firmat la n\u00f2mina"
+    },
+    "worker_signature_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data de la firma digital del treballador"
     }
   },
   "required": [
