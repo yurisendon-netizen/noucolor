@@ -78,23 +78,16 @@ export async function generateNominaPdf(payroll) {
   doc.text(eur(payroll.net_salary), pageWidth - margin - 4, y + 8, { align: 'right' });
 
   y += 22;
-  y = await addSignature(doc, {
-    encargadoName: payroll.worker_signature_name || null,
-    firmaUrl: payroll.worker_signature_url || null,
-    label: 'Firma del Trabajador:',
-    roleLabel: 'Treballador',
-    signatureDate: payroll.worker_signature_date || null,
-    startY: y, pageHeight, margin,
-  });
-
-  y = await addSignature(doc, {
-    encargadoName: null,
-    firmaUrl: null,
-    label: 'Firma del Encargado de Obra:',
-    roleLabel: "Encarregat d'Obra",
-    signatureDate: null,
-    startY: y, pageHeight, margin,
-  });
+  if (payroll.worker_signature_url || payroll.worker_signature_name) {
+    y = await addSignature(doc, {
+      encargadoName: payroll.worker_signature_name || null,
+      firmaUrl: payroll.worker_signature_url || null,
+      label: 'Firma del Trabajador:',
+      roleLabel: 'Treballador',
+      signatureDate: payroll.worker_signature_date || null,
+      startY: y, pageHeight, margin,
+    });
+  }
 
   addFooters(doc);
   doc.save(`Nomina_${(payroll.employee_name || 'treballador').replace(/\s/g, '_')}_${MONTHS[(payroll.period_month || 1) - 1]}_${payroll.period_year}.pdf`);
