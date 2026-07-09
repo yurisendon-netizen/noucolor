@@ -70,6 +70,10 @@
       "type": "string",
       "format": "date-time",
       "description": "Data de la firma digital del treballador"
+    },
+    "worker_signature_url": {
+      "type": "string",
+      "description": "URL de la imatge de la firma digital del treballador"
     }
   },
   "required": [

@@ -80,7 +80,7 @@ export async function generateNominaPdf(payroll) {
   y += 22;
   y = await addSignature(doc, {
     encargadoName: payroll.worker_signature_name || null,
-    firmaUrl: null,
+    firmaUrl: payroll.worker_signature_url || null,
     label: 'Firma del Trabajador:',
     roleLabel: 'Treballador',
     signatureDate: payroll.worker_signature_date || null,
