@@ -10,7 +10,7 @@ export async function generateNominaPdf(payroll) {
   const { doc, pageHeight, margin } = await createDoc();
   const pageWidth = doc.internal.pageSize.getWidth();
   const periodLabel = `${MONTHS[(payroll.period_month || 1) - 1]} ${payroll.period_year}`;
-  let y = await addHeader(doc, { title: 'Butlletí de Salari', subtitle: periodLabel });
+  let y = await addHeader(doc, { title: 'Butlletí de Salari i Llibre Horari', subtitle: periodLabel });
 
   y = addTable(doc, {
     columns: [
@@ -19,8 +19,8 @@ export async function generateNominaPdf(payroll) {
     ],
     rows: [
       { label: 'Treballador', value: payroll.employee_name },
-      { label: 'DNI', value: payroll.employee_dni || '—' },
-      { label: 'N.S.S.', value: payroll.employee_nss || '—' },
+      { label: 'DNI / NIF', value: payroll.employee_dni || '—' },
+      { label: 'Núm. CASS / N.S.S.', value: payroll.employee_nss || '—' },
       { label: 'Període', value: periodLabel },
     ],
     startY: y, pageHeight, margin,
