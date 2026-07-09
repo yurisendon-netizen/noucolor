@@ -92,7 +92,7 @@ export default function Nominas() {
     const absenceDeduction = (calcSummary?.absences || 0) * dailyRate;
     const adjustedBase = Math.max(monthlyBase - absenceDeduction, 0);
 
-    const overtimePay = (form.overtime_hours || 0) * precioHora * 1.5;
+    const overtimePay = (form.overtime_hours || 0) * precioHora * 1.4;
     const gross = adjustedBase + overtimePay + (parseFloat(form.bonus) || 0);
     const cass = gross * 0.065;
     const irpf = gross > 2000 ? gross * 0.05 : 0;
