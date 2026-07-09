@@ -29,73 +29,84 @@ export async function generateNominaPdf(payroll) {
 
   y += 6;
   const precioHora = Number(payroll.precio_hora) || 0;
+  const precioHoraExtra = precioHora * 1.5;
   const totalHours = Number(payroll.total_hours) || 0;
   const overtimeHours = Number(payroll.overtime_hours) || 0;
   const regularHours = Math.max(0, totalHours - overtimeHours);
+  const salariOrdinaries = regularHours * precioHora;
 
   y = addTable(doc, {
     columns: [
-      { label: 'DEVENGAMENTS', key: 'label', width: 0.75 },
-      { label: 'EUR', key: 'value', align: 'right', width: 0.25 },
+      { label: 'CONCEPTE', key: 'label', width: 0.46 },
+      { label: 'DETALL', key: 'detail', align: 'center', width: 0.32 },
+      { label: 'IMPORT (€)', key: 'value', align: 'right', width: 0.22 },
     ],
     rows: [
-      { label: 'Preu per hora', value: eur(precioHora) },
-      { label: `Hores treballades (${regularHours.toFixed(1)}h regulars + ${overtimeHours.toFixed(1)}h extres)`, value: `${totalHours.toFixed(1)}h` },
-      { label: 'Salari base (8:00-16:00)', value: eur(payroll.base_salary) },
-      { label: `Hores extres (${overtimeHours.toFixed(1)}h × ${eur(precioHora)} × 1,5)`, value: eur(payroll.overtime_pay) },
-      { label: 'Bonificacions', value: eur(payroll.bonus) },
+      { label: 'Preu per hora (ordinària)', detail: eur(precioHora), value: eur(precioHora) },
+      { label: 'Preu per hora (extra +50%)', detail: eur(precioHoraExtra), value: eur(precioHoraExtra) },
+      { label: 'Hores ordinàries treballades', detail: `${regularHours.toFixed(1)}h`, value: eur(salariOrdinaries) },
+      { label: 'Hores extres treballades', detail: `${overtimeHours.toFixed(1)}h × ${eur(precioHoraExtra)}`, value: eur(payroll.overtime_pay) },
+      { label: 'Salari base ajustat (8:00-16:00)', detail: '—', value: eur(payroll.base_salary) },
+      { label: 'Bonificacions', detail: '—', value: eur(payroll.bonus) },
     ],
     startY: y, pageHeight, margin,
   });
 
-  y += 5;
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(8);
-  doc.setTextColor(136, 136, 136);
-  const refText = `Càlcul: Hores × Preu per hora = ${totalHours.toFixed(1)}h × ${eur(precioHora)} = ${eur(totalHours * precioHora)}`;
-  const breakdownText = `Desglossament: Salari base ${eur(payroll.base_salary)} + Hores extres ${eur(payroll.overtime_pay)} + Bonificacions ${eur(payroll.bonus)} = ${eur(payroll.gross_salary)}`;
-  const refLines = doc.splitTextToSize(refText, pageWidth - margin * 2);
-  doc.text(refLines, margin, y);
-  y += refLines.length * 4 + 1;
-  const breakLines = doc.splitTextToSize(breakdownText, pageWidth - margin * 2);
-  doc.text(breakLines, margin, y);
-  y += breakLines.length * 4 + 4;
-
+  y += 4;
+  doc.setFillColor(217, 119, 6);
+  doc.rect(margin, y, pageWidth - margin * 2, 9, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.setTextColor(26, 26, 26);
-  doc.text('TOTAL DEVENGAT', margin, y);
-  doc.text(eur(payroll.gross_salary), pageWidth - margin, y, { align: 'right' });
-  y += 10;
+  doc.text('SALARI BRUT (Ordinàries + Extres + Bonificacions)', margin + 4, y + 6);
+  doc.text(eur(payroll.gross_salary), pageWidth - margin - 4, y + 6, { align: 'right' });
+  y += 13;
 
   y = addTable(doc, {
     columns: [
-      { label: 'DEDUCCIONS', key: 'label', width: 0.75 },
-      { label: 'EUR', key: 'value', align: 'right', width: 0.25 },
+      { label: 'DEDUCCIONS', key: 'label', width: 0.46 },
+      { label: 'DETALL', key: 'detail', align: 'center', width: 0.32 },
+      { label: 'IMPORT (€)', key: 'value', align: 'right', width: 0.22 },
     ],
     rows: [
-      { label: 'Cotització CASS treballador (6,5%)', value: eur(payroll.cass_employee) },
-      { label: 'Retenció IRPF', value: eur(payroll.irpf) },
-      { label: 'Altres deduccions', value: eur(payroll.other_deductions) },
+      { label: 'Part obrer CASS (6,5%)', detail: `6,5% × ${eur(payroll.gross_salary)}`, value: eur(payroll.cass_employee) },
+      { label: 'Retenció IRPF', detail: payroll.irpf > 0 ? `sobre ${eur(payroll.gross_salary)}` : '—', value: eur(payroll.irpf) },
+      { label: 'Altres deduccions', detail: '—', value: eur(payroll.other_deductions) },
     ],
     startY: y, pageHeight, margin,
   });
 
   y += 4;
   const totalDed = (Number(payroll.cass_employee) || 0) + (Number(payroll.irpf) || 0) + (Number(payroll.other_deductions) || 0);
+  doc.setFillColor(120, 120, 120);
+  doc.rect(margin, y, pageWidth - margin * 2, 9, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.setTextColor(26, 26, 26);
-  doc.text('TOTAL DEDUCCIONS', margin, y);
-  doc.text(eur(totalDed), pageWidth - margin, y, { align: 'right' });
+  doc.text('TOTAL DEDUCCIONS', margin + 4, y + 6);
+  doc.text(eur(totalDed), pageWidth - margin - 4, y + 6, { align: 'right' });
+  y += 13;
 
-  y += 12;
+  y = addTable(doc, {
+    columns: [
+      { label: 'RESUM FINAL', key: 'label', width: 0.65 },
+      { label: 'IMPORT (€)', key: 'value', align: 'right', width: 0.35 },
+    ],
+    rows: [
+      { label: 'Salari brut', value: eur(payroll.gross_salary) },
+      { label: 'Total deduccions (−)', value: eur(totalDed) },
+    ],
+    startY: y, pageHeight, margin,
+  });
+
+  y += 4;
   doc.setFillColor(245, 158, 11);
-  doc.rect(margin, y, pageWidth - margin * 2, 12, 'F');
+  doc.rect(margin, y, pageWidth - margin * 2, 14, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
-  doc.text('LÍQUID A PERCEBRE', margin + 4, y + 8);
-  doc.text(eur(payroll.net_salary), pageWidth - margin - 4, y + 8, { align: 'right' });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('SALARI NET A PERCEBRE', margin + 4, y + 9);
+  doc.text(eur(payroll.net_salary), pageWidth - margin - 4, y + 9, { align: 'right' });
 
   y += 22;
   if (payroll.worker_signature_url || payroll.worker_signature_name) {
