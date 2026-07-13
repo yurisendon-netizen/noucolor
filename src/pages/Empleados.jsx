@@ -112,15 +112,15 @@ export default function Empleados() {
     const rows = employees.map(e => ({
       'ID': e.id,
       'Nombre Completo': e.full_name,
+      'Usuario': e.user,
+      'Contraseña': e.pass,
       'Cargo': e.role,
+      'Precio Hora (€)': e.precioHora,
+      'Salario Base (€)': e.base_salary,
       'Correo Electrónico': e.email,
       'Teléfono': e.phone,
-      'DNI / Pasaporte': e.dni,
-      'Número CASS': e.nss,
+      'Tarjeta CASS': e.nss,
       'IBAN': e.iban,
-      'Usuario de Login': e.user,
-      'Salario Base (€)': e.base_salary,
-      '€/hora': e.precioHora,
       'Fecha de Incorporación': e.hire_date ? moment(e.hire_date).format('DD/MM/YYYY') : '',
       'Estado': e.is_active ? 'Activo' : 'Inactivo',
     }));
@@ -140,20 +140,17 @@ export default function Empleados() {
   const columns = [
     { key: 'id', label: 'ID', render: r => <span className="text-xs text-muted-foreground font-mono">{r.id?.slice(-6)}</span> },
     { key: 'full_name', label: 'Nombre Completo', render: r => <span className="font-medium">{r.full_name}</span> },
+    { key: 'user', label: 'Usuario', render: r => <span className="text-xs font-mono">{r.user || '—'}</span> },
+    { key: 'pass', label: 'Contraseña', render: r => <span className="text-xs font-mono text-muted-foreground">{r.pass || '—'}</span> },
     { key: 'role', label: 'Cargo', render: r => (
       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleStyles[r.role] || roleStyles.operario}`}>{roleLabels[r.role] || r.role}</span>
     )},
+    { key: 'precioHora', label: 'Precio Hora', render: r => <span className="font-medium">{r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—'}</span> },
+    { key: 'base_salary', label: 'Salario Base', render: r => <span className="font-medium">{r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—'}</span> },
     { key: 'email', label: 'Correo Electrónico', render: r => <span className="text-xs">{r.email || '—'}</span> },
     { key: 'phone', label: 'Teléfono', render: r => r.phone || '—' },
-    { key: 'nss', label: 'Nº CASS', render: r => r.nss || '—' },
+    { key: 'nss', label: 'Tarjeta CASS', render: r => r.nss || '—' },
     { key: 'iban', label: 'IBAN', render: r => <span className="text-xs font-mono">{r.iban || '—'}</span> },
-    { key: 'user', label: 'Usuario', render: r => r.user || '—' },
-    { key: 'base_salary', label: 'Salario Base (€/hora)', render: r => (
-      <div className="flex flex-col">
-        <span className="font-medium">{r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—'}</span>
-        <span className="text-xs text-muted-foreground">{r.precioHora ? `${r.precioHora.toFixed(2)}€/h` : ''}</span>
-      </div>
-    )},
     { key: 'hire_date', label: 'Incorporación', render: r => r.hire_date ? moment(r.hire_date).format('DD/MM/YYYY') : '—' },
   ];
 
