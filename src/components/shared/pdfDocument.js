@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import moment from 'moment';
 
 const LOGO_URL = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png';
-export const COMPANY_LEGAL = 'PINTURES I DECORACIÓ NOU COLOR, S.L.U.';
+export const COMPANY_LEGAL = 'PINTURES I DECORACIÓ NOU COLOR, S.L';
 const COMPANY_SUB = "Pintura i Decoració · Principat d'Andorra";
 
 const C = {
