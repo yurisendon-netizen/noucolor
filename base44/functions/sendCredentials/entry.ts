@@ -55,23 +55,12 @@ Deno.serve(async (req) => {
 </div>`;
 
       try {
-        const resendResp = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            from: 'Noucolor <onboarding@resend.dev>',
-            to: [emp.email],
-            subject: 'Noucolor - Tus credenciales de acceso',
-            html: html
-          })
+        await base44.asServiceRole.integrations.Core.SendEmail({
+          to: emp.email,
+          from_name: 'Noucolor',
+          subject: 'Noucolor - Tus credenciales de acceso',
+          body: html
         });
-        if (!resendResp.ok) {
-          const errData = await resendResp.json().catch(() => ({}));
-          throw new Error(errData.message || `Resend error ${resendResp.status}`);
-        }
         results.push({ name: emp.full_name, email: emp.email, sent: true });
       } catch (err) {
         results.push({ name: emp.full_name, error: err.message });
