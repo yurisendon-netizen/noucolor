@@ -26,16 +26,17 @@ Deno.serve(async (req) => {
       return Response.json({ success: false }, { status: 400 });
     }
 
-    const employees = await base44.asServiceRole.entities.Employee.filter({
-      user: username.toLowerCase(),
+    // Case-insensitive username match (stored user may be capitalized)
+    const activeEmployees = await base44.asServiceRole.entities.Employee.filter({
       is_active: true
     });
+    const emp = activeEmployees.find(
+      e => typeof e.user === 'string' && e.user.toLowerCase() === username.toLowerCase()
+    );
 
-    if (employees.length === 0) {
+    if (!emp) {
       return Response.json({ success: false });
     }
-
-    const emp = employees[0];
     const valid = await verifyPassword(password, emp.pass);
     if (!valid) {
       return Response.json({ success: false });
