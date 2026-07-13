@@ -191,6 +191,7 @@ export default function Empleados() {
         filterOptions={[
           { value: 'operario', label: 'Operario' },
           { value: 'administrador', label: 'Administrador' },
+          { value: 'jefe', label: 'Jefe' },
         ]}
         emptyMessage="No hay empleados registrados"
         onRefresh={loadEmployees}
@@ -217,6 +218,7 @@ export default function Empleados() {
               <SelectContent>
                 <SelectItem value="operario">Operario</SelectItem>
                 <SelectItem value="administrador">Administrador</SelectItem>
+                <SelectItem value="jefe">Jefe</SelectItem>
               </SelectContent>
             </Select>
             <Input placeholder="Puesto" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} className="bg-secondary border-border" />

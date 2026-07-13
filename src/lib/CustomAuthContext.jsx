@@ -8,12 +8,26 @@ export function CustomAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // No recordar la sesión: en cada carga de la app se borra cualquier
-    // sesión persistida y se exige login de nuevo. El estado de sesión
-    // vive solo en memoria durante la visita actual.
-    localStorage.removeItem('noucolor_session');
-    localStorage.removeItem('noucolor_emp_id');
-    setLoading(false);
+    // Restaurar sesión desde localStorage si existe
+    const savedId = localStorage.getItem('noucolor_emp_id');
+    if (savedId) {
+      base44.functions.invoke('manageEmployee', { action: 'getById', employeeId: savedId, callerEmployeeId: savedId })
+        .then(res => {
+          if (res.data?.success && res.data.employee) {
+            setEmployee(res.data.employee);
+          } else {
+            localStorage.removeItem('noucolor_session');
+            localStorage.removeItem('noucolor_emp_id');
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('noucolor_session');
+          localStorage.removeItem('noucolor_emp_id');
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   async function login(username, password) {
@@ -40,7 +54,7 @@ export function CustomAuthProvider({ children }) {
       loading,
       login,
       logout,
-      isAdmin: employee?.role === 'administrador',
+      isAdmin: employee?.role === 'administrador' || employee?.role === 'jefe' || employee?.role === 'admin',
       isJefe: employee?.role === 'jefe'
     }}>
       {children}

@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     } catch {
       return Response.json({ error: 'No autorizado' }, { status: 401 });
     }
-    if (callers.length === 0 || callers[0].role !== 'administrador') {
+    if (callers.length === 0 || !['administrador', 'jefe', 'admin'].includes(callers[0].role)) {
       return Response.json({ error: 'Prohibido — solo administradores' }, { status: 403 });
     }
 
@@ -43,6 +43,14 @@ Deno.serve(async (req) => {
         return { ...emp, iban: d?.iban || emp.iban || null };
       });
       return Response.json({ success: true, employees: merged });
+    }
+
+    if (action === 'getById') {
+      if (!employeeId) return Response.json({ error: 'Falta employeeId' }, { status: 400 });
+      const found = await base44.asServiceRole.entities.Employee.filter({ id: employeeId });
+      if (found.length === 0) return Response.json({ error: 'Empleado no encontrado' }, { status: 404 });
+      const { pass, ...safeEmployee } = found[0];
+      return Response.json({ success: true, employee: safeEmployee });
     }
 
     if (action === 'listDatos') {
