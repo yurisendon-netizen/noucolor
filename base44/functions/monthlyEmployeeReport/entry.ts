@@ -185,18 +185,14 @@ Deno.serve(async (req) => {
 
     const periodLabel = `${MONTHS[period_month - 1]} ${period_year}`;
 
-    // Recipients: admin users + Yuri Sendon Risco
-    const [admins, employees] = await Promise.all([
-      base44.asServiceRole.entities.User.filter({ role: 'admin' }),
-      base44.asServiceRole.entities.Employee.filter({ is_active: true })
-    ]);
+    // Recipients: Yuri Sendon Risco y Andrea Besoli Thomas
+    const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
 
     const recipientEmails = new Set();
-    for (const a of admins) {
-      if (a.email) recipientEmails.add(a.email.toLowerCase());
-    }
     const yuri = employees.find(e => (e.full_name || '').toLowerCase().includes('yuri sendon'));
+    const andrea = employees.find(e => (e.full_name || '').toLowerCase().includes('andrea'));
     if (yuri && yuri.email) recipientEmails.add(yuri.email.toLowerCase());
+    if (andrea && andrea.email) recipientEmails.add(andrea.email.toLowerCase());
 
     if (recipientEmails.size === 0) {
       return Response.json({ success: false, message: 'No hay destinatarios válidos' });
