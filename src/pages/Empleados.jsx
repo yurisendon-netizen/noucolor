@@ -101,6 +101,7 @@ export default function Empleados() {
     { key: 'email', label: 'Email' },
     { key: 'position', label: 'Puesto', render: r => r.position || '—' },
     { key: 'precioHora', label: '€/hora', render: r => r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—' },
+    { key: 'base_salary', label: 'Salario base', render: r => r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—' },
     { key: 'role', label: 'Rol', render: r => {
       const styles = {
         jefe: 'bg-red-500/15 text-red-400',
