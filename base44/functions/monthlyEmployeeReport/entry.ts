@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, message: 'No hay destinatarios válidos' });
     }
 
-    const appBaseUrl = Deno.env.get("APP_BASE_URL") || req.headers.get("origin") || '';
+    const appBaseUrl = req.headers.get("origin") || '';
     const appLink = appBaseUrl ? `${appBaseUrl.replace(/\/$/, '')}/nominas` : '';
 
     const inPeriod = (dateStr) => {
