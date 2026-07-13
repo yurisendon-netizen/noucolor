@@ -241,14 +241,14 @@ Deno.serve(async (req) => {
   <div style="background:linear-gradient(90deg,#f59e0b 0%,#d97706 100%);height:4px;border-radius:2px;margin-bottom:24px;"></div>
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
     <div style="background:#f59e0b;color:#fff;font-weight:800;font-size:20px;padding:8px 14px;border-radius:8px;letter-spacing:1px;">NOUCOLOR</div>
-    <span style="color:#888;font-size:13px;">Pro · Resumen mensual</span>
+    <span style="color:#888;font-size:13px;">Resumen mensual</span>
   </div>
   <h2 style="color:#1a1a1a;margin:0 0 8px;">📊 Resumen mensual — ${periodLabel}</h2>
   <p style="color:#666;font-size:14px;line-height:1.6;margin:0 0 24px;">A continuación encontrará el detalle completo de todos los trabajadores del mes de <strong>${periodLabel}</strong>.</p>
   ${allSections}
   ${buttonHtml}
   <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;">
-    <p style="color:#aaa;font-size:11px;margin:0;">Confidencial - Noucolor Pro · Mensaje generado automáticamente.</p>
+    <p style="color:#aaa;font-size:11px;margin:0;">Confidencial - Noucolor · Mensaje generado automáticamente.</p>
   </div>
 </div>`;
 
@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: email,
-          from_name: 'Noucolor Pro',
+          from_name: 'Noucolor',
           subject: `Noucolor - Resumen mensual de ${periodLabel}`,
           body: html
         });
