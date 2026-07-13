@@ -51,12 +51,23 @@ Deno.serve(async (req) => {
 </div>`;
 
     for (const email of emails) {
-      await base44.asServiceRole.integrations.Core.SendEmail({
-        to: email,
-        from_name: 'Noucolor Pro',
-        subject,
-        body: emailBody
+      const resendResp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'Noucolor <onboarding@resend.dev>',
+          to: [email],
+          subject,
+          html: emailBody
+        })
       });
+      if (!resendResp.ok) {
+        const errData = await resendResp.json().catch(() => ({}));
+        throw new Error(errData.message || `Resend error ${resendResp.status}`);
+      }
     }
 
     return Response.json({ success: true, notified: emails.length, emails });
