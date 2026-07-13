@@ -70,10 +70,26 @@ export default function Nominas() {
         const d = new Date(e.date);
         return d.getMonth() + 1 === month && d.getFullYear() === year;
       });
-      const overtimeHours = monthEntries.reduce((sum, e) => sum + (e.overtime_hours || 0), 0);
+      // Fetch approved OvertimeHour records for the period
+      const allOvertime = await base44.entities.OvertimeHour.filter({ employee_id: emp.id }, '-date', 200);
+      const monthOvertime = allOvertime.filter(o => {
+        const d = new Date(o.date);
+        return d.getMonth() + 1 === month && d.getFullYear() === year && o.status === 'aprobado';
+      });
+
+      const overtimeFromEntries = monthEntries.reduce((sum, e) => sum + (e.overtime_hours || 0), 0);
+      const empPrecio = emp.precioHora || 0;
+      const hasOvertimeRecords = monthOvertime.length > 0;
+      const overtimeHours = hasOvertimeRecords
+        ? monthOvertime.reduce((sum, o) => sum + (o.duration || 0), 0)
+        : overtimeFromEntries;
+      const overtimePay = hasOvertimeRecords
+        ? monthOvertime.reduce((sum, o) => sum + (o.total || 0), 0)
+        : overtimeHours * empPrecio * 1.4;
+
       const absences = monthEntries.filter(e => e.status === 'ausencia_injustificada').length;
       const regularHours = monthEntries.reduce((sum, e) => sum + (e.total_hours || 0), 0);
-      setCalcSummary({ overtimeHours: parseFloat(overtimeHours.toFixed(2)), absences, regularHours: parseFloat(regularHours.toFixed(2)), totalEntries: monthEntries.length });
+      setCalcSummary({ overtimeHours: parseFloat(overtimeHours.toFixed(2)), overtimePay: parseFloat(overtimePay.toFixed(2)), absences, regularHours: parseFloat(regularHours.toFixed(2)), totalEntries: monthEntries.length });
       setForm(f => ({ ...f, overtime_hours: parseFloat(overtimeHours.toFixed(2)) }));
     } catch (e) { console.error(e); }
     finally { setCalculating(false); }
@@ -92,7 +108,7 @@ export default function Nominas() {
     const absenceDeduction = (calcSummary?.absences || 0) * dailyRate;
     const adjustedBase = Math.max(monthlyBase - absenceDeduction, 0);
 
-    const overtimePay = (form.overtime_hours || 0) * precioHora * 1.4;
+    const overtimePay = calcSummary?.overtimePay || ((form.overtime_hours || 0) * precioHora * 1.4);
     const gross = adjustedBase + overtimePay + (parseFloat(form.bonus) || 0);
     const cass = gross * 0.065;
     const irpf = 0;
@@ -240,6 +256,9 @@ export default function Nominas() {
                 <div className="flex justify-between"><span className="text-muted-foreground">Días fichados</span><span>{calcSummary.totalEntries}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Horas regulares</span><span>{calcSummary.regularHours.toFixed(1)}h</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Horas extras</span><span className="text-[hsl(35,92%,55%)]">{calcSummary.overtimeHours.toFixed(1)}h</span></div>
+                {calcSummary.overtimePay > 0 && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Importe extras</span><span className="text-[hsl(35,92%,55%)] font-medium">{calcSummary.overtimePay.toFixed(2)} €</span></div>
+                )}
                 {calcSummary.absences > 0 && (
                   <div className="flex justify-between"><span className="text-muted-foreground">Ausencias injustificadas</span><span className="text-red-400 font-medium">{calcSummary.absences}</span></div>
                 )}
