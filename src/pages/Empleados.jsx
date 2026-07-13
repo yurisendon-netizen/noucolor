@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
-import { Plus, Edit, Trash2, Download, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Users, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -85,6 +85,20 @@ export default function Empleados() {
       }
     } catch (e) {
       toast({ title: 'Error', variant: 'destructive' });
+    }
+  }
+
+  async function handleInvite(emp) {
+    if (!emp?.email) { toast({ title: 'Este empleado no tiene email', variant: 'destructive' }); return; }
+    try {
+      const result = await base44.functions.invoke('inviteUser', { email: emp.email, role: emp.role === 'jefe' ? 'admin' : 'user' });
+      if (result.data?.success) {
+        toast({ title: `Invitación enviada a ${emp.email}` });
+      } else {
+        toast({ title: result.data?.error || 'Error al invitar', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error al invitar', variant: 'destructive' });
     }
   }
 
@@ -194,6 +208,9 @@ export default function Empleados() {
         onRefresh={loadEmployees}
         actions={isAdmin ? (row) => (
           <>
+            <Button variant="ghost" size="sm" onClick={() => handleInvite(row)} className="text-green-400 hover:bg-green-500/10" title="Invitar usuario">
+              <UserPlus size={16} />
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => openEdit(row)} className="text-blue-400 hover:bg-blue-500/10">
               <Edit size={16} />
             </Button>
