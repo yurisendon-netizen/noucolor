@@ -101,6 +101,11 @@ export default function Empleados() {
     { key: 'user', label: 'Usuario', render: r => r.user || '—' },
     { key: 'pass', label: 'Contraseña', render: r => r.pass || '—' },
     { key: 'position', label: 'Puesto', render: r => r.position || '—' },
+    { key: 'email', label: 'Email', render: r => r.email || '—' },
+    { key: 'phone', label: 'Teléfono', render: r => r.phone || '—' },
+    { key: 'dni', label: 'DNI', render: r => r.dni || '—' },
+    { key: 'nss', label: 'NSS/CASS', render: r => r.nss || '—' },
+    { key: 'hire_date', label: 'Alta', render: r => r.hire_date ? moment(r.hire_date).format('DD/MM/YYYY') : '—' },
     { key: 'precioHora', label: '€/hora', render: r => r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—' },
     { key: 'base_salary', label: 'Salario base', render: r => r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—' },
     { key: 'role', label: 'Rol', render: r => {
