@@ -31,11 +31,12 @@ Deno.serve(async (req) => {
 
     if (action === 'list') {
       const employees = await base44.asServiceRole.entities.Employee.list('-created_date', 200);
-      const sanitized = employees.map(e => {
-        const { pass, ...rest } = e;
-        return rest;
-      });
-      return Response.json({ success: true, employees: sanitized });
+      return Response.json({ success: true, employees });
+    }
+
+    if (action === 'listDatos') {
+      const datos = await base44.asServiceRole.entities.DatosTrabajador.list('-created_date', 500);
+      return Response.json({ success: true, datos });
     }
 
     if (action === 'toggleActive') {

@@ -39,8 +39,13 @@ export default function RecogidaDatos() {
 
   async function loadWorkers() {
     try {
-      const data = await base44.entities.DatosTrabajador.list('-created_date', 500);
-      setWorkers(data);
+      const result = await base44.functions.invoke('manageEmployee', {
+        action: 'listDatos',
+        callerEmployeeId: employee?.id,
+      });
+      if (result.data?.success) {
+        setWorkers(result.data.datos);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
