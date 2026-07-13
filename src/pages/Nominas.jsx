@@ -110,7 +110,7 @@ export default function Nominas() {
 
     const overtimePay = calcSummary?.overtimePay || ((form.overtime_hours || 0) * precioHora * 1.4);
     const gross = adjustedBase + overtimePay + (parseFloat(form.bonus) || 0);
-    const cass = gross * 0.065;
+    const cass = adjustedBase * 0.065;
     const irpf = 0;
     const net = gross - cass - irpf - (parseFloat(form.other_deductions) || 0);
 
