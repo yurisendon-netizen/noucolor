@@ -265,14 +265,7 @@ export default function Nominas() {
               </div>
             )}
 
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Bonificaciones / Plus (€) — opcional</label>
-              <Input type="number" placeholder="0,00" value={form.bonus} onChange={e => setForm({ ...form, bonus: e.target.value })} className="bg-secondary border-border" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Otras deducciones (€) — opcional</label>
-              <Input type="number" placeholder="0,00" value={form.other_deductions} onChange={e => setForm({ ...form, other_deductions: e.target.value })} className="bg-secondary border-border" />
-            </div>
+
             <Button onClick={handleCreate} disabled={!form.employee_id} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
               Generar Nómina
             </Button>
