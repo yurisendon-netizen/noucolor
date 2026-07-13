@@ -128,6 +128,19 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
+      case 'approveOvertime': {
+        const { overtimeId, status } = body;
+        if (!['aprobado', 'rechazado', 'pendiente'].includes(status)) {
+          return Response.json({ error: 'Estado no válido' }, { status: 400 });
+        }
+        const records = await base44.asServiceRole.entities.OvertimeHour.filter({ id: overtimeId });
+        if (records.length === 0) {
+          return Response.json({ error: 'Registro no encontrado' }, { status: 404 });
+        }
+        await base44.asServiceRole.entities.OvertimeHour.update(overtimeId, { status });
+        return Response.json({ success: true });
+      }
+
       case 'saveOvertime': {
         const { overtimeId, date, startTime, endTime, duration, obraMotivo, multiplier, status } = body;
         // For non-admins, force employee_id to caller's own; admins can target another employee

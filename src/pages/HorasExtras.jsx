@@ -148,7 +148,13 @@ export default function HorasExtras() {
     const prev = items;
     setItems(items.map(i => i.id === id ? { ...i, status } : i));
     try {
-      await base44.entities.OvertimeHour.update(id, { status });
+      const callerEmployeeId = employee?.id || user?.id;
+      await base44.functions.invoke('trackTime', {
+        operation: 'approveOvertime',
+        callerEmployeeId,
+        overtimeId: id,
+        status,
+      });
       toast({ title: `Hora extra ${status === 'aprobado' ? 'aprobada' : 'rechazada'}` });
     } catch (e) {
       setItems(prev);
