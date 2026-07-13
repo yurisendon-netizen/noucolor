@@ -1,7 +1,7 @@
 import { createDoc, addHeader, addTable, addSignature, addFooters } from '@/components/shared/pdfDocument';
 import { REPORT_CONFIG } from './reportConfig';
 
-export async function generateReportPdf({ reportType, rows, periodLabel, signerName }) {
+export async function generateReportPdf({ reportType, rows, periodLabel, signerName, firmaUrl }) {
   const config = REPORT_CONFIG[reportType];
   if (!config) return;
 
@@ -25,7 +25,7 @@ export async function generateReportPdf({ reportType, rows, periodLabel, signerN
   if (signerName) {
     y = await addSignature(doc, {
       encargadoName: signerName,
-      firmaUrl: null,
+      firmaUrl: firmaUrl || null,
       label: 'Firma del Encargado:',
       roleLabel: 'Encarregat',
       signatureDate: new Date().toISOString(),

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Download, BarChart3, Loader2, ShieldAlert, FileText } from 'lucide-react';
+import { Download, BarChart3, Loader2, ShieldAlert, FileText, Pen } from 'lucide-react';
+import InformeSignDialog from '@/components/informes/InformeSignDialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -28,6 +29,7 @@ export default function Informes() {
   const [generated, setGenerated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [signDialogOpen, setSignDialogOpen] = useState(false);
 
   const periodLabel = `${MONTHS[month].label} ${year}`;
 
@@ -137,9 +139,14 @@ export default function Informes() {
             {loading ? <><Loader2 size={18} className="animate-spin" /> Generando...</> : <><BarChart3 size={18} /> Generar Informe</>}
           </Button>
           {generated && rows.length > 0 && (
-            <Button onClick={handleDownloadPdf} disabled={downloading} variant="outline" className="gap-2 border-border">
-              {downloading ? <><Loader2 size={18} className="animate-spin" /> Descargando...</> : <><Download size={18} /> Descargar PDF</>}
-            </Button>
+            <>
+              <Button onClick={handleDownloadPdf} disabled={downloading} variant="outline" className="gap-2 border-border">
+                {downloading ? <><Loader2 size={18} className="animate-spin" /> Descargando...</> : <><Download size={18} /> Descargar PDF</>}
+              </Button>
+              <Button onClick={() => setSignDialogOpen(true)} variant="outline" className="gap-2 border-border">
+                <Pen size={18} /> Firmar y Descargar
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -191,6 +198,16 @@ export default function Informes() {
           <FileText size={48} className="text-muted-foreground mb-4" />
           <p className="text-muted-foreground">Selecciona los filtros y pulsa "Generar Informe"</p>
         </div>
+      )}
+
+      {signDialogOpen && (
+        <InformeSignDialog
+          reportType={reportType}
+          rows={rows}
+          periodLabel={periodLabel}
+          signerName={employee?.full_name}
+          onClose={() => setSignDialogOpen(false)}
+        />
       )}
     </div>
   );
