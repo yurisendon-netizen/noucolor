@@ -29,6 +29,23 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Prohibido — solo administradores' }, { status: 403 });
     }
 
+    if (action === 'list') {
+      const employees = await base44.asServiceRole.entities.Employee.list('-created_date', 200);
+      const sanitized = employees.map(e => {
+        const { pass, ...rest } = e;
+        return rest;
+      });
+      return Response.json({ success: true, employees: sanitized });
+    }
+
+    if (action === 'toggleActive') {
+      if (!employeeId) return Response.json({ error: 'Falta employeeId' }, { status: 400 });
+      const found = await base44.asServiceRole.entities.Employee.filter({ id: employeeId });
+      if (found.length === 0) return Response.json({ error: 'Empleado no encontrado' }, { status: 404 });
+      await base44.asServiceRole.entities.Employee.update(employeeId, { is_active: !found[0].is_active });
+      return Response.json({ success: true });
+    }
+
     const precioHora = parseFloat(data.precioHora) || 0;
     const baseSalary = Math.round(precioHora * 173.33 * 100) / 100;
     const user = (data.user || '').trim().toLowerCase();
@@ -50,8 +67,8 @@ Deno.serve(async (req) => {
       precioHora,
       base_salary: baseSalary,
       role: data.cargo || 'operario',
-      user,
-      pass: hashedPass,
+      ...(data.user ? { user } : {}),
+      ...(data.pass ? { pass: hashedPass } : {}),
     };
 
     const datosData = {
@@ -60,13 +77,13 @@ Deno.serve(async (req) => {
       phone: data.phone?.trim(),
       dni: data.dni?.trim(),
       cass: data.cass?.trim(),
-      iban: data.iban?.trim(),
       position: data.position?.trim(),
       precioHora,
       cargo: data.cargo || 'operario',
       hire_date: data.hire_date || null,
-      user,
-      pass: hashedPass,
+      ...(data.iban ? { iban: data.iban?.trim() } : {}),
+      ...(data.user ? { user } : {}),
+      ...(data.pass ? { pass: hashedPass } : {}),
     };
 
     if (action === 'create') {

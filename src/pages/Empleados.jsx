@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useCustomAuth } from '@/lib/CustomAuthContext';
 import { Plus, Edit, UserX, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,18 +14,24 @@ import moment from 'moment';
 
 export default function Empleados() {
   const { toast } = useToast();
+  const { employee } = useCustomAuth();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', base_salary: 0, precioHora: 0 });
 
-  useEffect(() => { loadEmployees(); }, []);
+  useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
 
   async function loadEmployees() {
     try {
-      const data = await base44.entities.Employee.list('-created_date', 100);
-      setEmployees(data);
+      const result = await base44.functions.invoke('manageEmployee', {
+        action: 'list',
+        callerEmployeeId: employee?.id,
+      });
+      if (result.data?.success) {
+        setEmployees(result.data.employees);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
@@ -49,25 +56,44 @@ export default function Empleados() {
   async function handleSave() {
     try {
       const precioHora = parseFloat(form.precioHora) || 0;
-      const base_salary = Math.round(precioHora * 173.33 * 100) / 100;
-      if (editing) {
-        await base44.entities.Employee.update(editing.id, { ...form, precioHora, base_salary });
-        toast({ title: 'Empleado actualizado' });
+      const result = await base44.functions.invoke('manageEmployee', {
+        action: editing ? 'update' : 'create',
+        callerEmployeeId: employee?.id,
+        employeeId: editing?.id,
+        data: {
+          full_name: form.full_name,
+          email: form.email,
+          cargo: form.role,
+          position: form.position,
+          phone: form.phone,
+          cass: form.nss,
+          dni: form.dni,
+          hire_date: form.hire_date,
+          precioHora,
+        },
+      });
+      if (result.data?.success) {
+        toast({ title: editing ? 'Empleado actualizado' : 'Empleado creado' });
+        setDialogOpen(false);
+        loadEmployees();
       } else {
-        await base44.entities.Employee.create({ ...form, precioHora, base_salary, is_active: true });
-        toast({ title: 'Empleado creado' });
+        toast({ title: result.data?.error || 'Error', variant: 'destructive' });
       }
-      setDialogOpen(false);
-      loadEmployees();
     } catch (e) {
       toast({ title: 'Error', variant: 'destructive' });
     }
   }
 
   async function toggleActive(emp) {
-    await base44.entities.Employee.update(emp.id, { is_active: !emp.is_active });
-    toast({ title: emp.is_active ? 'Empleado desactivado' : 'Empleado activado' });
-    loadEmployees();
+    const result = await base44.functions.invoke('manageEmployee', {
+      action: 'toggleActive',
+      callerEmployeeId: employee?.id,
+      employeeId: emp.id,
+    });
+    if (result.data?.success) {
+      toast({ title: emp.is_active ? 'Empleado desactivado' : 'Empleado activado' });
+      loadEmployees();
+    }
   }
 
   const columns = [
