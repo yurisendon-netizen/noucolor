@@ -127,7 +127,7 @@ export default function Empleados() {
       'ID': e.id,
       'Nombre Completo': e.full_name,
       'Usuario': e.user,
-      'Contraseña': e.pass,
+      'Contraseña': e.nss,
       'Cargo': e.role,
       'Precio Hora (€)': e.precioHora,
       'Salario Base (€)': e.base_salary,
@@ -155,7 +155,7 @@ export default function Empleados() {
     { key: 'id', label: 'ID', render: r => <span className="text-xs text-muted-foreground font-mono">{r.id?.slice(-6)}</span> },
     { key: 'full_name', label: 'Nombre Completo', render: r => <span className="font-medium">{r.full_name}</span> },
     { key: 'user', label: 'Usuario', render: r => <span className="text-xs font-mono">{r.user || '—'}</span> },
-    { key: 'pass', label: 'Contraseña', render: r => <span className="text-xs font-mono text-muted-foreground">{r.pass || '—'}</span> },
+    { key: 'pass', label: 'Contraseña', render: r => <span className="text-xs font-mono text-muted-foreground">{r.nss || '—'}</span> },
     { key: 'role', label: 'Cargo', render: r => (
       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleStyles[r.role] || roleStyles.operario}`}>{roleLabels[r.role] || r.role}</span>
     )},
