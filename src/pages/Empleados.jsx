@@ -98,7 +98,8 @@ export default function Empleados() {
 
   const columns = [
     { key: 'full_name', label: 'Nombre', render: r => <span className="font-medium">{r.full_name}</span> },
-    { key: 'email', label: 'Email' },
+    { key: 'user', label: 'Usuario', render: r => r.user || '—' },
+    { key: 'pass', label: 'Contraseña', render: r => r.pass || '—' },
     { key: 'position', label: 'Puesto', render: r => r.position || '—' },
     { key: 'precioHora', label: '€/hora', render: r => r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—' },
     { key: 'base_salary', label: 'Salario base', render: r => r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—' },
