@@ -145,7 +145,6 @@ export default function Empleados() {
     )},
     { key: 'email', label: 'Correo Electrónico', render: r => <span className="text-xs">{r.email || '—'}</span> },
     { key: 'phone', label: 'Teléfono', render: r => r.phone || '—' },
-    { key: 'dni', label: 'DNI / Pasaporte', render: r => r.dni || '—' },
     { key: 'nss', label: 'Nº CASS', render: r => r.nss || '—' },
     { key: 'iban', label: 'IBAN', render: r => <span className="text-xs font-mono">{r.iban || '—'}</span> },
     { key: 'user', label: 'Usuario', render: r => r.user || '—' },
