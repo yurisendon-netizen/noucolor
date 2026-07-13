@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
-import { Plus, Edit, UserX, UserCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
-import StatusBadge from '@/components/shared/StatusBadge';
+import * as XLSX from 'xlsx';
 import moment from 'moment';
 
 export default function Empleados() {
   const { toast } = useToast();
-  const { employee } = useCustomAuth();
+  const { employee, isAdmin } = useCustomAuth();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', base_salary: 0, precioHora: 0 });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', precioHora: 0 });
 
   useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
 
@@ -42,14 +44,14 @@ export default function Empleados() {
       full_name: emp.full_name, email: emp.email, role: emp.role,
       position: emp.position || '', phone: emp.phone || '',
       nss: emp.nss || '', dni: emp.dni || '',
-      hire_date: emp.hire_date || '', base_salary: emp.base_salary || 0, precioHora: emp.precioHora || 0
+      hire_date: emp.hire_date || '', precioHora: emp.precioHora || 0
     });
     setDialogOpen(true);
   }
 
   function openCreate() {
     setEditing(null);
-    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', base_salary: 0, precioHora: 0 });
+    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', precioHora: 0 });
     setDialogOpen(true);
   }
 
@@ -84,44 +86,72 @@ export default function Empleados() {
     }
   }
 
-  async function toggleActive(emp) {
-    const result = await base44.functions.invoke('manageEmployee', {
-      action: 'toggleActive',
-      callerEmployeeId: employee?.id,
-      employeeId: emp.id,
-    });
-    if (result.data?.success) {
-      toast({ title: emp.is_active ? 'Empleado desactivado' : 'Empleado activado' });
-      loadEmployees();
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    try {
+      const result = await base44.functions.invoke('manageEmployee', {
+        action: 'delete',
+        callerEmployeeId: employee?.id,
+        employeeId: deleteTarget.id,
+      });
+      if (result.data?.success) {
+        toast({ title: 'Empleado eliminado' });
+        setDeleteTarget(null);
+        loadEmployees();
+      } else {
+        toast({ title: result.data?.error || 'Error', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error', variant: 'destructive' });
     }
   }
 
+  function exportExcel() {
+    const rows = employees.map(e => ({
+      'ID': e.id,
+      'Nombre Completo': e.full_name,
+      'Cargo': e.role,
+      'Correo Electrónico': e.email,
+      'Teléfono': e.phone,
+      'DNI / Pasaporte': e.dni,
+      'Número CASS': e.nss,
+      'Usuario de Login': e.user,
+      'Salario Base (€)': e.base_salary,
+      '€/hora': e.precioHora,
+      'Fecha de Incorporación': e.hire_date ? moment(e.hire_date).format('DD/MM/YYYY') : '',
+      'Estado': e.is_active ? 'Activo' : 'Inactivo',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Empleados');
+    XLSX.writeFile(wb, `Empleados_Noucolor_${moment().format('DDMMYYYY')}.xlsx`);
+  }
+
+  const roleStyles = {
+    jefe: 'bg-red-500/15 text-red-400',
+    administrador: 'bg-purple-500/15 text-purple-400',
+    operario: 'bg-blue-500/15 text-blue-400'
+  };
+  const roleLabels = { jefe: 'Jefe', administrador: 'Admin', operario: 'Operario' };
+
   const columns = [
-    { key: 'full_name', label: 'Nombre', render: r => <span className="font-medium">{r.full_name}</span> },
-    { key: 'user', label: 'Usuario', render: r => r.user || '—' },
-    { key: 'pass', label: 'Contraseña', render: r => r.pass || '—' },
-    { key: 'position', label: 'Puesto', render: r => r.position || '—' },
-    { key: 'email', label: 'Email', render: r => r.email || '—' },
-    { key: 'phone', label: 'Teléfono', render: r => r.phone || '—' },
-    { key: 'dni', label: 'DNI', render: r => r.dni || '—' },
-    { key: 'nss', label: 'NSS/CASS', render: r => r.nss || '—' },
-    { key: 'hire_date', label: 'Alta', render: r => r.hire_date ? moment(r.hire_date).format('DD/MM/YYYY') : '—' },
-    { key: 'precioHora', label: '€/hora', render: r => r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—' },
-    { key: 'base_salary', label: 'Salario base', render: r => r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—' },
-    { key: 'role', label: 'Rol', render: r => {
-      const styles = {
-        jefe: 'bg-red-500/15 text-red-400',
-        administrador: 'bg-purple-500/15 text-purple-400',
-        operario: 'bg-blue-500/15 text-blue-400'
-      };
-      const labels = { jefe: 'Jefe', administrador: 'Admin', operario: 'Operario' };
-      return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[r.role] || styles.operario}`}>{labels[r.role] || r.role}</span>;
-    }},
-    { key: 'is_active', label: 'Estado', render: r => (
-      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.is_active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
-        {r.is_active ? 'Activo' : 'Inactivo'}
-      </span>
+    { key: 'id', label: 'ID', render: r => <span className="text-xs text-muted-foreground font-mono">{r.id?.slice(-6)}</span> },
+    { key: 'full_name', label: 'Nombre Completo', render: r => <span className="font-medium">{r.full_name}</span> },
+    { key: 'role', label: 'Cargo', render: r => (
+      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleStyles[r.role] || roleStyles.operario}`}>{roleLabels[r.role] || r.role}</span>
     )},
+    { key: 'email', label: 'Correo Electrónico', render: r => <span className="text-xs">{r.email || '—'}</span> },
+    { key: 'phone', label: 'Teléfono', render: r => r.phone || '—' },
+    { key: 'dni', label: 'DNI / Pasaporte', render: r => r.dni || '—' },
+    { key: 'nss', label: 'Nº CASS', render: r => r.nss || '—' },
+    { key: 'user', label: 'Usuario', render: r => r.user || '—' },
+    { key: 'base_salary', label: 'Salario Base (€/hora)', render: r => (
+      <div className="flex flex-col">
+        <span className="font-medium">{r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—'}</span>
+        <span className="text-xs text-muted-foreground">{r.precioHora ? `${r.precioHora.toFixed(2)}€/h` : ''}</span>
+      </div>
+    )},
+    { key: 'hire_date', label: 'Incorporación', render: r => r.hire_date ? moment(r.hire_date).format('DD/MM/YYYY') : '—' },
   ];
 
   if (loading) {
@@ -129,37 +159,48 @@ export default function Empleados() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
-        title="Gestión de Empleados"
-        subtitle="Administra el equipo de Noucolor"
-        actions={
-          <Button onClick={openCreate} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
-            <Plus size={18} /> Nuevo Empleado
-          </Button>
-        }
+        title="👥 Gestión de Empleados"
+        subtitle="Listado completo del personal de Noucolor"
+        actions={isAdmin && (
+          <div className="flex items-center gap-2">
+            <Button onClick={exportExcel} variant="outline" className="gap-2 border-border bg-secondary">
+              <Download size={18} /> Excel
+            </Button>
+            <Button onClick={openCreate} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+              <Plus size={18} /> Nuevo Empleado
+            </Button>
+          </div>
+        )}
       />
+
+      <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+        <Users size={16} />
+        <span><strong className="text-foreground">{employees.length}</strong> empleado{employees.length !== 1 ? 's' : ''} en total</span>
+      </div>
 
       <DataTable
         data={employees}
         columns={columns}
-        searchField={['full_name', 'email']}
+        searchField={['full_name', 'email', 'dni', 'nss', 'user', 'phone']}
         filterField="role"
         filterOptions={[
           { value: 'operario', label: 'Operario' },
           { value: 'administrador', label: 'Administrador' },
         ]}
         emptyMessage="No hay empleados registrados"
-        actions={(row) => (
+        onRefresh={loadEmployees}
+        actions={isAdmin ? (row) => (
           <>
             <Button variant="ghost" size="sm" onClick={() => openEdit(row)} className="text-blue-400 hover:bg-blue-500/10">
               <Edit size={16} />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => toggleActive(row)} className={row.is_active ? 'text-red-400 hover:bg-red-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}>
-              {row.is_active ? <UserX size={16} /> : <UserCheck size={16} />}
+            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(row)} className="text-red-400 hover:bg-red-500/10">
+              <Trash2 size={16} />
             </Button>
           </>
-        )}
+        ) : undefined}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -178,8 +219,8 @@ export default function Empleados() {
             <Input placeholder="Puesto" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Teléfono" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="bg-secondary border-border" />
             <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="DNI / Passaport" value={form.dni} onChange={e => setForm({ ...form, dni: e.target.value })} className="bg-secondary border-border" />
-              <Input placeholder="Nº Seg. Social" value={form.nss} onChange={e => setForm({ ...form, nss: e.target.value })} className="bg-secondary border-border" />
+              <Input placeholder="DNI / Pasaporte" value={form.dni} onChange={e => setForm({ ...form, dni: e.target.value })} className="bg-secondary border-border" />
+              <Input placeholder="Nº CASS" value={form.nss} onChange={e => setForm({ ...form, nss: e.target.value })} className="bg-secondary border-border" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value })} className="bg-secondary border-border" />
@@ -191,6 +232,21 @@ export default function Empleados() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar empleado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a eliminar a <strong>{deleteTarget?.full_name}</strong>. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-secondary border-border">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
