@@ -29,7 +29,7 @@ function getWorkingDaysInMonth(year, month) {
 
 export default function Nominas() {
   const { toast } = useToast();
-  const { employee } = useEmployeeProfile();
+  const { employee, isAdmin } = useEmployeeProfile();
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +95,7 @@ export default function Nominas() {
     const overtimePay = (form.overtime_hours || 0) * precioHora * 1.4;
     const gross = adjustedBase + overtimePay + (parseFloat(form.bonus) || 0);
     const cass = gross * 0.065;
-    const irpf = gross > 2000 ? gross * 0.05 : 0;
+    const irpf = 0;
     const net = gross - cass - irpf - (parseFloat(form.other_deductions) || 0);
 
     try {
@@ -167,7 +167,7 @@ export default function Nominas() {
         subtitle="Butlletí de Salari — Solo se pagan horas 8:00-16:00 + horas extras"
         actions={
           <div className="flex gap-2">
-            {payrolls.length > 0 && (
+            {isAdmin && payrolls.length > 0 && (
               <Button variant="outline" onClick={downloadAll} className="gap-2 border-border">
                 <Download size={18} /> Descargar Todas
               </Button>
@@ -201,9 +201,11 @@ export default function Nominas() {
             {row.worker_signature_name && (
               <CheckCircle2 size={16} className="text-emerald-400 shrink-0" title={`Firmada per ${row.worker_signature_name}`} />
             )}
-            <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10" title="Descarregar PDF">
-              <FileText size={16} />
-            </Button>
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10" title="Descarregar PDF">
+                <FileText size={16} />
+              </Button>
+            )}
           </div>
         )}
       />

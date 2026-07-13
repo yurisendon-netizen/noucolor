@@ -39,7 +39,7 @@ export async function generateNominaPdf(payroll) {
   const baseSalary = Number(payroll.base_salary) || 0;
   const grossCalc = baseSalary + overtimePayCalc + bonus;
   const cassCalc = grossCalc * 0.065;
-  const irpfCalc = grossCalc > 2000 ? grossCalc * 0.05 : 0;
+  const irpfCalc = 0;
   const otherDed = Number(payroll.other_deductions) || 0;
   const totalDed = cassCalc + irpfCalc + otherDed;
   const netCalc = grossCalc - totalDed;
