@@ -90,7 +90,7 @@ export default function HorasExtras() {
 
   const summary = useMemo(() => {
     const totalHours = monthData.reduce((sum, i) => sum + (i.duration || 0), 0);
-    const totalPay = monthData.filter(i => i.status === 'aprobado').reduce((sum, i) => sum + (i.total || 0), 0);
+    const totalPay = monthData.filter(i => i.status !== 'rechazado').reduce((sum, i) => sum + (i.total || 0), 0);
     const pending = monthData.filter(i => i.status === 'pendiente').length;
     return { totalHours, totalPay, pending };
   }, [monthData]);
@@ -202,7 +202,7 @@ export default function HorasExtras() {
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
           <SummaryCard icon={Clock} label="Total Horas Extras" value={`${summary.totalHours.toFixed(2)}h`} color="bg-blue-500/15 text-blue-400" />
-          <SummaryCard icon={Euro} label="Total a Pagar (Aprobado)" value={`${summary.totalPay.toFixed(2)} €`} color="bg-emerald-500/15 text-emerald-400" />
+          <SummaryCard icon={Euro} label="Total a Pagar" value={`${summary.totalPay.toFixed(2)} €`} color="bg-emerald-500/15 text-emerald-400" />
           <SummaryCard icon={Timer} label="Pendientes" value={summary.pending} color="bg-yellow-500/15 text-yellow-400" />
         </div>
         <div className="flex gap-2">
