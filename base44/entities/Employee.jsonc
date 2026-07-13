@@ -37,6 +37,11 @@
       "type": "number",
       "default": 0
     },
+    "net_salary": {
+      "type": "number",
+      "default": 0,
+      "description": "Salario neto mensual (\u20ac)"
+    },
     "is_active": {
       "type": "boolean",
       "default": true
@@ -66,41 +71,5 @@
     "full_name",
     "email",
     "role"
-  ],
-  "rls": {
-    "create": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
-    "read": {
-      "$or": [
-        {
-          "id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "update": {
-      "$or": [
-        {
-          "id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
-    }
-  }
+  ]
 }
