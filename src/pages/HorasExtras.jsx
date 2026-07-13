@@ -113,35 +113,30 @@ export default function HorasExtras() {
       toast({ title: 'Error', description: 'La hora de fin debe ser posterior a la de inicio', variant: 'destructive' });
       return;
     }
-    const targetEmployeeId = isAdmin ? form.employee_id : (employee?.id || user?.id);
-    if (!targetEmployeeId) {
+    const callerEmployeeId = employee?.id || user?.id;
+    if (!callerEmployeeId) {
+      toast({ title: 'Error', description: 'Sesión no válida', variant: 'destructive' });
+      return;
+    }
+    if (isAdmin && !form.employee_id) {
       toast({ title: 'Error', description: 'Selecciona un empleado', variant: 'destructive' });
       return;
     }
-    const precioHora = getPrecioHoraForEmployee(targetEmployeeId);
-    const multiplier = OVERTIME_MULTIPLIER;
-    const total = duration * precioHora * multiplier;
-    const payload = {
-      employee_id: targetEmployeeId,
-      employee_name: getEmployeeName(targetEmployeeId),
-      date: form.date,
-      start_time: form.start_time,
-      end_time: form.end_time,
-      duration: parseFloat(duration.toFixed(2)),
-      obra_motivo: form.obra_motivo,
-      precio_hora: precioHora,
-      multiplier,
-      total: parseFloat(total.toFixed(2)),
-      status: editing?.status || 'pendiente',
-    };
     try {
-      if (editing) {
-        await base44.entities.OvertimeHour.update(editing.id, payload);
-        toast({ title: 'Hora extra actualizada' });
-      } else {
-        await base44.entities.OvertimeHour.create(payload);
-        toast({ title: 'Hora extra registrada' });
-      }
+      await base44.functions.invoke('trackTime', {
+        operation: 'saveOvertime',
+        callerEmployeeId,
+        overtimeId: editing?.id || null,
+        targetEmployeeId: isAdmin ? form.employee_id : null,
+        date: form.date,
+        startTime: form.start_time,
+        endTime: form.end_time,
+        duration,
+        obraMotivo: form.obra_motivo,
+        multiplier: OVERTIME_MULTIPLIER,
+        status: editing?.status || 'pendiente',
+      });
+      toast({ title: editing ? 'Hora extra actualizada' : 'Hora extra registrada' });
       setDialogOpen(false);
       loadItems();
     } catch (e) {

@@ -63,13 +63,11 @@ export default function ControlHorario() {
 
         if (hour === 8 && minutes >= 30 && !hasOpen && !hasAbsence && !notifiedRef.current.absent830) {
           notifiedRef.current.absent830 = true;
-          await base44.entities.TimeEntry.create({
-            employee_id: empId, employee_name: empName,
-            clock_in: now.toISOString(), date: today, status: 'ausencia_injustificada'
-          });
-          await base44.entities.Incumplimiento.create({
-            employee_id: empId, employee_name: empName,
-            date: today, type: 'sin_fichar',
+          await base44.functions.invoke('trackTime', {
+            operation: 'registerAbsence',
+            callerEmployeeId: empId,
+            clockIn: now.toISOString(),
+            date: today,
             description: 'No fichó la entrada antes de las 8:30'
           });
           toast({ title: '⚠️ Falta registrada', description: 'No has fichado antes de las 8:30. Falta registrada (no descuenta sueldo).' });
@@ -107,14 +105,13 @@ export default function ControlHorario() {
         clockOut.setHours(16, 0, 0, 0);
         const clockIn = new Date(open.clock_in);
         const regularHours = Math.min(Math.max(((clockOut - clockIn) / 3600000), 0), 8);
-        await base44.entities.TimeEntry.update(open.id, {
-          clock_out: clockOut.toISOString(),
-          total_hours: parseFloat(regularHours.toFixed(2)),
-          overtime_hours: 0,
-          status: 'cerrado',
-          auto_closed: true
+        await base44.functions.invoke('trackTime', {
+          operation: 'autoClose',
+          callerEmployeeId: empId,
+          entryId: open.id,
+          clockOut: clockOut.toISOString(),
+          totalHours: parseFloat(regularHours.toFixed(2))
         });
-        await deactivateLocation();
         toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 7:45' });
         data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
         open = null;
@@ -140,26 +137,7 @@ export default function ControlHorario() {
     });
   }
 
-  // Capture location ONLY at clock-in / clock-out (no continuous tracking)
-  async function upsertEmployeeLocation(isActive, coords) {
-    try {
-      const locs = await base44.entities.EmployeeLocation.filter({ employee_id: empId });
-      const data = {
-        employee_id: empId, employee_name: empName,
-        latitude: coords.lat, longitude: coords.lng,
-        is_active: isActive, last_update: new Date().toISOString()
-      };
-      if (locs.length > 0) await base44.entities.EmployeeLocation.update(locs[0].id, data);
-      else await base44.entities.EmployeeLocation.create(data);
-    } catch (e) { /* silent */ }
-  }
-
-  async function deactivateLocation() {
-    try {
-      const locs = await base44.entities.EmployeeLocation.filter({ employee_id: empId });
-      locs.forEach(l => base44.entities.EmployeeLocation.update(l.id, { is_active: false, last_update: new Date().toISOString() }));
-    } catch (e) { /* silent */ }
-  }
+  // Location management now handled server-side via trackTime function
 
   async function handleClockIn() {
     setClockingIn(true);
@@ -169,33 +147,19 @@ export default function ControlHorario() {
       const today = now.toISOString().split('T')[0];
       const hour = now.getHours();
       const minutes = now.getMinutes();
+      const isLate = hour > 8 || (hour === 8 && minutes > 15);
 
-      const todayEntries = await base44.entities.TimeEntry.filter({ employee_id: empId, date: today });
-      const absenceEntry = todayEntries.find(e => e.status === 'ausencia_injustificada');
+      await base44.functions.invoke('trackTime', {
+        operation: 'clockIn',
+        callerEmployeeId: empId,
+        clockIn: now.toISOString(),
+        date: today,
+        lat: loc.lat, lng: loc.lng,
+        isLate,
+        lateDescription: `Fichó entrada a las ${moment(now).format('HH:mm')} (límite 8:15)`
+      });
 
-      if (absenceEntry) {
-        await base44.entities.TimeEntry.update(absenceEntry.id, {
-          clock_in: now.toISOString(),
-          clock_in_lat: loc.lat, clock_in_lng: loc.lng,
-          status: 'abierto'
-        });
-      } else {
-        await base44.entities.TimeEntry.create({
-          employee_id: empId, employee_name: empName,
-          clock_in: now.toISOString(), date: today,
-          clock_in_lat: loc.lat, clock_in_lng: loc.lng, status: 'abierto'
-        });
-      }
-
-      await upsertEmployeeLocation(true, loc);
-
-      // Late entry: after 8:15 (window is 7:45 - 8:15)
-      if (hour > 8 || (hour === 8 && minutes > 15)) {
-        await base44.entities.Incumplimiento.create({
-          employee_id: empId, employee_name: empName,
-          date: today, type: 'entrada_tardia',
-          description: `Fichó entrada a las ${moment(now).format('HH:mm')} (límite 8:15)`
-        });
+      if (isLate) {
         toast({ title: '⚠️ Entrada tardía', description: `${moment(now).format('HH:mm')} — Incumplimiento registrado` });
       } else {
         toast({ title: '✅ Entrada fichada', description: `${moment(now).format('HH:mm')} — Ubicación registrada` });
@@ -231,13 +195,15 @@ export default function ControlHorario() {
       }
       regularHours = Math.min(Math.max(regularHours, 0), 8);
 
-      await base44.entities.TimeEntry.update(openEntry.id, {
-        clock_out: now.toISOString(), clock_out_lat: loc.lat, clock_out_lng: loc.lng,
-        total_hours: parseFloat(regularHours.toFixed(2)),
-        overtime_hours: parseFloat(overtimeHours.toFixed(2)),
-        status: 'cerrado'
+      await base44.functions.invoke('trackTime', {
+        operation: 'clockOut',
+        callerEmployeeId: empId,
+        entryId: openEntry.id,
+        clockOut: now.toISOString(),
+        lat: loc.lat, lng: loc.lng,
+        totalHours: parseFloat(regularHours.toFixed(2)),
+        overtimeHours: parseFloat(overtimeHours.toFixed(2))
       });
-      await upsertEmployeeLocation(false, loc);
 
       if (overtimeHours > 0) {
         toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras` });

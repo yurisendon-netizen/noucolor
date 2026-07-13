@@ -22,7 +22,7 @@ const LABELS = {
 };
 
 export default function RecogidaDatos() {
-  const { isAdmin } = useEmployeeProfile();
+  const { isAdmin, employee } = useEmployeeProfile();
   const { toast } = useToast();
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,8 +71,7 @@ export default function RecogidaDatos() {
     if (!validate()) return;
     setSaving(true);
     try {
-      const precioHora = parseFloat(form.precioHora) || 0;
-      const payload = {
+      const data = {
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
@@ -80,36 +79,20 @@ export default function RecogidaDatos() {
         cass: form.cass.trim(),
         iban: form.iban.trim(),
         position: form.position.trim(),
-        precioHora,
+        precioHora: parseFloat(form.precioHora) || 0,
         cargo: form.cargo || 'operario',
         hire_date: form.hire_date || null,
         user: form.user.trim().toLowerCase(),
         pass: form.pass,
       };
-      if (editing) {
-        await base44.entities.DatosTrabajador.update(editing.id, payload);
-        if (editing.employee_id) {
-          await base44.entities.Employee.update(editing.employee_id, {
-            full_name: payload.full_name, email: payload.email, phone: payload.phone,
-            dni: payload.dni, nss: payload.cass, hire_date: payload.hire_date,
-            position: payload.position, precioHora: payload.precioHora,
-            base_salary: Math.round(payload.precioHora * 173.33 * 100) / 100,
-            role: payload.cargo, user: payload.user, pass: payload.pass,
-          }).catch(() => {});
-        }
-        toast({ title: '✅ Trabajador actualizado' });
-      } else {
-        const emp = await base44.entities.Employee.create({
-          full_name: payload.full_name, email: payload.email, phone: payload.phone,
-          dni: payload.dni, nss: payload.cass, hire_date: payload.hire_date,
-          position: payload.position, precioHora: payload.precioHora,
-          base_salary: Math.round(payload.precioHora * 173.33 * 100) / 100,
-          role: payload.cargo, user: payload.user, pass: payload.pass,
-          is_active: true,
-        });
-        await base44.entities.DatosTrabajador.create({ ...payload, employee_id: emp.id });
-        toast({ title: '✅ Trabajador añadido', description: `${payload.full_name} ya puede fichar` });
-      }
+      await base44.functions.invoke('manageEmployee', {
+        action: editing ? 'update' : 'create',
+        callerEmployeeId: employee?.id,
+        data,
+        datosId: editing?.id,
+        employeeId: editing?.employee_id,
+      });
+      toast({ title: editing ? '✅ Trabajador actualizado' : '✅ Trabajador añadido', description: editing ? undefined : `${data.full_name} ya puede fichar` });
       setDialogOpen(false);
       setForm(EMPTY_FORM);
       setEditing(null);
@@ -124,10 +107,12 @@ export default function RecogidaDatos() {
   async function handleDelete(w) {
     if (!confirm(`¿Eliminar a ${w.full_name}?`)) return;
     try {
-      if (w.employee_id) {
-        await base44.entities.Employee.delete(w.employee_id).catch(() => {});
-      }
-      await base44.entities.DatosTrabajador.delete(w.id);
+      await base44.functions.invoke('manageEmployee', {
+        action: 'delete',
+        callerEmployeeId: employee?.id,
+        datosId: w.id,
+        employeeId: w.employee_id,
+      });
       toast({ title: 'Trabajador eliminado' });
       setSelected(prev => { const n = new Set(prev); n.delete(w.id); return n; });
       loadWorkers();
@@ -168,12 +153,11 @@ export default function RecogidaDatos() {
       'Número de Tarjeta CASS': w.cass || '',
       'Número de cuenta bancaria (IBAN)': w.iban || '',
       'Usuario de login': w.user || '',
-      'Contraseña': w.pass || '',
       'Puesto': w.cargo === 'administrador' ? 'Administrador' : (w.cargo === 'jefe' ? 'Jefe' : 'Operario'),
       'Fecha de incorporación': w.hire_date ? moment(w.hire_date).format('DD/MM/YYYY') : '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 30 }, { wch: 32 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 34 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 30 }, { wch: 32 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 34 }, { wch: 18 }, { wch: 14 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trabajadores');
     const suffix = selected.size > 0 ? `_seleccionados` : '';

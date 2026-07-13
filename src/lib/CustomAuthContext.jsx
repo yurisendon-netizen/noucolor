@@ -17,15 +17,11 @@ export function CustomAuthProvider({ children }) {
   }, []);
 
   async function login(username, password) {
-    const employees = await base44.entities.Employee.filter({
-      user: username.toLowerCase(),
-      pass: password
-    });
-    if (employees.length > 0) {
-      const emp = employees[0];
+    const result = await base44.functions.invoke('employeeLogin', { username, password });
+    if (result.data?.success) {
       localStorage.setItem('noucolor_session', 'active');
-      localStorage.setItem('noucolor_emp_id', emp.id);
-      setEmployee(emp);
+      localStorage.setItem('noucolor_emp_id', result.data.employee.id);
+      setEmployee(result.data.employee);
       return true;
     }
     return false;
