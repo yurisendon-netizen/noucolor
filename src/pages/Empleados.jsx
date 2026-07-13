@@ -161,7 +161,7 @@ export default function Empleados() {
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
-        title="👥 Gestión de Empleados"
+        title="Gestión de Empleados"
         subtitle="Listado completo del personal de Noucolor"
         actions={isAdmin && (
           <div className="flex items-center gap-2">
