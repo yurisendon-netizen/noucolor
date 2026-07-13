@@ -21,7 +21,7 @@ export default function Empleados() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', precioHora: 0 });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0 });
 
   useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
 
@@ -44,6 +44,7 @@ export default function Empleados() {
       full_name: emp.full_name, email: emp.email, role: emp.role,
       position: emp.position || '', phone: emp.phone || '',
       nss: emp.nss || '', dni: emp.dni || '',
+      iban: emp.iban || '',
       hire_date: emp.hire_date || '', precioHora: emp.precioHora || 0
     });
     setDialogOpen(true);
@@ -51,7 +52,7 @@ export default function Empleados() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', hire_date: '', precioHora: 0 });
+    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0 });
     setDialogOpen(true);
   }
 
@@ -70,6 +71,7 @@ export default function Empleados() {
           phone: form.phone,
           cass: form.nss,
           dni: form.dni,
+          iban: form.iban,
           hire_date: form.hire_date,
           precioHora,
         },
@@ -115,6 +117,7 @@ export default function Empleados() {
       'Teléfono': e.phone,
       'DNI / Pasaporte': e.dni,
       'Número CASS': e.nss,
+      'IBAN': e.iban,
       'Usuario de Login': e.user,
       'Salario Base (€)': e.base_salary,
       '€/hora': e.precioHora,
@@ -144,6 +147,7 @@ export default function Empleados() {
     { key: 'phone', label: 'Teléfono', render: r => r.phone || '—' },
     { key: 'dni', label: 'DNI / Pasaporte', render: r => r.dni || '—' },
     { key: 'nss', label: 'Nº CASS', render: r => r.nss || '—' },
+    { key: 'iban', label: 'IBAN', render: r => <span className="text-xs font-mono">{r.iban || '—'}</span> },
     { key: 'user', label: 'Usuario', render: r => r.user || '—' },
     { key: 'base_salary', label: 'Salario Base (€/hora)', render: r => (
       <div className="flex flex-col">
@@ -222,6 +226,7 @@ export default function Empleados() {
               <Input placeholder="DNI / Pasaporte" value={form.dni} onChange={e => setForm({ ...form, dni: e.target.value })} className="bg-secondary border-border" />
               <Input placeholder="Nº CASS" value={form.nss} onChange={e => setForm({ ...form, nss: e.target.value })} className="bg-secondary border-border" />
             </div>
+            <Input placeholder="IBAN (Número de cuenta bancaria)" value={form.iban} onChange={e => setForm({ ...form, iban: e.target.value })} className="bg-secondary border-border" />
             <div className="grid grid-cols-2 gap-3">
               <Input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value })} className="bg-secondary border-border" />
               <Input type="number" step="0.01" placeholder="Precio/hora (€)" value={form.precioHora} onChange={e => setForm({ ...form, precioHora: e.target.value })} className="bg-secondary border-border" />

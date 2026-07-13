@@ -31,7 +31,18 @@ Deno.serve(async (req) => {
 
     if (action === 'list') {
       const employees = await base44.asServiceRole.entities.Employee.list('-created_date', 200);
-      return Response.json({ success: true, employees });
+      const datos = await base44.asServiceRole.entities.DatosTrabajador.list('-created_date', 500);
+      const datosByEmpId = {};
+      const datosByName = {};
+      for (const d of datos) {
+        if (d.employee_id) datosByEmpId[d.employee_id] = d;
+        if (d.full_name) datosByName[d.full_name.toLowerCase().trim()] = d;
+      }
+      const merged = employees.map(emp => {
+        const d = datosByEmpId[emp.id] || datosByName[(emp.full_name || '').toLowerCase().trim()];
+        return { ...emp, iban: d?.iban || emp.iban || null };
+      });
+      return Response.json({ success: true, employees: merged });
     }
 
     if (action === 'listDatos') {
@@ -102,6 +113,13 @@ Deno.serve(async (req) => {
     if (action === 'update') {
       if (employeeId) {
         await base44.asServiceRole.entities.Employee.update(employeeId, employeeData);
+        // Sync DatosTrabajador by employee_id if no explicit datosId
+        if (!datosId) {
+          const matching = await base44.asServiceRole.entities.DatosTrabajador.filter({ employee_id: employeeId });
+          if (matching.length > 0) {
+            await base44.asServiceRole.entities.DatosTrabajador.update(matching[0].id, datosData);
+          }
+        }
       }
       if (datosId) {
         await base44.asServiceRole.entities.DatosTrabajador.update(datosId, datosData);
@@ -111,6 +129,13 @@ Deno.serve(async (req) => {
 
     if (action === 'delete') {
       if (employeeId) {
+        // Also delete linked DatosTrabajador records
+        if (!datosId) {
+          const matching = await base44.asServiceRole.entities.DatosTrabajador.filter({ employee_id: employeeId });
+          for (const d of matching) {
+            await base44.asServiceRole.entities.DatosTrabajador.delete(d.id);
+          }
+        }
         await base44.asServiceRole.entities.Employee.delete(employeeId);
       }
       if (datosId) {
