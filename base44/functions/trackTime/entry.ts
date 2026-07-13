@@ -56,6 +56,13 @@ Deno.serve(async (req) => {
         const { clockIn, date, lat, lng, isLate, lateDescription } = body;
         const todayEntries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: empId, date });
         const absenceEntry = todayEntries.find(e => e.status === 'ausencia_injustificada');
+        const openEntry = todayEntries.find(e => e.status === 'abierto');
+
+        // Already has an open entry today — don't create a duplicate
+        if (openEntry) {
+          await upsertLocation(base44, empId, empName, true, lat, lng);
+          return Response.json({ success: true, alreadyClockedIn: true });
+        }
 
         if (absenceEntry) {
           await base44.asServiceRole.entities.TimeEntry.update(absenceEntry.id, {
