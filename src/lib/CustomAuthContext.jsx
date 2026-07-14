@@ -9,7 +9,7 @@ export function CustomAuthProvider({ children }) {
 
   useEffect(() => {
     const savedId = localStorage.getItem('noucolor_emp_id');
-
+    
     if (savedId) {
       base44.functions.invoke('manageEmployee', { 
         action: 'getById', 
@@ -27,7 +27,6 @@ export function CustomAuthProvider({ children }) {
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
-      // No ponemos usuario por defecto automático
     }
   }, []);
 
@@ -50,7 +49,8 @@ export function CustomAuthProvider({ children }) {
   function logout() {
     clearSession();
     setEmployee(null);
-    window.location.href = '/login';
+    // Redirección fuerte para evitar el login por defecto de Base44
+    window.location.replace('/login');
   }
 
   return (
@@ -59,7 +59,6 @@ export function CustomAuthProvider({ children }) {
       loading,
       login,
       logout,
-      // Aquí definimos quiénes son admins
       isAdmin: employee?.role === 'administrador' || 
                employee?.role === 'jefe' || 
                employee?.role === 'admin' ||
