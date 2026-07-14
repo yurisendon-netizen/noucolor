@@ -49,7 +49,6 @@ export function CustomAuthProvider({ children }) {
   function logout() {
     clearSession();
     setEmployee(null);
-    // Redirección fuerte para evitar el login por defecto de Base44
     window.location.replace('/login');
   }
 
