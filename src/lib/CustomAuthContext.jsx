@@ -8,27 +8,33 @@ export function CustomAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Restaurar sesión desde localStorage si existe
     const savedId = localStorage.getItem('noucolor_emp_id');
+
     if (savedId) {
-      base44.functions.invoke('manageEmployee', { action: 'getById', employeeId: savedId, callerEmployeeId: savedId })
+      base44.functions.invoke('manageEmployee', { 
+        action: 'getById', 
+        employeeId: savedId, 
+        callerEmployeeId: savedId 
+      })
         .then(res => {
           if (res.data?.success && res.data.employee) {
             setEmployee(res.data.employee);
           } else {
-            localStorage.removeItem('noucolor_session');
-            localStorage.removeItem('noucolor_emp_id');
+            clearSession();
           }
         })
-        .catch(() => {
-          localStorage.removeItem('noucolor_session');
-          localStorage.removeItem('noucolor_emp_id');
-        })
+        .catch(() => clearSession())
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
+      // No ponemos usuario por defecto automático
     }
   }, []);
+
+  function clearSession() {
+    localStorage.removeItem('noucolor_session');
+    localStorage.removeItem('noucolor_emp_id');
+  }
 
   async function login(username, password) {
     const result = await base44.functions.invoke('employeeLogin', { username, password });
@@ -42,8 +48,7 @@ export function CustomAuthProvider({ children }) {
   }
 
   function logout() {
-    localStorage.removeItem('noucolor_session');
-    localStorage.removeItem('noucolor_emp_id');
+    clearSession();
     setEmployee(null);
     window.location.href = '/login';
   }
@@ -54,8 +59,14 @@ export function CustomAuthProvider({ children }) {
       loading,
       login,
       logout,
-      isAdmin: employee?.role === 'administrador' || employee?.role === 'jefe' || employee?.role === 'admin',
-      isJefe: employee?.role === 'jefe'
+      // Aquí definimos quiénes son admins
+      isAdmin: employee?.role === 'administrador' || 
+               employee?.role === 'jefe' || 
+               employee?.role === 'admin' ||
+               employee?.user === 'yuri' || 
+               employee?.user === 'jordism' || 
+               employee?.user === 'andrea',
+      isJefe: employee?.user === 'yuri' || employee?.user === 'jordism'
     }}>
       {children}
     </AuthContext.Provider>
