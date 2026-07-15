@@ -1,5 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
+// Ajusta este offset si Andorra está en horario de invierno (+01:00) vs verano (+02:00)
+const LOCAL_UTC_OFFSET = '+02:00';
+
 async function upsertLocation(base44, empId, empName, isActive, lat, lng) {
   try {
     const locs = await base44.asServiceRole.entities.EmployeeLocation.filter({ employee_id: empId });
@@ -27,11 +30,47 @@ async function deactivateLocation(base44, empId) {
   } catch { /* silent */ }
 }
 
+// Cierra un único fichaje abierto usando la FECHA REAL del fichaje (no la fecha de hoy)
+async function autoCloseEntry(base44, entry) {
+  const clockIn = new Date(entry.clock_in);
+  const clockOut = new Date(`${entry.date}T16:00:00${LOCAL_UTC_OFFSET}`);
+
+  let totalHours = (clockOut.getTime() - clockIn.getTime()) / 3600000;
+  totalHours = Math.min(Math.max(totalHours, 0), 8);
+
+  await base44.asServiceRole.entities.TimeEntry.update(entry.id, {
+    clock_out: clockOut.toISOString(),
+    total_hours: parseFloat(totalHours.toFixed(2)),
+    overtime_hours: 0,
+    status: 'cerrado',
+    auto_closed: true
+  });
+  await deactivateLocation(base44, entry.employee_id);
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const body = await req.json();
-    const { operation, callerEmployeeId } = body;
+    const { operation } = body;
+
+    // ── OPERACIÓN DE SISTEMA: llamada por el scheduled task, sin usuario detrás ──
+    // No requiere callerEmployeeId porque la dispara el cron de Base44, no una persona.
+    if (operation === 'autoCloseAll') {
+      const openEntries = await base44.asServiceRole.entities.TimeEntry.filter({ status: 'abierto' });
+      let closed = 0;
+      for (const entry of openEntries) {
+        try {
+          await autoCloseEntry(base44, entry);
+          closed++;
+        } catch (e) {
+          console.error(`Error cerrando fichaje ${entry.id}:`, e.message);
+        }
+      }
+      return Response.json({ success: true, closedCount: closed });
+    }
+
+    const { callerEmployeeId } = body;
 
     // Verify caller identity
     if (!callerEmployeeId) {
