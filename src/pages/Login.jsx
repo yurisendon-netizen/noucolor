@@ -4,7 +4,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
-import ScrollToTop from './components/ScrollToTop';
+//import ScrollToTop from './components/ScrollToTop';
 import { CustomAuthProvider } from '@/lib/CustomAuthContext';
 import { ThemeProvider } from 'next-themes';
 import ProtectedRoute from '@/components/ProtectedRoute';
