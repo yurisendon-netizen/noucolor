@@ -69,7 +69,7 @@ export default function Empleados() {
           cargo: form.role,
           position: form.position,
           phone: form.phone,
-          cass: form.nss,
+          nss: form.nss, // CORREGIDO: antes se enviaba como "cass" y nunca coincidía con el campo "nss" que se lee en toda la tabla
           dni: form.dni,
           iban: form.iban,
           hire_date: form.hire_date,
