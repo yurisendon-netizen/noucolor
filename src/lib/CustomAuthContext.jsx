@@ -31,8 +31,7 @@ export function CustomAuthProvider({ children }) {
   }, []);
 
   function clearSession() {
-    localStorage.removeItem('noucolor_session');
-    localStorage.removeItem('noucolor_emp_id');
+    localStorage.clear();
   }
 
   async function login(username, password) {
@@ -49,7 +48,7 @@ export function CustomAuthProvider({ children }) {
   function logout() {
     clearSession();
     setEmployee(null);
-    window.location.replace('/login');
+    window.location.replace('/login');   // ← Esta línea es clave
   }
 
   return (
