@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Clock, FileText, ShieldCheck, Users, 
@@ -8,37 +8,39 @@ import { useCustomAuth } from '@/lib/CustomAuthContext';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: LayoutDashboard, adminOnly: false },
-  { path: '/control-horario', label: 'Control Horario', icon: Clock, adminOnly: false, hideForJefe: true },
-  { path: '/horas-extras', label: 'Horas Extras', icon: Timer, adminOnly: false, hideForJefe: true },
+  { path: '/control-horario', label: 'Control Horario', icon: Clock, adminOnly: false },
+  { path: '/horas-extras', label: 'Horas Extras', icon: Timer, adminOnly: false },
   { path: '/partes-trabajo', label: 'Partes de Trabajo', icon: FileText, adminOnly: false },
   { path: '/justificantes', label: 'Justificantes', icon: ShieldCheck, adminOnly: false },
+  { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false },
+
+  // Solo para Administradores
   { path: '/empleados', label: 'Empleados', icon: Users, adminOnly: true },
   { path: '/revision-jornadas', label: 'Revisión Jornadas', icon: CalendarCheck, adminOnly: true },
   { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
   { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
   { path: '/recogida-datos', label: 'Recogida Datos', icon: ClipboardList, adminOnly: true },
   { path: '/informes', label: 'Informes', icon: BarChart3, adminOnly: true },
-  { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false, hideForJefe: true },
 ];
 
-export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleCollapse }) {
+export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
   const location = useLocation();
-  const { logout, isJefe } = useCustomAuth();
+  const { logout, isAdmin, employee } = useCustomAuth();
 
+  // Filtrar según rol
   const filteredItems = navItems.filter(item => {
-    if (isJefe) return !item.hideForJefe;
-    return !item.adminOnly || isAdmin;
+    if (item.adminOnly) {
+      return isAdmin;
+    }
+    return true;
   });
-
-  const handleLogout = () => {
-    logout();
-  };
 
   return (
     <>
       {isOpen && (
         <div className="fixed inset-0 bg-black/60 z-[1050] lg:hidden" onClick={onClose} />
       )}
+
       <aside className={`
         fixed top-0 bottom-0 left-0 z-[1100] 
         bg-sidebar border-r border-border
@@ -55,6 +57,7 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
           {collapsed && (
             <img src="https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png" alt="Noucolor" className="h-9 w-auto" />
           )}
+
           <button onClick={onClose} className="lg:hidden text-muted-foreground hover:text-foreground">
             <X size={20} />
           </button>
@@ -90,20 +93,20 @@ export default function Sidebar({ isOpen, onClose, isAdmin, collapsed, onToggleC
               );
             })}
           </nav>
+        </div>
 
-          <div className="p-2 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-border space-y-1">
-            <button
-              onClick={handleLogout}
-              className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
-                text-muted-foreground hover:text-foreground hover:bg-secondary transition-all
-                ${collapsed ? 'justify-center' : ''}
-              `}
-            >
-              <LogOut size={20} className="shrink-0" />
-              {!collapsed && <span>Cerrar Sesión</span>}
-            </button>
-          </div>
+        <div className="p-2 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-border">
+          <button
+            onClick={logout}
+            className={`
+              flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
+              text-muted-foreground hover:text-foreground hover:bg-secondary transition-all
+              ${collapsed ? 'justify-center' : ''}
+            `}
+          >
+            <LogOut size={20} className="shrink-0" />
+            {!collapsed && <span>Cerrar Sesión</span>}
+          </button>
         </div>
       </aside>
     </>
