@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { MapPin, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/shared/PageHeader';
+import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import moment from 'moment';
 import L from 'leaflet';
 
@@ -16,23 +17,27 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function Geolocalizacion() {
+  const { employee } = useEmployeeProfile();
+  const empId = employee?.id;
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
+    if (!empId) return;
     setLoading(true);
     try {
-      const [data, employees] = await Promise.all([
-        base44.entities.EmployeeLocation.filter({ is_active: true }),
+      const [locRes, employees] = await Promise.all([
+        base44.functions.invoke('trackTime', { operation: 'listActiveLocations', callerEmployeeId: empId }),
         base44.entities.Employee.filter({ role: 'jefe' })
       ]);
+      const data = locRes.data?.locations || [];
       const jefeIds = employees.map(e => e.id);
       setLocations(data.filter(loc => !jefeIds.includes(loc.employee_id)));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [empId]);
 
   const center = locations.length > 0
     ? [locations[0].latitude, locations[0].longitude]

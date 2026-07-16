@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { UserPlus, Download, Users, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -31,6 +32,10 @@ export default function RecogidaDatos() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState(new Set());
+  const [resetTarget, setResetTarget] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (isAdmin === false) return;
@@ -60,6 +65,52 @@ export default function RecogidaDatos() {
     setEditing(w);
     setForm({ ...EMPTY_FORM, ...w });
     setDialogOpen(true);
+  }
+
+  function openResetPassword(w) {
+    setResetTarget(w);
+    setNewPassword('');
+    setConfirmPassword('');
+  }
+
+  function closeResetPassword() {
+    setResetTarget(null);
+    setNewPassword('');
+    setConfirmPassword('');
+  }
+
+  async function handleResetPassword() {
+    if (!newPassword.trim()) {
+      toast({ title: 'Escribe una contraseña', variant: 'destructive' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Las contraseñas no coinciden', variant: 'destructive' });
+      return;
+    }
+    setResetting(true);
+    try {
+      const w = resetTarget;
+      const data = {
+        full_name: w.full_name, email: w.email, phone: w.phone, dni: w.dni,
+        cass: w.cass, iban: w.iban, position: w.position, precioHora: w.precioHora,
+        cargo: w.cargo, hire_date: w.hire_date, user: w.user, pass: newPassword.trim(),
+      };
+      await base44.functions.invoke('manageEmployee', {
+        action: 'update',
+        callerEmployeeId: employee?.id,
+        data,
+        datosId: w.id,
+        employeeId: w.employee_id,
+      });
+      toast({ title: '✅ Contraseña restablecida', description: `${w.full_name} ya puede usar la nueva contraseña para fichar` });
+      closeResetPassword();
+      loadWorkers();
+    } catch (e) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setResetting(false);
+    }
   }
 
   function validate() {
@@ -234,6 +285,7 @@ export default function RecogidaDatos() {
         onToggleAll={toggleSelectAll}
         onEdit={openEdit}
         onDelete={handleDelete}
+        onResetPassword={openResetPassword}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -246,6 +298,46 @@ export default function RecogidaDatos() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
               {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!resetTarget} onOpenChange={open => !open && closeResetPassword()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restablecer contraseña</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Trabajador: <span className="font-medium text-foreground">{resetTarget?.full_name}</span>
+            </p>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1.5 block">Nueva contraseña</label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Nueva contraseña"
+                className="bg-secondary border-border"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1.5 block">Confirmar contraseña</label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repite la nueva contraseña"
+                className="bg-secondary border-border"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeResetPassword}>Cancelar</Button>
+            <Button onClick={handleResetPassword} disabled={resetting} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+              {resetting ? 'Guardando...' : 'Restablecer'}
             </Button>
           </DialogFooter>
         </DialogContent>

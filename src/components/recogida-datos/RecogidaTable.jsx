@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Edit2, Trash2, Inbox } from 'lucide-react';
+import { Search, Edit2, Trash2, Inbox, KeyRound } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import moment from 'moment';
@@ -11,7 +11,7 @@ const puestoStyles = {
 };
 const puestoLabels = { operario: 'Operario', administrador: 'Administrador', jefe: 'Jefe' };
 
-export default function RecogidaTable({ workers, selected, onToggle, onToggleAll, onEdit, onDelete }) {
+export default function RecogidaTable({ workers, selected, onToggle, onToggleAll, onEdit, onDelete, onResetPassword }) {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -92,7 +92,7 @@ export default function RecogidaTable({ workers, selected, onToggle, onToggleAll
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{w.cass || '—'}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono text-xs">{w.iban ? w.iban.substring(0, 8) + '…' + w.iban.slice(-4) : '—'}</td>
                     <td className="px-4 py-3 text-sm font-mono text-[hsl(35,92%,55%)]">{w.user || '—'}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{w.pass || '—'}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{w.pass ? '••••••••' : '—'}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${puestoStyles[w.cargo] || puestoStyles.operario}`}>
                         {puestoLabels[w.cargo] || (w.cargo ? w.cargo.charAt(0).toUpperCase() + w.cargo.slice(1) : 'Operario')}
@@ -101,6 +101,9 @@ export default function RecogidaTable({ workers, selected, onToggle, onToggleAll
                     <td className="px-4 py-3 text-sm text-muted-foreground">{w.hire_date ? moment(w.hire_date).format('DD/MM/YYYY') : '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => onResetPassword(w)} title="Restablecer contraseña" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                          <KeyRound size={15} />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => onEdit(w)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
                           <Edit2 size={15} />
                         </Button>

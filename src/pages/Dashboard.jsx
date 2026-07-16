@@ -23,21 +23,23 @@ function StatCard({ icon: Icon, label, value, color, to }) {
 
 export default function Dashboard() {
   const { employee, isAdmin, user } = useEmployeeProfile();
+  const empId = employee?.id || user?.id;
   const [stats, setStats] = useState({ entries: 0, orders: 0, employees: 0, payrolls: 0, pending: 0, incumplimientos: 0 });
   const [recentOrders, setRecentOrders] = useState([]);
   const [warningEmployees, setWarningEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!empId) return;
     async function load() {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const [entries, orders, employees, payrolls, incumplimientos] = await Promise.all([
-          base44.entities.TimeEntry.filter({ date: today }),
+        const [entriesCount, orders, employees, payrolls, incumplimientos] = await Promise.all([
+          base44.functions.invoke('trackTime', { operation: 'countEntriesByDate', callerEmployeeId: empId, date: today }).then(r => r.data?.count || 0),
           base44.entities.WorkOrder.list('-created_date', 5),
           isAdmin ? base44.entities.Employee.filter({ is_active: true }) : Promise.resolve([]),
           isAdmin ? base44.entities.Payroll.list('-created_date', 5) : Promise.resolve([]),
-          isAdmin ? base44.entities.Incumplimiento.list('-date', 200) : Promise.resolve([]),
+          isAdmin ? base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 }).then(r => r.data?.incumplimientos || []) : Promise.resolve([]),
         ]);
         const pendingOrders = orders.filter(o => o.status === 'pendiente');
 
@@ -49,7 +51,7 @@ export default function Dashboard() {
         const warnings = Object.values(incCounts).filter(e => e.count >= 3);
 
         setStats({
-          entries: entries.length,
+          entries: entriesCount,
           orders: orders.length,
           employees: employees.length,
           payrolls: payrolls.length,
@@ -65,7 +67,7 @@ export default function Dashboard() {
       }
     }
     load();
-  }, [isAdmin]);
+  }, [isAdmin, empId]);
 
   const displayName = employee?.full_name || user?.full_name || 'Usuario';
 

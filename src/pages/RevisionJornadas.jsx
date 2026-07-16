@@ -7,6 +7,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import moment from 'moment';
 
 const typeLabels = {
@@ -21,24 +22,27 @@ const typeStyles = {
 
 export default function RevisionJornadas() {
   const { toast } = useToast();
+  const { employee } = useEmployeeProfile();
+  const empId = employee?.id;
   const [entries, setEntries] = useState([]);
   const [incumplimientos, setIncumplimientos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!empId) return;
     async function load() {
       try {
-        const [e, i] = await Promise.all([
-          base44.entities.TimeEntry.list('-date', 200),
-          base44.entities.Incumplimiento.list('-date', 200),
+        const [eRes, iRes] = await Promise.all([
+          base44.functions.invoke('trackTime', { operation: 'listAllEntries', callerEmployeeId: empId, limit: 200 }),
+          base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 }),
         ]);
-        setEntries(e);
-        setIncumplimientos(i);
+        setEntries(eRes.data?.entries || []);
+        setIncumplimientos(iRes.data?.incumplimientos || []);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     }
     load();
-  }, []);
+  }, [empId]);
 
   const incumplimientoCounts = {};
   incumplimientos.forEach(i => {
@@ -52,10 +56,10 @@ export default function RevisionJornadas() {
 
   async function handleAmonestar(inc) {
     try {
-      await base44.entities.Incumplimiento.update(inc.id, { status: 'amonestado' });
+      await base44.functions.invoke('trackTime', { operation: 'amonestarIncumplimiento', callerEmployeeId: empId, incumplimientoId: inc.id });
       toast({ title: 'Amonestación registrada', description: `Se ha marcado la amonestación para ${inc.employee_name}` });
-      const i = await base44.entities.Incumplimiento.list('-date', 200);
-      setIncumplimientos(i);
+      const iRes = await base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 });
+      setIncumplimientos(iRes.data?.incumplimientos || []);
     } catch (e) {
       toast({ title: 'Error', variant: 'destructive' });
     }

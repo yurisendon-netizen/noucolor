@@ -50,7 +50,8 @@ export default function ControlHorario() {
       }
 
       try {
-        const todayEntries = await base44.entities.TimeEntry.filter({ employee_id: empId, date: today });
+        const res = await base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 60 });
+        const todayEntries = (res.data?.entries || []).filter(e => e.date === today);
         const hasOpen = todayEntries.some(e => e.status === 'abierto');
         const hasAbsence = todayEntries.some(e => e.status === 'ausencia_injustificada');
 
@@ -92,7 +93,8 @@ export default function ControlHorario() {
   async function loadEntries() {
     if (!empId) return;
     try {
-      let data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
+      let res = await base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 50 });
+      let data = res.data?.entries || [];
       let open = data.find(e => e.status === 'abierto');
 
       const now = new Date();
@@ -113,7 +115,8 @@ export default function ControlHorario() {
           totalHours: parseFloat(regularHours.toFixed(2))
         });
         toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 7:45' });
-        data = await base44.entities.TimeEntry.filter({ employee_id: empId }, '-date', 50);
+        res = await base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 50 });
+        data = res.data?.entries || [];
         open = null;
       }
 

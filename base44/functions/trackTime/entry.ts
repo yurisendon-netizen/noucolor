@@ -221,6 +221,51 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
+      // ── Lecturas vía service role: las entidades TimeEntry/EmployeeLocation/Incumplimiento
+      // usan RLS basado en {{user.id}} de la plataforma Base44, pero esta app autentica
+      // empleados con su propio sistema (Employee + localStorage), así que ese id nunca
+      // coincide. Sin pasar por aquí, el cliente no puede leer sus propios fichajes.
+      case 'listEntries': {
+        const { limit } = body;
+        const data = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: empId }, '-date', limit || 50);
+        return Response.json({ success: true, entries: data });
+      }
+
+      case 'listAllEntries': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { limit } = body;
+        const data = await base44.asServiceRole.entities.TimeEntry.list('-date', limit || 200);
+        return Response.json({ success: true, entries: data });
+      }
+
+      case 'countEntriesByDate': {
+        const { date } = body;
+        if (!date) return Response.json({ error: 'Falta date' }, { status: 400 });
+        const data = await base44.asServiceRole.entities.TimeEntry.filter({ date });
+        return Response.json({ success: true, count: data.length });
+      }
+
+      case 'listIncumplimientos': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { limit } = body;
+        const data = await base44.asServiceRole.entities.Incumplimiento.list('-date', limit || 200);
+        return Response.json({ success: true, incumplimientos: data });
+      }
+
+      case 'amonestarIncumplimiento': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { incumplimientoId } = body;
+        if (!incumplimientoId) return Response.json({ error: 'Falta incumplimientoId' }, { status: 400 });
+        await base44.asServiceRole.entities.Incumplimiento.update(incumplimientoId, { status: 'amonestado' });
+        return Response.json({ success: true });
+      }
+
+      case 'listActiveLocations': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const data = await base44.asServiceRole.entities.EmployeeLocation.filter({ is_active: true });
+        return Response.json({ success: true, locations: data });
+      }
+
       default:
         return Response.json({ error: 'Operación no válida' }, { status: 400 });
     }
