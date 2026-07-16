@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, Clock, FileText, ShieldCheck, Users, 
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, ClipboardList, BarChart3
+import {
+  LayoutDashboard, Clock, FileText, ShieldCheck, Users,
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 
@@ -19,7 +19,6 @@ const navItems = [
   { path: '/revision-jornadas', label: 'Revisión Jornadas', icon: CalendarCheck, adminOnly: true },
   { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
   { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
-  { path: '/recogida-datos', label: 'Recogida Datos', icon: ClipboardList, adminOnly: true },
   { path: '/informes', label: 'Informes', icon: BarChart3, adminOnly: true },
 ];
 
