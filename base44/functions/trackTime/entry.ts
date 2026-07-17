@@ -266,6 +266,46 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, locations: data });
       }
 
+      // Payroll usa el mismo RLS ({{user.id}}) roto que TimeEntry — mismo motivo, mismo arreglo.
+      case 'listPayrolls': {
+        const { limit } = body;
+        const data = isAdmin
+          ? await base44.asServiceRole.entities.Payroll.list('-created_date', limit || 200)
+          : await base44.asServiceRole.entities.Payroll.filter({ employee_id: empId }, '-created_date', limit || 50);
+        return Response.json({ success: true, payrolls: data });
+      }
+
+      case 'createPayroll': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { payroll } = body;
+        if (!payroll || !payroll.employee_id) return Response.json({ error: 'Faltan datos de la nómina' }, { status: 400 });
+        const created = await base44.asServiceRole.entities.Payroll.create(payroll);
+        return Response.json({ success: true, payroll: created });
+      }
+
+      case 'signPayroll': {
+        const { payrollId, signatureName, signatureUrl } = body;
+        if (!payrollId) return Response.json({ error: 'Falta payrollId' }, { status: 400 });
+        const records = await base44.asServiceRole.entities.Payroll.filter({ id: payrollId });
+        if (records.length === 0) return Response.json({ error: 'Nómina no encontrada' }, { status: 404 });
+        if (records[0].employee_id !== empId) return Response.json({ error: 'No autorizado' }, { status: 403 });
+        const sigDate = new Date().toISOString();
+        const updated = await base44.asServiceRole.entities.Payroll.update(payrollId, {
+          worker_signature_name: signatureName,
+          worker_signature_date: sigDate,
+          worker_signature_url: signatureUrl,
+        });
+        return Response.json({ success: true, payroll: updated });
+      }
+
+      case 'listOvertimeByEmployee': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { targetEmployeeId, limit } = body;
+        if (!targetEmployeeId) return Response.json({ error: 'Falta targetEmployeeId' }, { status: 400 });
+        const data = await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: targetEmployeeId }, '-date', limit || 200);
+        return Response.json({ success: true, overtime: data });
+      }
+
       default:
         return Response.json({ error: 'Operación no válida' }, { status: 400 });
     }

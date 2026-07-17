@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import BottomTabs from '@/components/layout/BottomTabs';
 import KeepAliveOutlet from '@/components/layout/KeepAliveOutlet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -55,6 +56,7 @@ export default function AppLayout() {
             </div>
           )}
         </main>
+        <BottomTabs isJefe={isJefe} />
       </div>
     </div>
   );

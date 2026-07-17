@@ -1,7 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 function isHashed(pwd) {
-  return typeof pwd === 'string' && pwd.length === 64 && /^[0-9a-f]+$/i.test(pwd);
+  if (typeof pwd !== 'string') return false;
+  const isLegacyHash = pwd.length === 64 && /^[0-9a-f]+$/i.test(pwd);
+  const isSaltedHash = /^[0-9a-f]{32}:[0-9a-f]{64}$/i.test(pwd);
+  return isLegacyHash || isSaltedHash;
 }
 
 Deno.serve(async (req) => {

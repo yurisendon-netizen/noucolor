@@ -1,13 +1,30 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
-async function hashPassword(password) {
-  const data = new TextEncoder().encode('noucolor_salt_' + password);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+function randomSaltHex(bytes = 16) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function isHashed(pwd) {
+// Current format: '<random salt>:<sha256(salt:password)>' — unique salt per password.
+async function hashPassword(password, salt) {
+  const useSalt = salt || randomSaltHex();
+  const data = new TextEncoder().encode(`${useSalt}:${password}`);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${useSalt}:${hex}`;
+}
+
+// Legacy format from before the per-user-salt migration — still recognized so we don't re-hash
+// (and corrupt) a password that was hashed under the old scheme but hasn't logged in since.
+function isLegacyHash(pwd) {
   return typeof pwd === 'string' && pwd.length === 64 && /^[0-9a-f]+$/i.test(pwd);
+}
+function isSaltedHash(pwd) {
+  return typeof pwd === 'string' && /^[0-9a-f]{32}:[0-9a-f]{64}$/i.test(pwd);
+}
+function isHashed(pwd) {
+  return isLegacyHash(pwd) || isSaltedHash(pwd);
 }
 
 Deno.serve(async (req) => {
@@ -15,7 +32,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const { action, callerEmployeeId, data, datosId, employeeId } = await req.json();
 
-    // Verify caller is admin
+    // Verify caller exists
     if (!callerEmployeeId) {
       return Response.json({ error: 'No autorizado' }, { status: 401 });
     }
@@ -25,7 +42,14 @@ Deno.serve(async (req) => {
     } catch {
       return Response.json({ error: 'No autorizado' }, { status: 401 });
     }
-    if (callers.length === 0 || !['administrador', 'jefe', 'admin'].includes(callers[0].role)) {
+    if (callers.length === 0) {
+      return Response.json({ error: 'No autorizado' }, { status: 401 });
+    }
+    const isAdminCaller = ['administrador', 'jefe', 'admin'].includes(callers[0].role);
+    // Any employee can look up their own record (needed to restore their session on reload).
+    // Every other action still requires an admin/jefe caller.
+    const isSelfLookup = action === 'getById' && employeeId === callerEmployeeId;
+    if (!isAdminCaller && !isSelfLookup) {
       return Response.json({ error: 'Prohibido — solo administradores' }, { status: 403 });
     }
 

@@ -48,11 +48,11 @@ export default function Nominas() {
 
   async function loadData() {
     try {
-      const [p, e] = await Promise.all([
-        base44.entities.Payroll.list('-created_date', 200),
+      const [pRes, e] = await Promise.all([
+        base44.functions.invoke('trackTime', { operation: 'listPayrolls', callerEmployeeId: employee?.id, limit: 200 }),
         base44.entities.Employee.filter({ is_active: true }),
       ]);
-      setPayrolls(p);
+      setPayrolls(pRes.data?.payrolls || []);
       setEmployees(e);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -63,7 +63,8 @@ export default function Nominas() {
     if (!emp) return;
     setCalculating(true);
     try {
-      const allEntries = await base44.entities.TimeEntry.filter({ employee_id: emp.id }, '-date', 200);
+      const entriesRes = await base44.functions.invoke('trackTime', { operation: 'listAllEntries', callerEmployeeId: employee?.id, limit: 500 });
+      const allEntries = (entriesRes.data?.entries || []).filter(e => e.employee_id === emp.id);
       const year = parseInt(form.period_year);
       const month = parseInt(form.period_month);
       const monthEntries = allEntries.filter(e => {
@@ -71,7 +72,8 @@ export default function Nominas() {
         return d.getMonth() + 1 === month && d.getFullYear() === year;
       });
       // Fetch approved OvertimeHour records for the period
-      const allOvertime = await base44.entities.OvertimeHour.filter({ employee_id: emp.id }, '-date', 200);
+      const overtimeRes = await base44.functions.invoke('trackTime', { operation: 'listOvertimeByEmployee', callerEmployeeId: employee?.id, targetEmployeeId: emp.id, limit: 200 });
+      const allOvertime = overtimeRes.data?.overtime || [];
       const monthOvertime = allOvertime.filter(o => {
         const d = new Date(o.date);
         return d.getMonth() + 1 === month && d.getFullYear() === year && o.status === 'aprobado';
@@ -115,22 +117,26 @@ export default function Nominas() {
     const net = gross - cass - irpf - (parseFloat(form.other_deductions) || 0);
 
     try {
-      await base44.entities.Payroll.create({
-        employee_id: emp.id, employee_name: emp.full_name,
-        employee_dni: emp.dni || '', employee_nss: emp.nss || '',
-        period_month: month, period_year: year,
-        precio_hora: parseFloat(precioHora.toFixed(2)),
-        total_hours: parseFloat((calcSummary?.regularHours || 0).toFixed(2)),
-        base_salary: parseFloat(adjustedBase.toFixed(2)),
-        overtime_hours: parseFloat(form.overtime_hours) || 0,
-        overtime_pay: parseFloat(overtimePay.toFixed(2)),
-        bonus: parseFloat(form.bonus) || 0,
-        gross_salary: parseFloat(gross.toFixed(2)),
-        cass_employee: parseFloat(cass.toFixed(2)),
-        irpf: parseFloat(irpf.toFixed(2)),
-        other_deductions: parseFloat(form.other_deductions) || 0,
-        net_salary: parseFloat(net.toFixed(2)),
-        status: 'borrador',
+      await base44.functions.invoke('trackTime', {
+        operation: 'createPayroll',
+        callerEmployeeId: employee?.id,
+        payroll: {
+          employee_id: emp.id, employee_name: emp.full_name,
+          employee_dni: emp.dni || '', employee_nss: emp.nss || '',
+          period_month: month, period_year: year,
+          precio_hora: parseFloat(precioHora.toFixed(2)),
+          total_hours: parseFloat((calcSummary?.regularHours || 0).toFixed(2)),
+          base_salary: parseFloat(adjustedBase.toFixed(2)),
+          overtime_hours: parseFloat(form.overtime_hours) || 0,
+          overtime_pay: parseFloat(overtimePay.toFixed(2)),
+          bonus: parseFloat(form.bonus) || 0,
+          gross_salary: parseFloat(gross.toFixed(2)),
+          cass_employee: parseFloat(cass.toFixed(2)),
+          irpf: parseFloat(irpf.toFixed(2)),
+          other_deductions: parseFloat(form.other_deductions) || 0,
+          net_salary: parseFloat(net.toFixed(2)),
+          status: 'borrador',
+        },
       });
       toast({ title: 'Nómina generada' });
       setDialogOpen(false);
@@ -276,6 +282,7 @@ export default function Nominas() {
       {signPayroll && (
         <NominaSignDialog
           payroll={signPayroll}
+          employeeId={employee?.id}
           employeeName={employee?.full_name}
           onClose={() => setSignPayroll(null)}
           onSigned={handleSigned}

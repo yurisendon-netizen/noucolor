@@ -17,7 +17,7 @@ function dataUrlToFile(dataUrl, filename) {
   return new File([u8], filename, { type: mime });
 }
 
-export default function NominaSignDialog({ payroll, employeeName, onClose, onSigned }) {
+export default function NominaSignDialog({ payroll, employeeId, employeeName, onClose, onSigned }) {
   const { toast } = useToast();
   const [signing, setSigning] = useState(false);
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
@@ -32,12 +32,14 @@ export default function NominaSignDialog({ payroll, employeeName, onClose, onSig
       const file = await dataUrlToFile(signatureDataUrl, 'firma_treballador.png');
       const res = await base44.integrations.Core.UploadFile({ file });
       const firmaUrl = res.file_url;
-      const sigDate = new Date().toISOString();
-      const updated = await base44.entities.Payroll.update(payroll.id, {
-        worker_signature_name: employeeName,
-        worker_signature_date: sigDate,
-        worker_signature_url: firmaUrl,
+      await base44.functions.invoke('trackTime', {
+        operation: 'signPayroll',
+        callerEmployeeId: employeeId,
+        payrollId: payroll.id,
+        signatureName: employeeName,
+        signatureUrl: firmaUrl,
       });
+      const sigDate = new Date().toISOString();
       onSigned({
         ...payroll,
         worker_signature_name: employeeName,

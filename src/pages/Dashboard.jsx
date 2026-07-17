@@ -38,7 +38,7 @@ export default function Dashboard() {
           base44.functions.invoke('trackTime', { operation: 'countEntriesByDate', callerEmployeeId: empId, date: today }).then(r => r.data?.count || 0),
           base44.entities.WorkOrder.list('-created_date', 5),
           isAdmin ? base44.entities.Employee.filter({ is_active: true }) : Promise.resolve([]),
-          isAdmin ? base44.entities.Payroll.list('-created_date', 5) : Promise.resolve([]),
+          isAdmin ? base44.functions.invoke('trackTime', { operation: 'listPayrolls', callerEmployeeId: empId, limit: 5 }).then(r => r.data?.payrolls || []) : Promise.resolve([]),
           isAdmin ? base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 }).then(r => r.data?.incumplimientos || []) : Promise.resolve([]),
         ]);
         const pendingOrders = orders.filter(o => o.status === 'pendiente');
