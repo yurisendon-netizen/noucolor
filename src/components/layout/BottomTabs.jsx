@@ -22,7 +22,8 @@ export default function BottomTabs({ isJefe }) {
       className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-sidebar border-t border-border"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="flex items-center justify-around h-16">
+      {/* pr reserves space for Base44's own fixed bottom-right badge (~213px), so no tab sits under it */}
+      <div className="flex items-center justify-around h-16 pr-[232px]">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const active = location.pathname === tab.path;
