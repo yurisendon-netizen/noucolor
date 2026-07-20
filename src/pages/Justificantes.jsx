@@ -59,7 +59,7 @@ export default function Justificantes() {
         employee_name: employee?.full_name || user?.full_name || '',
         status: 'pendiente'
       });
-      toast({ title: 'Justificante enviado' });
+      toast({ variant: 'success', title: 'Justificante enviado' });
       setDialogOpen(false);
       setForm({ type: 'otro', date_from: '', date_to: '', reason: '' });
       setFile(null);
@@ -71,7 +71,7 @@ export default function Justificantes() {
 
   async function handleApproval(id, status) {
     await base44.entities.Justificante.update(id, { status });
-    toast({ title: `Justificante ${status === 'aprobado' ? 'aprobado' : 'rechazado'}` });
+    toast({ variant: 'success', title: `Justificante ${status === 'aprobado' ? 'aprobado' : 'rechazado'}` });
     loadItems();
   }
 
@@ -85,16 +85,16 @@ export default function Justificantes() {
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Justificantes"
         subtitle="Gestiona tus ausencias y permisos"
         actions={
-          <Button onClick={() => setDialogOpen(true)} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+          <Button onClick={() => setDialogOpen(true)} className="gap-2">
             <Plus size={18} /> Nuevo Justificante
           </Button>
         }
@@ -120,7 +120,7 @@ export default function Justificantes() {
             </Button>
             {row.file_url && (
               <a href={row.file_url} target="_blank" rel="noopener noreferrer" download>
-                <Button variant="ghost" size="sm" className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10">
+                <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
                   <Download size={16} />
                 </Button>
               </a>
@@ -160,7 +160,7 @@ export default function Justificantes() {
             </div>
             <Textarea placeholder="Motivo" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="bg-secondary border-border" />
             <Input type="file" onChange={e => setFile(e.target.files[0])} className="bg-secondary border-border" />
-            <Button onClick={handleCreate} disabled={!form.date_from || !form.date_to} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+            <Button onClick={handleCreate} disabled={!form.date_from || !form.date_to} className="w-full h-11">
               Enviar Justificante
             </Button>
           </div>

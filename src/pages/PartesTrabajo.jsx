@@ -54,7 +54,7 @@ export default function PartesTrabajo() {
         assigned_name: employee?.full_name || user?.full_name || '',
         status: 'pendiente'
       });
-      toast({ title: 'Parte creado correctamente' });
+      toast({ variant: 'success', title: 'Parte creado correctamente' });
       setDialogOpen(false);
       setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
       setFirmaDataUrl(null);
@@ -80,7 +80,7 @@ export default function PartesTrabajo() {
     setOrders(orders.map(o => o.id === id ? { ...o, status } : o));
     try {
       await base44.entities.WorkOrder.update(id, { status });
-      toast({ title: `Estado actualizado a ${status === 'completado' ? 'Completado' : 'Pendiente'}` });
+      toast({ variant: 'success', title: `Estado actualizado a ${status === 'completado' ? 'Completado' : 'Pendiente'}` });
     } catch (e) {
       setOrders(prev);
       toast({ title: 'Error al actualizar el estado', variant: 'destructive' });
@@ -93,7 +93,7 @@ export default function PartesTrabajo() {
     setOrders(orders.filter(o => o.id !== id));
     try {
       await base44.entities.WorkOrder.delete(id);
-      toast({ title: 'Parte eliminado' });
+      toast({ variant: 'success', title: 'Parte eliminado' });
     } catch (e) {
       setOrders(prev);
       toast({ title: 'Error al eliminar el parte', variant: 'destructive' });
@@ -104,7 +104,7 @@ export default function PartesTrabajo() {
     setDownloadingId(order.id);
     try {
       await generateWorkOrderPdf(order);
-      toast({ title: 'PDF generado correctamente' });
+      toast({ variant: 'success', title: 'PDF generado correctamente' });
     } catch (e) {
       console.error(e);
       toast({ title: 'Error al generar el PDF', variant: 'destructive' });
@@ -139,16 +139,16 @@ export default function PartesTrabajo() {
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Partes de Trabajo"
         subtitle="Gestiona los partes de trabajo y su estado"
         actions={
-          <Button onClick={() => setDialogOpen(true)} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+          <Button onClick={() => setDialogOpen(true)} className="gap-2">
             <Plus size={18} /> Nuevo Parte
           </Button>
         }
@@ -219,7 +219,7 @@ export default function PartesTrabajo() {
             <Textarea placeholder="Descripción" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Materiales" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
             <Textarea placeholder="Notas" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />
-            <Button onClick={handleCreate} disabled={!form.title || !form.client_name || !form.date || creating} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+            <Button onClick={handleCreate} disabled={!form.title || !form.client_name || !form.date || creating} className="w-full h-11">
               {creating ? <><Loader2 size={16} className="animate-spin" /> Creando...</> : 'Crear Parte'}
             </Button>
           </div>

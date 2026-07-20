@@ -12,14 +12,15 @@ const navItems = [
   { path: '/horas-extras', label: 'Horas Extras', icon: Timer, adminOnly: false },
   { path: '/partes-trabajo', label: 'Partes de Trabajo', icon: FileText, adminOnly: false },
   { path: '/justificantes', label: 'Justificantes', icon: ShieldCheck, adminOnly: false },
-  { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false },
 
   // Solo para Administradores
-  { path: '/empleados', label: 'Empleados', icon: Users, adminOnly: true },
-  { path: '/revision-jornadas', label: 'Revisión Jornadas', icon: CalendarCheck, adminOnly: true },
   { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
-  { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
   { path: '/informes', label: 'Informes', icon: BarChart3, adminOnly: true },
+  { path: '/revision-jornadas', label: 'Revisión Jornadas', icon: CalendarCheck, adminOnly: true },
+  { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
+  { path: '/empleados', label: 'Empleados', icon: Users, adminOnly: true },
+
+  { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false },
 ];
 
 export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
@@ -80,7 +81,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
                     flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                     transition-all duration-200
                     ${active 
-                      ? 'bg-[hsl(35,92%,55%)]/10 text-[hsl(35,92%,55%)]' 
+                      ? 'bg-primary/10 text-primary' 
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                     }
                     ${collapsed ? 'justify-center' : ''}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { MapPin, RefreshCw } from 'lucide-react';
+import { MapPin, RefreshCw, Coffee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/shared/PageHeader';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -21,6 +21,7 @@ export default function Geolocalizacion() {
   const empId = employee?.id;
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [onBreak, setOnBreak] = useState(false);
 
   async function load() {
     if (!empId) return;
@@ -32,6 +33,7 @@ export default function Geolocalizacion() {
       ]);
       const data = locRes.data?.locations || [];
       const jefeIds = employees.map(e => e.id);
+      setOnBreak(!!locRes.data?.onBreak);
       setLocations(data.filter(loc => !jefeIds.includes(loc.employee_id)));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -44,7 +46,7 @@ export default function Geolocalizacion() {
     : [42.5063, 1.5218]; // Andorra
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Geolocalización"
         subtitle="Última ubicación registrada al fichar entrada/salida"
@@ -55,8 +57,19 @@ export default function Geolocalizacion() {
         }
       />
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden mb-6 relative z-0" style={{ height: '500px' }}>
-        {!loading && (
+      <div className="bg-card rounded-xl border border-border overflow-hidden mb-6 relative z-0 h-[320px] sm:h-[420px] lg:h-[500px]">
+        {!loading && onBreak && (
+          <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+            <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+              <Coffee size={22} className="text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium">En descanso (12:30 - 13:00)</p>
+              <p className="text-sm text-muted-foreground mt-1">La geolocalización no está disponible durante este tramo.</p>
+            </div>
+          </div>
+        )}
+        {!loading && !onBreak && (
           <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -76,26 +89,32 @@ export default function Geolocalizacion() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {locations.map(loc => (
-          <div key={loc.id} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center">
-              <MapPin size={18} className="text-emerald-400" />
+      {onBreak && !loading ? (
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          Los empleados están en su descanso — sus posiciones volverán a mostrarse a partir de las 13:00.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {locations.map(loc => (
+            <div key={loc.id} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center">
+                <MapPin size={18} className="text-success" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">{loc.employee_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} · {moment(loc.last_update).fromNow()}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium text-sm">{loc.employee_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} · {moment(loc.last_update).fromNow()}
-              </p>
+          ))}
+          {locations.length === 0 && !loading && (
+            <div className="col-span-full text-center py-8 text-muted-foreground">
+              No hay empleados con ubicación activa
             </div>
-          </div>
-        ))}
-        {locations.length === 0 && !loading && (
-          <div className="col-span-full text-center py-8 text-muted-foreground">
-            No hay empleados con ubicación activa
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

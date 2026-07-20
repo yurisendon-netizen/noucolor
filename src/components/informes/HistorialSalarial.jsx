@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Wallet, Euro, TrendingUp, Receipt, Calendar, Printer, Inbox } from 'lucide-react';
 import { PrintHeader, PrintFooter } from '@/components/informes/PrintBranding';
-import moment from 'moment';
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -48,7 +47,7 @@ export default function HistorialSalarial({ employee, payrolls, open, onOpenChan
   const stats = summary ? [
     { icon: Calendar, label: 'Nóminas', value: summary.count, color: 'bg-purple-500/10 text-purple-400' },
     { icon: Wallet, label: 'Salario base', value: eur(summary.base), color: 'bg-blue-500/10 text-blue-400' },
-    { icon: TrendingUp, label: 'Horas extra', value: `${summary.overtimeHours.toFixed(1)}h · ${eur(summary.overtimePay)}`, color: 'bg-[hsl(35,92%,55%)]/10 text-[hsl(35,92%,55%)]' },
+    { icon: TrendingUp, label: 'Horas extra', value: `${summary.overtimeHours.toFixed(1)}h · ${eur(summary.overtimePay)}`, color: 'bg-primary/10 text-primary' },
     { icon: Euro, label: 'Bonus', value: eur(summary.bonus), color: 'bg-emerald-500/10 text-emerald-400' },
     { icon: Receipt, label: 'Bruto total', value: eur(summary.gross), color: 'bg-secondary text-foreground' },
     { icon: Wallet, label: 'Neto total', value: eur(summary.net), color: 'bg-emerald-500/15 text-emerald-400' },
@@ -116,8 +115,8 @@ export default function HistorialSalarial({ employee, payrolls, open, onOpenChan
                       <tr key={p.id} className="hover:bg-secondary/30">
                         <td className="px-4 py-2.5 text-sm font-medium">{MONTHS[p.period_month] || '—'} {p.period_year}</td>
                         <td className="px-4 py-2.5 text-sm text-right">{eur(p.base_salary)}</td>
-                        <td className="px-4 py-2.5 text-sm text-right text-[hsl(35,92%,55%)]">{Number(p.overtime_hours) ? `${Number(p.overtime_hours).toFixed(1)}h` : '—'}</td>
-                        <td className="px-4 py-2.5 text-sm text-right text-[hsl(35,92%,55%)]">{Number(p.overtime_pay) ? eur(p.overtime_pay) : '—'}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-primary">{Number(p.overtime_hours) ? `${Number(p.overtime_hours).toFixed(1)}h` : '—'}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-primary">{Number(p.overtime_pay) ? eur(p.overtime_pay) : '—'}</td>
                         <td className="px-4 py-2.5 text-sm text-right">{Number(p.bonus) ? eur(p.bonus) : '—'}</td>
                         <td className="px-4 py-2.5 text-sm text-right font-medium">{eur(p.gross_salary)}</td>
                         <td className="px-4 py-2.5 text-sm text-right font-bold">{eur(p.net_salary)}</td>
@@ -133,8 +132,8 @@ export default function HistorialSalarial({ employee, payrolls, open, onOpenChan
                     <tr className="border-t-2 border-border bg-secondary/50">
                       <td className="px-4 py-3 text-sm font-bold">TOTAL</td>
                       <td className="px-4 py-3 text-sm text-right font-bold">{eur(summary.base)}</td>
-                      <td className="px-4 py-3 text-sm text-right font-bold text-[hsl(35,92%,55%)]">{summary.overtimeHours.toFixed(1)}h</td>
-                      <td className="px-4 py-3 text-sm text-right font-bold text-[hsl(35,92%,55%)]">{eur(summary.overtimePay)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-bold text-primary">{summary.overtimeHours.toFixed(1)}h</td>
+                      <td className="px-4 py-3 text-sm text-right font-bold text-primary">{eur(summary.overtimePay)}</td>
                       <td className="px-4 py-3 text-sm text-right font-bold">{eur(summary.bonus)}</td>
                       <td className="px-4 py-3 text-sm text-right font-bold">{eur(summary.gross)}</td>
                       <td className="px-4 py-3 text-sm text-right font-bold">{eur(summary.net)}</td>

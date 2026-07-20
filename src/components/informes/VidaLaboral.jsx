@@ -47,7 +47,7 @@ export default function VidaLaboral({ employee, entries, open, onOpenChange }) {
   const stats = summary ? [
     { icon: CalendarDays, label: 'Días trabajados', value: summary.daysWorked, color: 'bg-purple-500/10 text-purple-400' },
     { icon: Clock, label: 'Horas regulares', value: `${summary.regular.toFixed(1)}h`, color: 'bg-blue-500/10 text-blue-400' },
-    { icon: TrendingUp, label: 'Horas extra', value: `${summary.overtime.toFixed(1)}h`, color: 'bg-[hsl(35,92%,55%)]/10 text-[hsl(35,92%,55%)]' },
+    { icon: TrendingUp, label: 'Horas extra', value: `${summary.overtime.toFixed(1)}h`, color: 'bg-primary/10 text-primary' },
     { icon: Clock, label: 'Horas totales', value: `${summary.totalHours.toFixed(1)}h`, color: 'bg-emerald-500/10 text-emerald-400' },
     { icon: AlertCircle, label: 'Ausencias', value: summary.absences, color: 'bg-red-500/10 text-red-400' },
     { icon: Calendar, label: 'Periodo', value: `${moment(summary.firstDate).format('DD/MM/YYYY')} - ${moment(summary.lastDate).format('DD/MM/YYYY')}`, color: 'bg-secondary text-foreground' },
@@ -115,7 +115,7 @@ export default function VidaLaboral({ employee, entries, open, onOpenChange }) {
                         <td className="px-4 py-2.5 text-sm text-muted-foreground">{e.clock_in ? moment(e.clock_in).format('HH:mm') : '—'}</td>
                         <td className="px-4 py-2.5 text-sm text-muted-foreground">{e.clock_out ? moment(e.clock_out).format('HH:mm') : '—'}</td>
                         <td className="px-4 py-2.5 text-sm text-right font-medium">{Number(e.total_hours) ? `${Number(e.total_hours).toFixed(1)}h` : '—'}</td>
-                        <td className="px-4 py-2.5 text-sm text-right text-[hsl(35,92%,55%)]">{Number(e.overtime_hours) ? `${Number(e.overtime_hours).toFixed(1)}h` : '—'}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-primary">{Number(e.overtime_hours) ? `${Number(e.overtime_hours).toFixed(1)}h` : '—'}</td>
                         <td className="px-4 py-2.5 text-right">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[e.status] || ''}`}>
                             {statusLabels[e.status] || e.status}

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Clock, LogIn, LogOut, AlertTriangle, ShieldCheck, Eye, MapPin } from 'lucide-react';
+import { Clock, LogIn, LogOut, AlertTriangle, ShieldCheck, Eye, MapPin, ChevronDown, WifiOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
+import useOnlineStatus from '@/hooks/useOnlineStatus';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import ClockInBanner from '@/components/clock/ClockInBanner';
@@ -14,6 +15,7 @@ import moment from 'moment';
 export default function ControlHorario() {
   const { employee, user } = useEmployeeProfile();
   const { toast } = useToast();
+  const isOnline = useOnlineStatus();
   const [entries, setEntries] = useState([]);
   const [openEntry, setOpenEntry] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -101,18 +103,13 @@ export default function ControlHorario() {
       const hour = now.getHours();
       const minutes = now.getMinutes();
 
-      // Auto-close at 16:30 (end of salida window) if still open
+      // Auto-close at 16:30 (end of salida window) if still open — el servidor
+      // recalcula la hora de salida y las horas trabajadas, no las mandamos nosotros.
       if (open && (hour > 16 || (hour === 16 && minutes >= 30))) {
-        const clockOut = new Date();
-        clockOut.setHours(16, 0, 0, 0);
-        const clockIn = new Date(open.clock_in);
-        const regularHours = Math.min(Math.max(((clockOut - clockIn) / 3600000), 0), 8);
         await base44.functions.invoke('trackTime', {
           operation: 'autoClose',
           callerEmployeeId: empId,
           entryId: open.id,
-          clockOut: clockOut.toISOString(),
-          totalHours: parseFloat(regularHours.toFixed(2))
         });
         toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 7:45' });
         res = await base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 50 });
@@ -146,26 +143,19 @@ export default function ControlHorario() {
     setClockingIn(true);
     try {
       const loc = await getLocation();
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      const hour = now.getHours();
-      const minutes = now.getMinutes();
-      const isLate = hour > 8 || (hour === 8 && minutes > 15);
-
-      await base44.functions.invoke('trackTime', {
+      // La hora de entrada y si llega tarde las decide el servidor con su propio
+      // reloj (ver trackTime/clockIn) — el móvil solo manda la ubicación.
+      const res = await base44.functions.invoke('trackTime', {
         operation: 'clockIn',
         callerEmployeeId: empId,
-        clockIn: now.toISOString(),
-        date: today,
         lat: loc.lat, lng: loc.lng,
-        isLate,
-        lateDescription: `Fichó entrada a las ${moment(now).format('HH:mm')} (límite 8:15)`
       });
+      const clockedAt = res.data?.clockIn ? moment(res.data.clockIn) : moment();
 
-      if (isLate) {
-        toast({ title: '⚠️ Entrada tardía', description: `${moment(now).format('HH:mm')} — Incumplimiento registrado` });
+      if (res.data?.isLate) {
+        toast({ title: '⚠️ Entrada tardía', description: `${clockedAt.format('HH:mm')} — Incumplimiento registrado` });
       } else {
-        toast({ title: '✅ Entrada fichada', description: `${moment(now).format('HH:mm')} — Ubicación registrada` });
+        toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Ubicación registrada` });
       }
 
       loadEntries();
@@ -181,37 +171,23 @@ export default function ControlHorario() {
     setClockingOut(true);
     try {
       const loc = await getLocation();
-      const now = new Date();
-      const clockIn = new Date(openEntry.clock_in);
-      const sixteenToday = new Date();
-      sixteenToday.setHours(16, 0, 0, 0);
-
-      // Flat +2h overtime if clocking out after 16:00; regular hours capped at 8 (until 16:00)
-      const isAfter16 = now > sixteenToday;
-      let regularHours, overtimeHours;
-      if (isAfter16) {
-        regularHours = ((sixteenToday - clockIn) / 3600000);
-        overtimeHours = 2;
-      } else {
-        regularHours = ((now - clockIn) / 3600000);
-        overtimeHours = 0;
-      }
-      regularHours = Math.min(Math.max(regularHours, 0), 8);
-
-      await base44.functions.invoke('trackTime', {
+      // Horas trabajadas y horas extra las calcula el servidor a partir de la hora
+      // de entrada guardada y su propio reloj (ver trackTime/clockOut) — el móvil
+      // solo manda la ubicación.
+      const res = await base44.functions.invoke('trackTime', {
         operation: 'clockOut',
         callerEmployeeId: empId,
         entryId: openEntry.id,
-        clockOut: now.toISOString(),
         lat: loc.lat, lng: loc.lng,
-        totalHours: parseFloat(regularHours.toFixed(2)),
-        overtimeHours: parseFloat(overtimeHours.toFixed(2))
       });
+      const clockedAt = res.data?.clockOut ? moment(res.data.clockOut) : moment();
+      const regularHours = res.data?.totalHours ?? 0;
+      const overtimeHours = res.data?.overtimeHours ?? 0;
 
       if (overtimeHours > 0) {
-        toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras` });
+        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras` });
       } else {
-        toast({ title: '✅ Salida fichada', description: `${moment(now).format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas` });
+        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas` });
       }
       loadEntries();
     } catch (e) {
@@ -249,16 +225,16 @@ export default function ControlHorario() {
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   if (employee?.role === 'jefe') {
     return (
-      <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
         <PageHeader title="Control Horario" />
         <div className="bg-card rounded-xl border border-border p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-[hsl(35,92%,55%)]/10 flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck size={32} className="text-[hsl(35,92%,55%)]" />
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <ShieldCheck size={32} className="text-primary" />
           </div>
           <h2 className="text-xl font-semibold mb-2">Exento de fichaje</h2>
           <p className="text-muted-foreground max-w-md mx-auto">Como jefe y propietario, no necesitas fichar entrada ni salida. Tu rol es supervisar al equipo.</p>
@@ -276,7 +252,7 @@ export default function ControlHorario() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
       <PageHeader title="Control Horario" subtitle="Jornada 8:00 - 16:00 · Legislación laboral de Andorra" />
 
       <ClockInBanner
@@ -285,59 +261,74 @@ export default function ControlHorario() {
         clockingIn={clockingIn}
       />
 
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6 flex items-start gap-3">
-        <AlertTriangle size={20} className="text-blue-400 shrink-0 mt-0.5" />
-        <div className="text-sm text-blue-300/90">
-          <p className="font-medium mb-1">Normativa de fichaje</p>
-          <p>Entrada <strong>7:45 - 8:15</strong> (falta si no fichas antes de las <strong>8:30</strong>, no descuenta sueldo) · Salida <strong>16:00 - 16:30</strong> · Cierre automático a las <strong>16:00</strong> · <strong>+2h extras</strong> si fichas salida después de las 16:00.</p>
+      {/* Hero: hora, estado de jornada y CTA de fichar — lo primero y más grande que ve el operario */}
+      <div className="bg-card rounded-2xl border border-border p-6 sm:p-8 mb-4 text-center">
+        <p className="text-6xl sm:text-5xl font-bold font-mono tabular-nums tracking-tight">{moment(now).format('HH:mm')}</p>
+        <p className="text-muted-foreground mt-1 capitalize">{moment(now).format('dddd, D [de] MMMM [de] YYYY')}</p>
+
+        {openEntry && (
+          <div className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-full bg-success/10">
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-sm font-medium text-success">Jornada activa desde {moment(openEntry.clock_in).format('HH:mm')}</span>
+          </div>
+        )}
+        {hasAbsenceToday && !openEntry && (
+          <div className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-full bg-destructive/10">
+            <AlertTriangle size={16} className="text-destructive" />
+            <span className="text-sm font-medium text-destructive">Falta registrada hoy</span>
+          </div>
+        )}
+
+        <div className="mt-6">
+          {openEntry ? (
+            canClockOut ? (
+              <Button
+                onClick={handleClockOut}
+                disabled={clockingOut || !isOnline}
+                variant="destructive"
+                className="w-full sm:w-auto h-16 px-10 text-lg gap-3 rounded-xl shadow-lg"
+              >
+                {isOnline ? <LogOut size={24} /> : <WifiOff size={24} />}
+                {!isOnline ? 'Sin conexión' : clockingOut ? 'Fichando...' : 'Fichar Salida'}
+              </Button>
+            ) : (
+              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-secondary text-muted-foreground text-base font-medium">
+                <Clock size={20} />
+                <span>Salida: 16:00 - 16:30</span>
+              </div>
+            )
+          ) : showProximo ? (
+            <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-secondary text-muted-foreground text-base font-medium">
+              <Clock size={20} />
+              <span>Próximo fichaje a las 7:45</span>
+            </div>
+          ) : (
+            <Button
+              onClick={handleClockIn}
+              disabled={clockingIn || !isOnline}
+              variant="success"
+              className="w-full sm:w-auto h-16 px-10 text-lg gap-3 rounded-xl shadow-lg"
+            >
+              {isOnline ? <LogIn size={24} /> : <WifiOff size={24} />}
+              {!isOnline ? 'Sin conexión' : clockingIn ? 'Fichando...' : 'Fichar Entrada'}
+            </Button>
+          )}
+          {!isOnline && (canClockOut || (!openEntry && !showProximo)) && (
+            <p className="text-xs text-muted-foreground mt-2">Necesitas conexión a internet para fichar.</p>
+          )}
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border p-6 mb-8">
-        <div className="flex flex-col sm:flex-row items-center gap-6">
-          <div className="flex-1 text-center sm:text-left">
-            <p className="text-4xl font-bold font-mono">{moment(now).format('HH:mm')}</p>
-            <p className="text-muted-foreground mt-1">{moment(now).format('dddd, D [de] MMMM [de] YYYY')}</p>
-            {openEntry && (
-              <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-sm text-emerald-400">Jornada activa desde {moment(openEntry.clock_in).format('HH:mm')}</span>
-              </div>
-            )}
-            {hasAbsenceToday && !openEntry && (
-              <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start">
-                <AlertTriangle size={16} className="text-red-400" />
-                <span className="text-sm text-red-400">Falta registrada hoy</span>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-3">
-            {openEntry ? (
-              canClockOut ? (
-                <Button onClick={handleClockOut} disabled={clockingOut} variant="destructive" className="gap-2">
-                  <LogOut size={18} />
-                  {clockingOut ? 'Fichando...' : 'Fichar Salida'}
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-muted-foreground text-sm">
-                  <Clock size={18} />
-                  <span>Salida: 16:00 - 16:30</span>
-                </div>
-              )
-            ) : showProximo ? (
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-muted-foreground text-sm">
-                <Clock size={18} />
-                <span>Próximo fichaje a las 7:45</span>
-              </div>
-            ) : (
-              <Button onClick={handleClockIn} disabled={clockingIn} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-                <LogIn size={18} />
-                {clockingIn ? 'Fichando...' : 'Fichar Entrada'}
-              </Button>
-            )}
-          </div>
+      <details className="group mb-6 rounded-xl border border-border bg-card open:pb-4">
+        <summary className="list-none flex items-center gap-3 p-4 cursor-pointer select-none">
+          <AlertTriangle size={18} className="text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium flex-1">Normativa de fichaje</span>
+          <ChevronDown size={16} className="text-muted-foreground transition-transform group-open:rotate-180 shrink-0" />
+        </summary>
+        <div className="px-4 text-sm text-muted-foreground leading-relaxed">
+          Entrada <strong className="text-foreground">7:45 - 8:15</strong> (falta si no fichas antes de las <strong className="text-foreground">8:30</strong>, no descuenta sueldo) · Salida <strong className="text-foreground">16:00 - 16:30</strong> · Cierre automático a las <strong className="text-foreground">16:00</strong> · <strong className="text-foreground">+2h extras</strong> si fichas salida después de las 16:00.
         </div>
-      </div>
+      </details>
 
       <DataTable
         data={entries}

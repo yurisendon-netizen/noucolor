@@ -138,7 +138,7 @@ export default function Nominas() {
           status: 'borrador',
         },
       });
-      toast({ title: 'Nómina generada' });
+      toast({ variant: 'success', title: 'Nómina generada' });
       setDialogOpen(false);
       loadData();
     } catch (e) {
@@ -150,7 +150,7 @@ export default function Nominas() {
     for (const p of payrolls) {
       await generateNominaPdf(p);
     }
-    toast({ title: `${payrolls.length} nóminas descargadas` });
+    toast({ variant: 'success', title: `${payrolls.length} nóminas descargadas` });
   }
 
   function handleDownload(payroll) {
@@ -164,7 +164,7 @@ export default function Nominas() {
   function handleSigned(updatedPayroll) {
     setSignPayroll(null);
     generateNominaPdf(updatedPayroll);
-    toast({ title: 'Nòmina firmada correctament' });
+    toast({ variant: 'success', title: 'Nòmina firmada correctament' });
     loadData();
   }
 
@@ -179,11 +179,11 @@ export default function Nominas() {
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Nóminas"
         subtitle="Butlletí de Salari — Solo se pagan horas 8:00-16:00 + horas extras"
@@ -194,7 +194,7 @@ export default function Nominas() {
                 <Download size={18} /> Descargar Todas
               </Button>
             )}
-            <Button onClick={() => setDialogOpen(true)} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+            <Button onClick={() => setDialogOpen(true)} className="gap-2">
               <Plus size={18} /> Generar Nómina
             </Button>
           </div>
@@ -216,7 +216,7 @@ export default function Nominas() {
         actions={(row) => (
           <div className="flex items-center gap-1">
             {row.employee_id === employee?.id && !row.worker_signature_name && (
-              <Button variant="ghost" size="sm" onClick={() => handleSign(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10 gap-1" title="Firmar nómina">
+              <Button variant="ghost" size="sm" onClick={() => handleSign(row)} className="text-primary hover:bg-primary/10 gap-1" title="Firmar nómina">
                 <Pen size={16} />
               </Button>
             )}
@@ -224,7 +224,7 @@ export default function Nominas() {
               <CheckCircle2 size={16} className="text-emerald-400 shrink-0" title={`Firmada per ${row.worker_signature_name}`} />
             )}
             {isAdmin && (
-              <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10" title="Descarregar PDF">
+              <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-primary hover:bg-primary/10" title="Descarregar PDF">
                 <FileText size={16} />
               </Button>
             )}
@@ -261,9 +261,9 @@ export default function Nominas() {
                 </div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Días fichados</span><span>{calcSummary.totalEntries}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Horas regulares</span><span>{calcSummary.regularHours.toFixed(1)}h</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Horas extras</span><span className="text-[hsl(35,92%,55%)]">{calcSummary.overtimeHours.toFixed(1)}h</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Horas extras</span><span className="text-primary">{calcSummary.overtimeHours.toFixed(1)}h</span></div>
                 {calcSummary.overtimePay > 0 && (
-                  <div className="flex justify-between"><span className="text-muted-foreground">Importe extras</span><span className="text-[hsl(35,92%,55%)] font-medium">{calcSummary.overtimePay.toFixed(2)} €</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Importe extras</span><span className="text-primary font-medium">{calcSummary.overtimePay.toFixed(2)} €</span></div>
                 )}
                 {calcSummary.absences > 0 && (
                   <div className="flex justify-between"><span className="text-muted-foreground">Ausencias injustificadas</span><span className="text-red-400 font-medium">{calcSummary.absences}</span></div>
@@ -272,7 +272,7 @@ export default function Nominas() {
             )}
 
 
-            <Button onClick={handleCreate} disabled={!form.employee_id} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+            <Button onClick={handleCreate} disabled={!form.employee_id} className="w-full h-11">
               Generar Nómina
             </Button>
           </div>

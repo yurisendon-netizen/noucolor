@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Inbox, CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react';
+import { Inbox, CheckCircle2 } from 'lucide-react';
 
 const PRIORITY_LABELS = {
   alta: { label: 'Alta', color: 'bg-red-500/15 text-red-400' },
@@ -75,7 +75,7 @@ export default function ProductividadTareas({ month, year, isAdmin, employee, pe
   if (loading) {
     return (
       <div className="rounded-xl border border-border bg-card p-6 flex items-center justify-center min-h-32">
-        <div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" />
       </div>
     );
   }

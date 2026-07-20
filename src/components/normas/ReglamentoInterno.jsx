@@ -79,9 +79,9 @@ const reglamento = [
 export default function ReglamentoInterno() {
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <h2 className="text-lg font-semibold">Reglamento Interno de Noucolor</h2>
-        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[hsl(35,92%,55%)]/15 text-[hsl(35,92%,65%)]">
+        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary/15 text-primary">
           15 secciones
         </span>
       </div>
@@ -90,16 +90,18 @@ export default function ReglamentoInterno() {
           <AccordionItem
             key={sec.n}
             value={`sec-${sec.n}`}
-            className="bg-card rounded-xl border border-border px-5 data-[state=open]:border-[hsl(35,92%,55%)]/30 transition-colors"
+            className="bg-card rounded-xl border border-border px-4 sm:px-5 data-[state=open]:border-primary/30 transition-colors"
           >
             <AccordionTrigger className="hover:no-underline py-4">
-              <div className="flex items-center gap-3 text-left">
-                <span className="shrink-0 w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
-                  {sec.n}
-                </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColors[sec.category]}`}>
-                  {categoryLabels[sec.category]}
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-left min-w-0">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="shrink-0 w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
+                    {sec.n}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColors[sec.category]}`}>
+                    {categoryLabels[sec.category]}
+                  </span>
+                </div>
                 <span className="font-medium">{sec.title}</span>
               </div>
             </AccordionTrigger>

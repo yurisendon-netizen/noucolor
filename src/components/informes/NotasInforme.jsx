@@ -54,7 +54,7 @@ export default function NotasInforme({ month, year, isAdmin, periodLabel }) {
   return (
     <div className="mt-6 rounded-xl border border-border bg-card p-6">
       <div className="flex items-center gap-2 mb-1">
-        <MessageSquare size={18} className="text-[hsl(35,92%,55%)]" />
+        <MessageSquare size={18} className="text-primary" />
         <h3 className="text-sm font-semibold">Comentarios del informe</h3>
         {!isAdmin && (
           <span className="inline-flex items-center gap-1 ml-auto text-xs text-muted-foreground">

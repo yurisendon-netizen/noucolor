@@ -68,7 +68,7 @@ export default function InformeSignDialog({ reportType, rows, periodLabel, signe
           <p className="text-xs text-muted-foreground">
             Al firmar, tu firma se insertará en el documento PDF y se descargará automáticamente.
           </p>
-          <Button onClick={handleSignAndDownload} disabled={signing || !signatureDataUrl} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+          <Button onClick={handleSignAndDownload} disabled={signing || !signatureDataUrl} className="w-full h-11 gap-2">
             {signing ? <><Loader2 size={16} className="animate-spin" /> Firmando...</> : <><FileText size={16} /> Firmar y Descargar PDF</>}
           </Button>
         </div>

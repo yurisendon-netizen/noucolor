@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { AlertTriangle, FileWarning } from 'lucide-react';
+import { FileWarning } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -57,7 +57,7 @@ export default function RevisionJornadas() {
   async function handleAmonestar(inc) {
     try {
       await base44.functions.invoke('trackTime', { operation: 'amonestarIncumplimiento', callerEmployeeId: empId, incumplimientoId: inc.id });
-      toast({ title: 'Amonestación registrada', description: `Se ha marcado la amonestación para ${inc.employee_name}` });
+      toast({ variant: 'success', title: 'Amonestación registrada', description: `Se ha marcado la amonestación para ${inc.employee_name}` });
       const iRes = await base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 });
       setIncumplimientos(iRes.data?.incumplimientos || []);
     } catch (e) {
@@ -90,11 +90,11 @@ export default function RevisionJornadas() {
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader title="Revisión de Jornadas" subtitle="Historial de fichajes e incumplimientos disciplinarios" />
 
       {employeesWithWarnings.length > 0 && (

@@ -2,6 +2,26 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Ajusta este offset si Andorra está en horario de invierno (+01:00) vs verano (+02:00)
 const LOCAL_UTC_OFFSET = '+02:00';
+const LOCAL_UTC_OFFSET_HOURS = 2;
+
+// Hora/fecha "de pared" en Andorra a partir de un instante UTC — calculado en el
+// servidor para que ningún cliente pueda fichar con la hora de su propio móvil.
+function getLocalParts(utcDate) {
+  const shifted = new Date(utcDate.getTime() + LOCAL_UTC_OFFSET_HOURS * 3600000);
+  return {
+    hour: shifted.getUTCHours(),
+    minutes: shifted.getUTCMinutes(),
+    dateStr: shifted.toISOString().split('T')[0],
+  };
+}
+
+// Pausa de descanso 12:30-13:00 hora de Andorra: no se ficha salida/entrada
+// ni se escribe o consulta geolocalización durante este tramo.
+function isBreakTime(utcDate) {
+  const { hour, minutes } = getLocalParts(utcDate);
+  const totalMinutes = hour * 60 + minutes;
+  return totalMinutes >= 750 && totalMinutes < 780; // 12:30 (750) .. 13:00 (780)
+}
 
 async function upsertLocation(base44, empId, empName, isActive, lat, lng) {
   try {
@@ -92,7 +112,20 @@ Deno.serve(async (req) => {
 
     switch (operation) {
       case 'clockIn': {
-        const { clockIn, date, lat, lng, isLate, lateDescription } = body;
+        const { lat, lng } = body;
+        // La hora de entrada, la fecha y si llega tarde se calculan aquí con el reloj
+        // del servidor — nunca a partir de lo que envíe el cliente (el móvil de un
+        // trabajador podría tener la hora adelantada/atrasada para evitar una falta).
+        const now = new Date();
+        if (isBreakTime(now)) {
+          return Response.json({ error: 'No se puede fichar durante el descanso (12:30 - 13:00)' }, { status: 400 });
+        }
+        const clockIn = now.toISOString();
+        const { hour, minutes, dateStr: date } = getLocalParts(now);
+        const isLate = hour > 8 || (hour === 8 && minutes > 15);
+        const localTime = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        const lateDescription = `Fichó entrada a las ${localTime} (límite 8:15)`;
+
         const todayEntries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: empId, date });
         const absenceEntry = todayEntries.find(e => e.status === 'ausencia_injustificada');
         const openEntry = todayEntries.find(e => e.status === 'abierto');
@@ -100,7 +133,7 @@ Deno.serve(async (req) => {
         // Already has an open entry today — don't create a duplicate
         if (openEntry) {
           await upsertLocation(base44, empId, empName, true, lat, lng);
-          return Response.json({ success: true, alreadyClockedIn: true });
+          return Response.json({ success: true, alreadyClockedIn: true, clockIn: openEntry.clock_in, isLate: false });
         }
 
         if (absenceEntry) {
@@ -122,35 +155,56 @@ Deno.serve(async (req) => {
             date, type: 'entrada_tardia', description: lateDescription
           });
         }
-        return Response.json({ success: true });
+        return Response.json({ success: true, clockIn, isLate });
       }
 
       case 'clockOut': {
-        const { entryId, clockOut, lat, lng, totalHours, overtimeHours } = body;
+        const { entryId, lat, lng } = body;
         // Verify the entry belongs to the caller
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ id: entryId });
         if (entries.length === 0 || entries[0].employee_id !== empId) {
           return Response.json({ error: 'No autorizado' }, { status: 403 });
         }
+        const entry = entries[0];
+
+        // Horas trabajadas y horas extra calculadas aquí con la hora real del
+        // servidor y la hora de entrada ya guardada — nunca con lo que mande el
+        // cliente, que podría inflar totalHours/overtimeHours a mano.
+        const now = new Date();
+        if (isBreakTime(now)) {
+          return Response.json({ error: 'No se puede fichar salida durante el descanso (12:30 - 13:00). Es una pausa, no un fichaje de salida.' }, { status: 400 });
+        }
+        const clockOut = now.toISOString();
+        const clockInDate = new Date(entry.clock_in);
+        const sixteenLocal = new Date(`${entry.date}T16:00:00${LOCAL_UTC_OFFSET}`);
+        const isAfter16 = now > sixteenLocal;
+        let regularHours, overtimeHours;
+        if (isAfter16) {
+          regularHours = (sixteenLocal.getTime() - clockInDate.getTime()) / 3600000;
+          overtimeHours = 2;
+        } else {
+          regularHours = (now.getTime() - clockInDate.getTime()) / 3600000;
+          overtimeHours = 0;
+        }
+        regularHours = parseFloat(Math.min(Math.max(regularHours, 0), 8).toFixed(2));
+
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
           clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng,
-          total_hours: totalHours, overtime_hours: overtimeHours, status: 'cerrado'
+          total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
         });
         await upsertLocation(base44, empId, empName, false, lat, lng);
-        return Response.json({ success: true });
+        return Response.json({ success: true, clockOut, totalHours: regularHours, overtimeHours });
       }
 
       case 'autoClose': {
-        const { entryId, clockOut, totalHours } = body;
+        const { entryId } = body;
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ id: entryId });
         if (entries.length === 0 || entries[0].employee_id !== empId) {
           return Response.json({ error: 'No autorizado' }, { status: 403 });
         }
-        await base44.asServiceRole.entities.TimeEntry.update(entryId, {
-          clock_out: clockOut, total_hours: totalHours, overtime_hours: 0,
-          status: 'cerrado', auto_closed: true
-        });
-        await deactivateLocation(base44, empId);
+        // Misma lógica que el cierre automático por cron (autoCloseEntry): salida
+        // fija a las 16:00 hora de Andorra, horas calculadas por el servidor.
+        await autoCloseEntry(base44, entries[0]);
         return Response.json({ success: true });
       }
 
@@ -262,6 +316,11 @@ Deno.serve(async (req) => {
 
       case 'listActiveLocations': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        // Durante el descanso no se consulta la geolocalización de nadie, aunque
+        // su registro siga marcado is_active (última posición de antes de comer).
+        if (isBreakTime(new Date())) {
+          return Response.json({ success: true, locations: [], onBreak: true });
+        }
         const data = await base44.asServiceRole.entities.EmployeeLocation.filter({ is_active: true });
         return Response.json({ success: true, locations: data });
       }

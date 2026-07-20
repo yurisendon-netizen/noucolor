@@ -75,8 +75,8 @@ export default function NominaSignDialog({ payroll, employeeId, employeeName, on
           <p className="text-xs text-muted-foreground">
             En firmar, acceptes el contingut d'aquest butlletí de salari. La teva firma es descarregarà i s'inserirà al document PDF.
           </p>
-          <Button onClick={handleSign} disabled={signing || !signatureDataUrl} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
-            {signing ? <><Loader2 size={16} className="animate-spin" /> Firmant...</> : <><FileText size={16} /> Firmar i descarregar PDF</>}
+          <Button onClick={handleSign} disabled={signing || !signatureDataUrl} className="w-full h-11 gap-2">
+            {signing ? <><Loader2 size={16} className="animate-spin" /> Firmant...</> : <><FileText size={16} /> Firma i descarregar PDF</>}
           </Button>
         </div>
       </DialogContent>

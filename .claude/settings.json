@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/verify.cjs\"",
+            "timeout": 120,
+            "statusMessage": "Verificando lint y build..."
+          }
+        ]
+      }
+    ]
+  }
+}

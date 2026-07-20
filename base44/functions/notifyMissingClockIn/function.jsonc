@@ -1,0 +1,15 @@
+{
+  "name": "notifyMissingClockIn",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "type": "scheduled",
+      "name": "recordatorio_fichaje_8am",
+      "description": "Recuerda fichar entrada a las 8:00 hora de Andorra (UTC+2 verano) en días laborables",
+      "is_active": true,
+      "schedule_mode": "recurring",
+      "schedule_type": "cron",
+      "cron_expression": "0 6 * * 1-5"
+    }
+  ]
+}

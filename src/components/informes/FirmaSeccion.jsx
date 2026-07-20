@@ -19,7 +19,7 @@ export default function FirmaSeccion({ signerName, role, periodLabel }) {
   return (
     <div className="mt-6 rounded-xl border border-border bg-card p-6">
       <div className="flex items-center gap-2 mb-1">
-        <ShieldCheck size={18} className="text-[hsl(35,92%,55%)]" />
+        <ShieldCheck size={18} className="text-primary" />
         <h3 className="text-sm font-semibold">Confirmación y firma digital</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-4">

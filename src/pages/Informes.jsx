@@ -50,7 +50,7 @@ export default function Informes() {
       const filtered = data.filter(r => r[config.dateField] && String(r[config.dateField]).startsWith(prefix));
       setRows(filtered);
       setGenerated(true);
-      toast({ title: `Informe generado · ${filtered.length} registro${filtered.length !== 1 ? 's' : ''}` });
+      toast({ variant: 'success', title: `Informe generado · ${filtered.length} registro${filtered.length !== 1 ? 's' : ''}` });
     } catch (e) {
       toast({ title: 'Error al generar el informe', variant: 'destructive' });
     } finally {
@@ -71,7 +71,7 @@ export default function Informes() {
         periodLabel,
         signerName: employee?.full_name,
       });
-      toast({ title: 'PDF generado correctamente' });
+      toast({ variant: 'success', title: 'PDF generado correctamente' });
     } catch (e) {
       toast({ title: 'Error al generar el PDF', variant: 'destructive' });
     } finally {
@@ -80,12 +80,12 @@ export default function Informes() {
   }
 
   if (profileLoading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   if (!isAdmin) {
     return (
-      <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
         <PageHeader title="Informes" subtitle="Generación de informes" />
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <ShieldAlert size={48} className="text-muted-foreground mb-4" />
@@ -98,7 +98,7 @@ export default function Informes() {
   const config = REPORT_CONFIG[reportType];
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Informes"
         subtitle="Genera y descarga informes en PDF con formato oficial Noucolor"
@@ -135,7 +135,7 @@ export default function Informes() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
-          <Button onClick={handleGenerate} disabled={loading} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+          <Button onClick={handleGenerate} disabled={loading} className="gap-2">
             {loading ? <><Loader2 size={18} className="animate-spin" /> Generando...</> : <><BarChart3 size={18} /> Generar Informe</>}
           </Button>
           {generated && rows.length > 0 && (

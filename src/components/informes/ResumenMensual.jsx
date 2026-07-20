@@ -20,7 +20,7 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
       <span className="inline-flex items-center gap-1">
         {label}
         {sortBy === field && (
-          <span className="text-[hsl(35,92%,55%)]">{sortDir === 'asc' ? '↑' : '↓'}</span>
+          <span className="text-primary">{sortDir === 'asc' ? '↑' : '↓'}</span>
         )}
       </span>
     </th>
@@ -56,7 +56,7 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
                   <td className="px-4 py-3 text-sm font-medium">{r.employee_name}</td>
                   <td className="px-4 py-3 text-sm text-right text-muted-foreground">{r.dias_trabajados}</td>
                   <td className="px-4 py-3 text-sm text-right text-muted-foreground">{r.horas_regulares.toFixed(1)}h</td>
-                  <td className="px-4 py-3 text-sm text-right text-[hsl(35,92%,55%)] font-medium">{r.overtime_hours > 0 ? `${r.overtime_hours.toFixed(1)}h` : '—'}</td>
+                  <td className="px-4 py-3 text-sm text-right text-primary font-medium">{r.overtime_hours > 0 ? `${r.overtime_hours.toFixed(1)}h` : '—'}</td>
                   <td className="px-4 py-3 text-sm text-right font-bold">{r.total_hours.toFixed(1)}h</td>
                   <td className="px-4 py-3 text-sm text-right">
                     {r.ausencias > 0 ? (
@@ -67,7 +67,7 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
                     <div className="flex items-center justify-end gap-2">
                       <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
                         <div
-                          className="h-full bg-[hsl(35,92%,55%)] rounded-full transition-all"
+                          className="h-full bg-primary rounded-full transition-all"
                           style={{ width: `${Math.min(100, r.productividad)}%` }}
                         />
                       </div>
@@ -78,7 +78,7 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => onVerVidaLaboral(r)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,55%)]/10 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
                       >
                         <FileText size={14} /> Laboral
                       </button>
@@ -100,7 +100,7 @@ export default function ResumenMensual({ rows, sortBy, sortDir, onSort, onVerVid
                 <td className="px-4 py-3 text-sm font-bold">TOTAL ({sorted.length})</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.dias_trabajados, 0)}</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.horas_regulares, 0).toFixed(1)}h</td>
-                <td className="px-4 py-3 text-sm text-right font-bold text-[hsl(35,92%,55%)]">{sorted.reduce((s, r) => s + r.overtime_hours, 0).toFixed(1)}h</td>
+                <td className="px-4 py-3 text-sm text-right font-bold text-primary">{sorted.reduce((s, r) => s + r.overtime_hours, 0).toFixed(1)}h</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.total_hours, 0).toFixed(1)}h</td>
                 <td className="px-4 py-3 text-sm text-right font-bold">{sorted.reduce((s, r) => s + r.ausencias, 0)}</td>
                 <td className="px-4 py-3 text-sm text-right text-muted-foreground" colSpan={2}>—</td>

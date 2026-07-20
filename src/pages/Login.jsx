@@ -81,7 +81,7 @@ export default function Login() {
           <Button
             type="submit"
             disabled={!username || !password || loading}
-            className="w-full h-11 bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black font-medium gap-2"
+            className="w-full h-11 font-medium gap-2"
           >
             {loading ? (
               <><Loader2 size={18} className="animate-spin" /> Iniciando sesión...</>

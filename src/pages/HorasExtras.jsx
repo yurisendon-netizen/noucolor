@@ -136,7 +136,7 @@ export default function HorasExtras() {
         multiplier: OVERTIME_MULTIPLIER,
         status: editing?.status || 'pendiente',
       });
-      toast({ title: editing ? 'Hora extra actualizada' : 'Hora extra registrada' });
+      toast({ variant: 'success', title: editing ? 'Hora extra actualizada' : 'Hora extra registrada' });
       setDialogOpen(false);
       loadItems();
     } catch (e) {
@@ -155,7 +155,7 @@ export default function HorasExtras() {
         overtimeId: id,
         status,
       });
-      toast({ title: `Hora extra ${status === 'aprobado' ? 'aprobada' : 'rechazada'}` });
+      toast({ variant: 'success', title: `Hora extra ${status === 'aprobado' ? 'aprobada' : 'rechazada'}` });
     } catch (e) {
       setItems(prev);
       toast({ title: 'Error al actualizar el estado', variant: 'destructive' });
@@ -168,7 +168,7 @@ export default function HorasExtras() {
     setItems(items.filter(i => i.id !== id));
     try {
       await base44.entities.OvertimeHour.delete(id);
-      toast({ title: 'Hora extra eliminada' });
+      toast({ variant: 'success', title: 'Hora extra eliminada' });
     } catch (e) {
       setItems(prev);
       toast({ title: 'Error al eliminar la hora extra', variant: 'destructive' });
@@ -187,19 +187,19 @@ export default function HorasExtras() {
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   const previewDuration = form.start_time && form.end_time ? calcDuration(form.start_time, form.end_time) : 0;
   const previewPrecio = getPrecioHoraForEmployee(isAdmin ? form.employee_id : employee?.id) * OVERTIME_MULTIPLIER;
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader
         title="Horas Extras"
         subtitle="Registro y gestión de horas extras"
         actions={
-          <Button onClick={openCreate} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+          <Button onClick={openCreate} className="gap-2">
             <Plus size={18} /> Registrar Hora Extra
           </Button>
         }
@@ -293,7 +293,7 @@ export default function HorasExtras() {
                 Duración: <span className="text-foreground font-medium">{previewDuration.toFixed(2)}h</span> · Precio/h (+40%): <span className="text-foreground font-medium">{previewPrecio.toFixed(2)} €</span> · Total: <span className="text-emerald-400 font-semibold">{(previewDuration * previewPrecio).toFixed(2)} €</span>
               </div>
             )}
-            <Button onClick={handleSave} disabled={!form.date || !form.start_time || !form.end_time || (isAdmin && !form.employee_id)} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+            <Button onClick={handleSave} disabled={!form.date || !form.start_time || !form.end_time || (isAdmin && !form.employee_id)} className="w-full h-11">
               {editing ? 'Guardar Cambios' : 'Registrar'}
             </Button>
           </div>

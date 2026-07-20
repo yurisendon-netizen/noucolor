@@ -77,7 +77,7 @@ export default function Empleados() {
         },
       });
       if (result.data?.success) {
-        toast({ title: editing ? 'Empleado actualizado' : 'Empleado creado' });
+        toast({ variant: 'success', title: editing ? 'Empleado actualizado' : 'Empleado creado' });
         setDialogOpen(false);
         loadEmployees();
       } else {
@@ -93,7 +93,7 @@ export default function Empleados() {
     try {
       const result = await base44.functions.invoke('inviteUser', { email: emp.email, role: emp.role === 'jefe' ? 'admin' : 'user' });
       if (result.data?.success) {
-        toast({ title: `Invitación enviada a ${emp.email}` });
+        toast({ variant: 'success', title: `Invitación enviada a ${emp.email}` });
       } else {
         toast({ title: result.data?.error || 'Error al invitar', variant: 'destructive' });
       }
@@ -111,7 +111,7 @@ export default function Empleados() {
         employeeId: deleteTarget.id,
       });
       if (result.data?.success) {
-        toast({ title: 'Empleado eliminado' });
+        toast({ variant: 'success', title: 'Empleado eliminado' });
         setDeleteTarget(null);
         loadEmployees();
       } else {
@@ -171,11 +171,11 @@ export default function Empleados() {
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-[hsl(35,92%,55%)] rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" /></div>;
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
         title="Gestión de Empleados"
         subtitle="Listado completo del personal de Noucolor"
@@ -184,7 +184,7 @@ export default function Empleados() {
             <Button onClick={exportExcel} variant="outline" className="gap-2 border-border bg-secondary">
               <Download size={18} /> Excel
             </Button>
-            <Button onClick={openCreate} className="bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black gap-2">
+            <Button onClick={openCreate} className="gap-2">
               <Plus size={18} /> Nuevo Empleado
             </Button>
           </div>
@@ -248,7 +248,7 @@ export default function Empleados() {
               <Input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value })} className="bg-secondary border-border" />
               <Input type="number" step="0.01" placeholder="Precio/hora (€)" value={form.precioHora} onChange={e => setForm({ ...form, precioHora: e.target.value })} className="bg-secondary border-border" />
             </div>
-            <Button onClick={handleSave} disabled={!form.full_name || !form.email} className="w-full bg-[hsl(35,92%,55%)] hover:bg-[hsl(35,92%,45%)] text-black">
+            <Button onClick={handleSave} disabled={!form.full_name || !form.email} className="w-full h-11">
               {editing ? 'Guardar Cambios' : 'Crear Empleado'}
             </Button>
           </div>
