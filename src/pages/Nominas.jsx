@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
-import { Plus, Download, FileText, Calculator, CheckCircle2, Pen } from 'lucide-react';
+import { Plus, Download, FileText, Calculator, CheckCircle2, Pen, Trash2 } from 'lucide-react';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import NominaSignDialog from '@/components/nominas/NominaSignDialog';
 import { Button } from '@/components/ui/button';
@@ -152,6 +152,19 @@ export default function Nominas() {
     setSignPayroll(payroll);
   }
 
+  async function handleDelete(payroll) {
+    if (!confirm(`¿Eliminar la nómina de ${payroll.employee_name} (${MONTHS[payroll.period_month - 1]} ${payroll.period_year})? Podrás generarla de nuevo después.`)) return;
+    const prev = payrolls;
+    setPayrolls(payrolls.filter(p => p.id !== payroll.id));
+    try {
+      await authInvoke('trackTime', { operation: 'deletePayroll', payrollId: payroll.id });
+      toast({ variant: 'success', title: 'Nómina eliminada' });
+    } catch (e) {
+      setPayrolls(prev);
+      toast({ title: 'Error al eliminar la nómina', variant: 'destructive' });
+    }
+  }
+
   function handleSigned(updatedPayroll) {
     setSignPayroll(null);
     generateNominaPdf(updatedPayroll);
@@ -217,6 +230,11 @@ export default function Nominas() {
             {isAdmin && (
               <Button variant="ghost" size="sm" onClick={() => handleDownload(row)} className="text-primary hover:bg-primary/10" title="Descarregar PDF">
                 <FileText size={16} />
+              </Button>
+            )}
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => handleDelete(row)} className="text-red-400 hover:bg-red-500/10" title="Eliminar nómina">
+                <Trash2 size={16} />
               </Button>
             )}
           </div>

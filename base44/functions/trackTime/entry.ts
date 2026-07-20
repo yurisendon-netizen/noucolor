@@ -335,6 +335,14 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, payroll: created });
       }
 
+      case 'deletePayroll': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { payrollId } = body;
+        if (!payrollId) return Response.json({ error: 'Falta payrollId' }, { status: 400 });
+        await base44.asServiceRole.entities.Payroll.delete(payrollId);
+        return Response.json({ success: true });
+      }
+
       case 'signPayroll': {
         const { payrollId, signatureName, signatureUrl } = body;
         if (!payrollId) return Response.json({ error: 'Falta payrollId' }, { status: 400 });
