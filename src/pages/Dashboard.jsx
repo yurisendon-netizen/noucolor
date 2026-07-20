@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { Clock, FileText, Users, Receipt, TrendingUp, AlertCircle, FileWarning } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
@@ -42,12 +43,12 @@ export default function Dashboard() {
       try {
         const today = new Date().toISOString().split('T')[0];
         const [entriesCount, orders, employees, payrolls, incumplimientos, todayEntries] = await Promise.all([
-          base44.functions.invoke('trackTime', { operation: 'countEntriesByDate', callerEmployeeId: empId, date: today }).then(r => r.data?.count || 0),
+          authInvoke('trackTime', { operation: 'countEntriesByDate', date: today }).then(r => r.data?.count || 0),
           base44.entities.WorkOrder.list('-created_date', 5),
           isAdmin ? base44.entities.Employee.filter({ is_active: true }) : Promise.resolve([]),
-          isAdmin ? base44.functions.invoke('trackTime', { operation: 'listPayrolls', callerEmployeeId: empId, limit: 5 }).then(r => r.data?.payrolls || []) : Promise.resolve([]),
-          isAdmin ? base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 }).then(r => r.data?.incumplimientos || []) : Promise.resolve([]),
-          employee?.role !== 'jefe' ? base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 5 }).then(r => r.data?.entries || []) : Promise.resolve([]),
+          isAdmin ? authInvoke('trackTime', { operation: 'listPayrolls', limit: 5 }).then(r => r.data?.payrolls || []) : Promise.resolve([]),
+          isAdmin ? authInvoke('trackTime', { operation: 'listIncumplimientos', limit: 200 }).then(r => r.data?.incumplimientos || []) : Promise.resolve([]),
+          employee?.role !== 'jefe' ? authInvoke('trackTime', { operation: 'listEntries', limit: 5 }).then(r => r.data?.entries || []) : Promise.resolve([]),
         ]);
         const pendingOrders = orders.filter(o => o.status === 'pendiente');
         const todayEntry = todayEntries.find(e => e.date === today);

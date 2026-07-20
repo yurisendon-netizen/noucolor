@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { generateSessionToken } from '../../shared/employeeAuth.ts';
 
 async function sha256Hex(input) {
   const data = new TextEncoder().encode(input);
@@ -80,9 +81,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Return employee data without the password
-    const { pass, ...safeEmployee } = emp;
-    return Response.json({ success: true, employee: safeEmployee });
+    // Issue a new session token (hash stored on Employee, plaintext returned to client)
+    const { token: sessionToken, tokenHash } = await generateSessionToken();
+    await base44.asServiceRole.entities.Employee.update(emp.id, { session_token: tokenHash });
+
+    // Return employee data without the password or session token hash
+    const { pass, session_token, ...safeEmployee } = emp;
+    return Response.json({ success: true, employee: safeEmployee, sessionToken });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

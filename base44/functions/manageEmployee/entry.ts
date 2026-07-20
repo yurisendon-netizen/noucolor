@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { verifySession } from '../../shared/employeeAuth.ts';
 
 function randomSaltHex(bytes = 16) {
   const arr = new Uint8Array(bytes);
@@ -30,22 +31,15 @@ function isHashed(pwd) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { action, callerEmployeeId, data, datosId, employeeId } = await req.json();
+    const { action, sessionToken, data, datosId, employeeId } = await req.json();
 
-    // Verify caller exists
-    if (!callerEmployeeId) {
+    // Verify caller identity via session token (not client-supplied employeeId)
+    const session = await verifySession(base44, sessionToken);
+    if (!session) {
       return Response.json({ error: 'No autorizado' }, { status: 401 });
     }
-    let callers;
-    try {
-      callers = await base44.asServiceRole.entities.Employee.filter({ id: callerEmployeeId });
-    } catch {
-      return Response.json({ error: 'No autorizado' }, { status: 401 });
-    }
-    if (callers.length === 0) {
-      return Response.json({ error: 'No autorizado' }, { status: 401 });
-    }
-    const isAdminCaller = ['administrador', 'jefe', 'admin'].includes(callers[0].role);
+    const callerEmployeeId = session.employee.id;
+    const isAdminCaller = session.isAdmin;
     // Any employee can look up their own record (needed to restore their session on reload).
     // Every other action still requires an admin/jefe caller.
     const isSelfLookup = action === 'getById' && employeeId === callerEmployeeId;
@@ -64,7 +58,8 @@ Deno.serve(async (req) => {
       }
       const merged = employees.map(emp => {
         const d = datosByEmpId[emp.id] || datosByName[(emp.full_name || '').toLowerCase().trim()];
-        return { ...emp, iban: d?.iban || emp.iban || null };
+        const { pass, session_token, ...safeEmp } = emp;
+        return { ...safeEmp, iban: d?.iban || emp.iban || null };
       });
       return Response.json({ success: true, employees: merged });
     }
@@ -73,7 +68,7 @@ Deno.serve(async (req) => {
       if (!employeeId) return Response.json({ error: 'Falta employeeId' }, { status: 400 });
       const found = await base44.asServiceRole.entities.Employee.filter({ id: employeeId });
       if (found.length === 0) return Response.json({ error: 'Empleado no encontrado' }, { status: 404 });
-      const { pass, ...safeEmployee } = found[0];
+      const { pass, session_token, ...safeEmployee } = found[0];
       return Response.json({ success: true, employee: safeEmployee });
     }
 

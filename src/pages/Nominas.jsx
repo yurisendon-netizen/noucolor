@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { Plus, Download, FileText, Calculator, CheckCircle2, Pen } from 'lucide-react';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import NominaSignDialog from '@/components/nominas/NominaSignDialog';
@@ -49,7 +50,7 @@ export default function Nominas() {
   async function loadData() {
     try {
       const [pRes, e] = await Promise.all([
-        base44.functions.invoke('trackTime', { operation: 'listPayrolls', callerEmployeeId: employee?.id, limit: 200 }),
+        authInvoke('trackTime', { operation: 'listPayrolls',  limit: 200 }),
         base44.entities.Employee.filter({ is_active: true }),
       ]);
       setPayrolls(pRes.data?.payrolls || []);
@@ -63,7 +64,7 @@ export default function Nominas() {
     if (!emp) return;
     setCalculating(true);
     try {
-      const entriesRes = await base44.functions.invoke('trackTime', { operation: 'listAllEntries', callerEmployeeId: employee?.id, limit: 500 });
+      const entriesRes = await authInvoke('trackTime', { operation: 'listAllEntries',  limit: 500 });
       const allEntries = (entriesRes.data?.entries || []).filter(e => e.employee_id === emp.id);
       const year = parseInt(form.period_year);
       const month = parseInt(form.period_month);
@@ -72,7 +73,7 @@ export default function Nominas() {
         return d.getMonth() + 1 === month && d.getFullYear() === year;
       });
       // Fetch approved OvertimeHour records for the period
-      const overtimeRes = await base44.functions.invoke('trackTime', { operation: 'listOvertimeByEmployee', callerEmployeeId: employee?.id, targetEmployeeId: emp.id, limit: 200 });
+      const overtimeRes = await authInvoke('trackTime', { operation: 'listOvertimeByEmployee',  targetEmployeeId: emp.id, limit: 200 });
       const allOvertime = overtimeRes.data?.overtime || [];
       const monthOvertime = allOvertime.filter(o => {
         const d = new Date(o.date);
@@ -117,9 +118,9 @@ export default function Nominas() {
     const net = gross - cass - irpf - (parseFloat(form.other_deductions) || 0);
 
     try {
-      await base44.functions.invoke('trackTime', {
+      await authInvoke('trackTime', {
         operation: 'createPayroll',
-        callerEmployeeId: employee?.id,
+        
         payroll: {
           employee_id: emp.id, employee_name: emp.full_name,
           employee_dni: emp.dni || '', employee_nss: emp.nss || '',

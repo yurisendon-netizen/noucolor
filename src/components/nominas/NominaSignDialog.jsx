@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Pen, Loader2, FileText } from 'lucide-react';
@@ -32,9 +33,8 @@ export default function NominaSignDialog({ payroll, employeeId, employeeName, on
       const file = await dataUrlToFile(signatureDataUrl, 'firma_treballador.png');
       const res = await base44.integrations.Core.UploadFile({ file });
       const firmaUrl = res.file_url;
-      await base44.functions.invoke('trackTime', {
+      await authInvoke('trackTime', {
         operation: 'signPayroll',
-        callerEmployeeId: employeeId,
         payrollId: payroll.id,
         signatureName: employeeName,
         signatureUrl: firmaUrl,

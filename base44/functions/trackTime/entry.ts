@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { verifySession } from '../../shared/employeeAuth.ts';
 
 // Ajusta este offset si Andorra está en horario de invierno (+01:00) vs verano (+02:00)
 const LOCAL_UTC_OFFSET = '+02:00';
@@ -90,25 +91,17 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, closedCount: closed });
     }
 
-    const { callerEmployeeId } = body;
+    const { sessionToken } = body;
 
-    // Verify caller identity
-    if (!callerEmployeeId) {
+    // Verify caller identity via session token (not client-supplied employeeId)
+    const session = await verifySession(base44, sessionToken);
+    if (!session) {
       return Response.json({ error: 'No autorizado' }, { status: 401 });
     }
-    let callers;
-    try {
-      callers = await base44.asServiceRole.entities.Employee.filter({ id: callerEmployeeId, is_active: true });
-    } catch {
-      return Response.json({ error: 'No autorizado' }, { status: 401 });
-    }
-    if (callers.length === 0) {
-      return Response.json({ error: 'No autorizado' }, { status: 401 });
-    }
-    const caller = callers[0];
+    const caller = session.employee;
     const empId = caller.id;
     const empName = caller.full_name;
-    const isAdmin = caller.role === 'administrador' || caller.role === 'jefe';
+    const isAdmin = session.isAdmin;
 
     switch (operation) {
       case 'clockIn': {
