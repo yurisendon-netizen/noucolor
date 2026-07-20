@@ -68,18 +68,7 @@
         "role": "admin"
       }
     },
-    "read": {
-      "$or": [
-        {
-          "data.assigned_to": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
+    "read": null,
     "update": {
       "$or": [
         {
