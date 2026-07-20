@@ -16,16 +16,6 @@ import { generateNominaPdf } from '@/components/nominas/NominaPdf';
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-function getWorkingDaysInMonth(year, month) {
-  let count = 0;
-  const days = new Date(year, month, 0).getDate();
-  for (let d = 1; d <= days; d++) {
-    const day = new Date(year, month - 1, d).getDay();
-    if (day !== 0 && day !== 6) count++;
-  }
-  return count;
-}
-
 // PDF generation moved to src/components/nominas/NominaPdf.js
 
 export default function Nominas() {
@@ -106,10 +96,10 @@ export default function Nominas() {
     const year = parseInt(form.period_year);
     const month = parseInt(form.period_month);
 
-    const workingDays = getWorkingDaysInMonth(year, month);
-    const dailyRate = monthlyBase / workingDays;
-    const absenceDeduction = (calcSummary?.absences || 0) * dailyRate;
-    const adjustedBase = Math.max(monthlyBase - absenceDeduction, 0);
+    // Una falta/ausencia registrada NO descuenta sueldo — es lo que se le
+    // promete al trabajador en Control Horario. El salario base es fijo;
+    // solo las horas extra y las bonificaciones ajustan el total.
+    const adjustedBase = monthlyBase;
 
     const overtimePay = calcSummary?.overtimePay || ((form.overtime_hours || 0) * precioHora * 1.4);
     const gross = adjustedBase + overtimePay + (parseFloat(form.bonus) || 0);
