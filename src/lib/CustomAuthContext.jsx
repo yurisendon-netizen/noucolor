@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 
 const AuthContext = createContext(null);
 
@@ -9,12 +10,12 @@ export function CustomAuthProvider({ children }) {
 
   useEffect(() => {
     const savedId = localStorage.getItem('noucolor_emp_id');
+    const sessionToken = localStorage.getItem('noucolor_session_token');
     
-    if (savedId) {
-      base44.functions.invoke('manageEmployee', { 
+    if (savedId && sessionToken) {
+      authInvoke('manageEmployee', { 
         action: 'getById', 
-        employeeId: savedId, 
-        callerEmployeeId: savedId 
+        employeeId: savedId,
       })
         .then(res => {
           if (res.data?.success && res.data.employee) {
@@ -26,6 +27,7 @@ export function CustomAuthProvider({ children }) {
         .catch(() => clearSession())
         .finally(() => setLoading(false));
     } else {
+      clearSession();
       setLoading(false);
     }
   }, []);
@@ -39,6 +41,7 @@ export function CustomAuthProvider({ children }) {
     if (result.data?.success) {
       localStorage.setItem('noucolor_session', 'active');
       localStorage.setItem('noucolor_emp_id', result.data.employee.id);
+      localStorage.setItem('noucolor_session_token', result.data.sessionToken);
       setEmployee(result.data.employee);
       return true;
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { Clock, LogIn, LogOut, AlertTriangle, ShieldCheck, Eye, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,7 @@ export default function ControlHorario() {
       }
 
       try {
-        const res = await base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 60 });
+        const res = await authInvoke('trackTime', { operation: 'listEntries',  limit: 60 });
         const todayEntries = (res.data?.entries || []).filter(e => e.date === today);
         const hasOpen = todayEntries.some(e => e.status === 'abierto');
         const hasAbsence = todayEntries.some(e => e.status === 'ausencia_injustificada');
@@ -64,9 +65,9 @@ export default function ControlHorario() {
 
         if (hour === 8 && minutes >= 30 && !hasOpen && !hasAbsence && !notifiedRef.current.absent830) {
           notifiedRef.current.absent830 = true;
-          await base44.functions.invoke('trackTime', {
+          await authInvoke('trackTime', {
             operation: 'registerAbsence',
-            callerEmployeeId: empId,
+            
             clockIn: now.toISOString(),
             date: today,
             description: 'No fichó la entrada antes de las 8:30'
@@ -93,7 +94,7 @@ export default function ControlHorario() {
   async function loadEntries() {
     if (!empId) return;
     try {
-      let res = await base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 50 });
+      let res = await authInvoke('trackTime', { operation: 'listEntries',  limit: 50 });
       let data = res.data?.entries || [];
       let open = data.find(e => e.status === 'abierto');
 
@@ -107,15 +108,15 @@ export default function ControlHorario() {
         clockOut.setHours(16, 0, 0, 0);
         const clockIn = new Date(open.clock_in);
         const regularHours = Math.min(Math.max(((clockOut - clockIn) / 3600000), 0), 8);
-        await base44.functions.invoke('trackTime', {
+        await authInvoke('trackTime', {
           operation: 'autoClose',
-          callerEmployeeId: empId,
+          
           entryId: open.id,
           clockOut: clockOut.toISOString(),
           totalHours: parseFloat(regularHours.toFixed(2))
         });
         toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 7:45' });
-        res = await base44.functions.invoke('trackTime', { operation: 'listEntries', callerEmployeeId: empId, limit: 50 });
+        res = await authInvoke('trackTime', { operation: 'listEntries',  limit: 50 });
         data = res.data?.entries || [];
         open = null;
       }
@@ -152,9 +153,9 @@ export default function ControlHorario() {
       const minutes = now.getMinutes();
       const isLate = hour > 8 || (hour === 8 && minutes > 15);
 
-      await base44.functions.invoke('trackTime', {
+      await authInvoke('trackTime', {
         operation: 'clockIn',
-        callerEmployeeId: empId,
+        
         clockIn: now.toISOString(),
         date: today,
         lat: loc.lat, lng: loc.lng,
@@ -198,9 +199,9 @@ export default function ControlHorario() {
       }
       regularHours = Math.min(Math.max(regularHours, 0), 8);
 
-      await base44.functions.invoke('trackTime', {
+      await authInvoke('trackTime', {
         operation: 'clockOut',
-        callerEmployeeId: empId,
+        
         entryId: openEntry.id,
         clockOut: now.toISOString(),
         lat: loc.lat, lng: loc.lng,

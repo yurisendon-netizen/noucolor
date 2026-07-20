@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 import { Plus, Edit, Trash2, Download, Users, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,9 +28,9 @@ export default function Empleados() {
 
   async function loadEmployees() {
     try {
-      const result = await base44.functions.invoke('manageEmployee', {
+      const result = await authInvoke('manageEmployee', {
         action: 'list',
-        callerEmployeeId: employee?.id,
+        
       });
       if (result.data?.success) {
         setEmployees(result.data.employees);
@@ -59,9 +60,9 @@ export default function Empleados() {
   async function handleSave() {
     try {
       const precioHora = parseFloat(form.precioHora) || 0;
-      const result = await base44.functions.invoke('manageEmployee', {
+      const result = await authInvoke('manageEmployee', {
         action: editing ? 'update' : 'create',
-        callerEmployeeId: employee?.id,
+        
         employeeId: editing?.id,
         data: {
           full_name: form.full_name,
@@ -105,9 +106,9 @@ export default function Empleados() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      const result = await base44.functions.invoke('manageEmployee', {
+      const result = await authInvoke('manageEmployee', {
         action: 'delete',
-        callerEmployeeId: employee?.id,
+        
         employeeId: deleteTarget.id,
       });
       if (result.data?.success) {

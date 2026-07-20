@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { MapPin, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ export default function Geolocalizacion() {
     setLoading(true);
     try {
       const [locRes, employees] = await Promise.all([
-        base44.functions.invoke('trackTime', { operation: 'listActiveLocations', callerEmployeeId: empId }),
+        authInvoke('trackTime', { operation: 'listActiveLocations',  }),
         base44.entities.Employee.filter({ role: 'jefe' })
       ]);
       const data = locRes.data?.locations || [];

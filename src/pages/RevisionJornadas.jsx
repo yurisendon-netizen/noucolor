@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { AlertTriangle, FileWarning } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
@@ -33,8 +34,8 @@ export default function RevisionJornadas() {
     async function load() {
       try {
         const [eRes, iRes] = await Promise.all([
-          base44.functions.invoke('trackTime', { operation: 'listAllEntries', callerEmployeeId: empId, limit: 200 }),
-          base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 }),
+          authInvoke('trackTime', { operation: 'listAllEntries',  limit: 200 }),
+          authInvoke('trackTime', { operation: 'listIncumplimientos',  limit: 200 }),
         ]);
         setEntries(eRes.data?.entries || []);
         setIncumplimientos(iRes.data?.incumplimientos || []);
@@ -56,9 +57,9 @@ export default function RevisionJornadas() {
 
   async function handleAmonestar(inc) {
     try {
-      await base44.functions.invoke('trackTime', { operation: 'amonestarIncumplimiento', callerEmployeeId: empId, incumplimientoId: inc.id });
+      await authInvoke('trackTime', { operation: 'amonestarIncumplimiento',  incumplimientoId: inc.id });
       toast({ title: 'Amonestación registrada', description: `Se ha marcado la amonestación para ${inc.employee_name}` });
-      const iRes = await base44.functions.invoke('trackTime', { operation: 'listIncumplimientos', callerEmployeeId: empId, limit: 200 });
+      const iRes = await authInvoke('trackTime', { operation: 'listIncumplimientos',  limit: 200 });
       setIncumplimientos(iRes.data?.incumplimientos || []);
     } catch (e) {
       toast({ title: 'Error', variant: 'destructive' });

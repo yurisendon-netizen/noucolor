@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { Plus, Edit, Trash2, Check, X, Clock, Euro, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,9 +124,9 @@ export default function HorasExtras() {
       return;
     }
     try {
-      await base44.functions.invoke('trackTime', {
+      await authInvoke('trackTime', {
         operation: 'saveOvertime',
-        callerEmployeeId,
+
         overtimeId: editing?.id || null,
         targetEmployeeId: isAdmin ? form.employee_id : null,
         date: form.date,
@@ -149,9 +150,9 @@ export default function HorasExtras() {
     setItems(items.map(i => i.id === id ? { ...i, status } : i));
     try {
       const callerEmployeeId = employee?.id || user?.id;
-      await base44.functions.invoke('trackTime', {
+      await authInvoke('trackTime', {
         operation: 'approveOvertime',
-        callerEmployeeId,
+
         overtimeId: id,
         status,
       });

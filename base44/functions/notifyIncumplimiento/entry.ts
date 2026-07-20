@@ -1,5 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -28,6 +38,11 @@ Deno.serve(async (req) => {
       ? new Date(inc.date + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
       : 'N/A';
 
+    // Escape all user-controlled fields before injecting into the HTML email template
+    const safeName = escapeHtml(inc.employee_name || 'N/A');
+    const safeTypeLabel = escapeHtml(typeLabel);
+    const safeDescription = escapeHtml(inc.description);
+
     const subject = `⚠️ Noucolor - Nuevo incumplimiento: ${inc.employee_name || 'Trabajador'}`;
 
     const emailBody = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
@@ -39,12 +54,12 @@ Deno.serve(async (req) => {
   <h2 style="color: #1a1a1a; margin: 0 0 8px;">⚠️ Nuevo incumplimiento registrado</h2>
   <p style="color: #666; font-size: 14px; margin: 0 0 24px;">Se ha registrado una nueva incidencia en el sistema que requiere su revisión inmediata.</p>
   <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px; font-size: 14px;">
-    <tr><td style="padding: 10px 0; color: #999; width: 130px; border-bottom: 1px solid #f0f0f0;">Trabajador</td><td style="padding: 10px 0; font-weight: 600; color: #1a1a1a; border-bottom: 1px solid #f0f0f0;">${inc.employee_name || 'N/A'}</td></tr>
-    <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0;">Tipo</td><td style="padding: 10px 0; font-weight: 600; color: #d97706; border-bottom: 1px solid #f0f0f0;">${typeLabel}</td></tr>
+    <tr><td style="padding: 10px 0; color: #999; width: 130px; border-bottom: 1px solid #f0f0f0;">Trabajador</td><td style="padding: 10px 0; font-weight: 600; color: #1a1a1a; border-bottom: 1px solid #f0f0f0;">${safeName}</td></tr>
+    <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0;">Tipo</td><td style="padding: 10px 0; font-weight: 600; color: #d97706; border-bottom: 1px solid #f0f0f0;">${safeTypeLabel}</td></tr>
     <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0;">Fecha</td><td style="padding: 10px 0; font-weight: 600; color: #1a1a1a; border-bottom: 1px solid #f0f0f0;">${fecha}</td></tr>
     <tr><td style="padding: 10px 0; color: #999;">Estado</td><td style="padding: 10px 0; font-weight: 600; color: #1a1a1a;">Pendiente</td></tr>
   </table>
-  ${inc.description ? `<div style="background: #fffbeb; border-left: 3px solid #f59e0b; padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #333; border-radius: 0 6px 6px 0;"><strong style="color: #d97706;">Descripción:</strong><br>${inc.description}</div>` : ''}
+  ${inc.description ? `<div style="background: #fffbeb; border-left: 3px solid #f59e0b; padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #333; border-radius: 0 6px 6px 0;"><strong style="color: #d97706;">Descripción:</strong><br>${safeDescription}</div>` : ''}
   <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #eee;">
     <p style="color: #aaa; font-size: 11px; margin: 0;">Confidencial - Noucolor Pro · Mensaje generado automáticamente.</p>
   </div>
