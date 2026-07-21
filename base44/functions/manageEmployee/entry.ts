@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { verifySession } from '../../shared/employeeAuth.ts';
-import { sendResendEmail, buildWelcomeEmailHtml, TEST_OVERRIDE_EMAIL } from '../../shared/resendEmail.ts';
+import { sendResendEmail, buildWelcomeEmailHtml } from '../../shared/resendEmail.ts';
 
 function randomSaltHex(bytes = 16) {
   const arr = new Uint8Array(bytes);
@@ -46,12 +46,9 @@ async function sendWelcomeEmailIfNeeded({ fullName, username, plainPassword, ema
   if (!plainPassword || !username || !email || isHashed(plainPassword)) return;
   try {
     await sendResendEmail({
-      to: TEST_OVERRIDE_EMAIL,
+      to: email.trim(),
       subject: 'Noucolor - Tus credenciales de acceso',
-      html: buildWelcomeEmailHtml({
-        fullName, username, password: plainPassword,
-        realEmail: TEST_OVERRIDE_EMAIL !== email.trim() ? email.trim() : null,
-      }),
+      html: buildWelcomeEmailHtml({ fullName, username, password: plainPassword }),
     });
   } catch (emailError) {
     // No bloquea la creación/actualización del empleado si el correo falla
@@ -135,14 +132,11 @@ Deno.serve(async (req) => {
       }
 
       await sendResendEmail({
-        to: TEST_OVERRIDE_EMAIL,
+        to: emp.email,
         subject: 'Noucolor - Tus credenciales de acceso',
-        html: buildWelcomeEmailHtml({
-          fullName: emp.full_name, username: emp.user, password: newPassword,
-          realEmail: TEST_OVERRIDE_EMAIL !== emp.email ? emp.email : null,
-        }),
+        html: buildWelcomeEmailHtml({ fullName: emp.full_name, username: emp.user, password: newPassword }),
       });
-      return Response.json({ success: true, sentTo: TEST_OVERRIDE_EMAIL });
+      return Response.json({ success: true, sentTo: emp.email });
     }
 
     const precioHora = parseFloat(data.precioHora) || 0;

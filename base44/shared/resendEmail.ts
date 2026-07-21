@@ -2,12 +2,6 @@
 // externas (empleados que no son usuarios de la plataforma Base44). El email
 // integrado de Base44 (Core.SendEmail) solo entrega a usuarios registrados de
 // Base44 — por eso los avisos a trabajadores nunca llegaban.
-//
-// TEMPORAL: mientras se confirma que la plantilla se ve bien, todos los
-// correos de bienvenida se redirigen a esta dirección en vez de a la del
-// empleado real. Cuando se confirme el formato, borrar TEST_OVERRIDE_EMAIL
-// y sus usos (buscar "TEST_OVERRIDE_EMAIL" en manageEmployee/entry.ts).
-export const TEST_OVERRIDE_EMAIL = 'yurisendon@gmail.com';
 
 export async function sendResendEmail({ to, subject, html }) {
   const apiKey = Deno.env.get('RESEND_API_KEY');
@@ -34,13 +28,8 @@ export async function sendResendEmail({ to, subject, html }) {
   return data;
 }
 
-export function buildWelcomeEmailHtml({ fullName, username, password, realEmail }) {
+export function buildWelcomeEmailHtml({ fullName, username, password }) {
   const firstName = (fullName || '').split(' ')[0];
-  const testNotice = realEmail
-    ? `<div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#92400e;border-radius:0 6px 6px 0;">
-        🧪 Modo de prueba: este correo iba dirigido originalmente a <strong>${realEmail}</strong>.
-      </div>`
-    : '';
 
   return `<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
   <div style="background:linear-gradient(90deg,#f59e0b 0%,#d97706 100%);height:4px;border-radius:2px;margin-bottom:20px;"></div>
@@ -48,7 +37,6 @@ export function buildWelcomeEmailHtml({ fullName, username, password, realEmail 
     <div style="background:#f59e0b;color:#fff;font-weight:800;font-size:18px;padding:6px 12px;border-radius:8px;letter-spacing:1px;">NOUCOLOR</div>
     <span style="color:#888;font-size:12px;">Bienvenida a la plataforma</span>
   </div>
-  ${testNotice}
   <h2 style="color:#1a1a1a;margin:0 0 8px;">¡Bienvenido/a, ${firstName}!</h2>
   <p style="color:#666;font-size:14px;line-height:1.6;margin:0 0 20px;">Ya tienes acceso a la plataforma interna de Noucolor. Estas son tus credenciales:</p>
   <div style="background:#f9fafb;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:8px;">

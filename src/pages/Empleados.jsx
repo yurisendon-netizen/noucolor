@@ -110,7 +110,7 @@ export default function Empleados() {
     try {
       const result = await authInvoke('manageEmployee', { action: 'resendWelcome', employeeId: emp.id });
       if (result.data?.success) {
-        toast({ variant: 'success', title: `Credenciales reenviadas (prueba: ${result.data.sentTo})` });
+        toast({ variant: 'success', title: `Credenciales reenviadas a ${result.data.sentTo}` });
       } else {
         toast({ title: result.data?.error || 'Error', variant: 'destructive' });
       }

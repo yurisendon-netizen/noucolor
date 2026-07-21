@@ -54,7 +54,7 @@
     "end_time"
   ],
   "rls": {
-    "create": null,
+    "create": true,
     "read": {
       "$or": [
         {

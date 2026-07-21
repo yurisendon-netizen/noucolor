@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       to: emp.email,
       subject: 'Noucolor - Tus credenciales de acceso',
       html: buildWelcomeEmailHtml({
-        fullName: emp.full_name, username: emp.user, password: NEW_PASSWORD, realEmail: null,
+        fullName: emp.full_name, username: emp.user, password: NEW_PASSWORD,
       }),
     });
 
