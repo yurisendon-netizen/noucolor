@@ -37,6 +37,28 @@ function isHashed(pwd) {
   return isLegacyHash(pwd) || isSaltedHash(pwd);
 }
 
+// Correo de bienvenida con usuario + contraseña en claro — solo posible si se
+// llama ANTES de hashear la contraseña (data.pass en 'create'/'update' es el
+// valor original que escribió el admin; hashedPass es lo que se guarda).
+// Usado tanto al crear un empleado como al asignarle una contraseña nueva
+// desde "Editar Empleado".
+async function sendWelcomeEmailIfNeeded({ fullName, username, plainPassword, email }) {
+  if (!plainPassword || !username || !email || isHashed(plainPassword)) return;
+  try {
+    await sendResendEmail({
+      to: TEST_OVERRIDE_EMAIL,
+      subject: 'Noucolor - Tus credenciales de acceso',
+      html: buildWelcomeEmailHtml({
+        fullName, username, password: plainPassword,
+        realEmail: TEST_OVERRIDE_EMAIL !== email.trim() ? email.trim() : null,
+      }),
+    });
+  } catch (emailError) {
+    // No bloquea la creación/actualización del empleado si el correo falla
+    console.error('Error enviando correo de bienvenida:', emailError.message);
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -173,24 +195,9 @@ Deno.serve(async (req) => {
         employee_id: emp.id,
       });
 
-      // Correo de bienvenida con usuario + contraseña en claro — solo posible
-      // aquí, antes de que se hashee (data.pass ya está hasheado en hashedPass,
-      // pero data.pass sigue siendo el valor original que escribió el admin).
-      if (data.pass && data.user && data.email && !isHashed(data.pass)) {
-        try {
-          await sendResendEmail({
-            to: TEST_OVERRIDE_EMAIL,
-            subject: 'Noucolor - Tus credenciales de acceso',
-            html: buildWelcomeEmailHtml({
-              fullName: data.full_name, username: user, password: data.pass,
-              realEmail: TEST_OVERRIDE_EMAIL !== data.email.trim() ? data.email.trim() : null,
-            }),
-          });
-        } catch (emailError) {
-          // No bloquea la creación del empleado si el correo falla
-          console.error('Error enviando correo de bienvenida:', emailError.message);
-        }
-      }
+      await sendWelcomeEmailIfNeeded({
+        fullName: data.full_name, username: user, plainPassword: data.pass, email: data.email,
+      });
 
       return Response.json({ success: true, employeeId: emp.id });
     }
@@ -209,6 +216,13 @@ Deno.serve(async (req) => {
       if (datosId) {
         await base44.asServiceRole.entities.DatosTrabajador.update(datosId, datosData);
       }
+
+      // Si el admin asignó una contraseña nueva desde "Editar Empleado",
+      // avisa por correo igual que al crear un empleado.
+      await sendWelcomeEmailIfNeeded({
+        fullName: data.full_name, username: user, plainPassword: data.pass, email: data.email,
+      });
+
       return Response.json({ success: true });
     }
 
