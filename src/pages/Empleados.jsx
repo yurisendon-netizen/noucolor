@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
-import { Plus, Edit, Trash2, Download, Users, UserPlus } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Users, UserPlus, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,7 +22,7 @@ export default function Empleados() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0 });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, user: '', pass: '' });
 
   useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
 
@@ -46,14 +46,15 @@ export default function Empleados() {
       position: emp.position || '', phone: emp.phone || '',
       nss: emp.nss || '', dni: emp.dni || '',
       iban: emp.iban || '',
-      hire_date: emp.hire_date || '', precioHora: emp.precioHora || 0
+      hire_date: emp.hire_date || '', precioHora: emp.precioHora || 0,
+      user: emp.user || '', pass: '',
     });
     setDialogOpen(true);
   }
 
   function openCreate() {
     setEditing(null);
-    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0 });
+    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, user: '', pass: '' });
     setDialogOpen(true);
   }
 
@@ -75,6 +76,8 @@ export default function Empleados() {
           iban: form.iban,
           hire_date: form.hire_date,
           precioHora,
+          user: form.user,
+          pass: form.pass,
         },
       });
       if (result.data?.success) {
@@ -100,6 +103,19 @@ export default function Empleados() {
       }
     } catch (e) {
       toast({ title: 'Error al invitar', variant: 'destructive' });
+    }
+  }
+
+  async function handleResendWelcome(emp) {
+    try {
+      const result = await authInvoke('manageEmployee', { action: 'resendWelcome', employeeId: emp.id });
+      if (result.data?.success) {
+        toast({ variant: 'success', title: `Credenciales reenviadas (prueba: ${result.data.sentTo})` });
+      } else {
+        toast({ title: result.data?.error || 'Error', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error al reenviar credenciales', variant: 'destructive' });
     }
   }
 
@@ -214,6 +230,9 @@ export default function Empleados() {
             <Button variant="ghost" size="sm" onClick={() => handleInvite(row)} className="text-green-400 hover:bg-green-500/10" title="Invitar usuario">
               <UserPlus size={16} />
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleResendWelcome(row)} className="text-primary hover:bg-primary/10" title="Reenviar credenciales por correo">
+              <Mail size={16} />
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => openEdit(row)} className="text-blue-400 hover:bg-blue-500/10">
               <Edit size={16} />
             </Button>
@@ -246,10 +265,14 @@ export default function Empleados() {
             </div>
             <Input placeholder="IBAN (Número de cuenta bancaria)" value={form.iban} onChange={e => setForm({ ...form, iban: e.target.value })} className="bg-secondary border-border" />
             <div className="grid grid-cols-2 gap-3">
+              <Input placeholder="Usuario (para iniciar sesión)" value={form.user} onChange={e => setForm({ ...form, user: e.target.value })} className="bg-secondary border-border" />
+              <Input placeholder={editing ? 'Nueva contraseña (opcional)' : 'Contraseña *'} value={form.pass} onChange={e => setForm({ ...form, pass: e.target.value })} className="bg-secondary border-border" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <Input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value })} className="bg-secondary border-border" />
               <Input type="number" step="0.01" placeholder="Precio/hora (€)" value={form.precioHora} onChange={e => setForm({ ...form, precioHora: e.target.value })} className="bg-secondary border-border" />
             </div>
-            <Button onClick={handleSave} disabled={!form.full_name || !form.email} className="w-full h-11">
+            <Button onClick={handleSave} disabled={!form.full_name || !form.email || (!editing && (!form.user || !form.pass))} className="w-full h-11">
               {editing ? 'Guardar Cambios' : 'Crear Empleado'}
             </Button>
           </div>

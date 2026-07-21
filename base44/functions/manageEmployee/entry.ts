@@ -1,10 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { verifySession } from '../../shared/employeeAuth.ts';
+import { sendResendEmail, buildWelcomeEmailHtml, TEST_OVERRIDE_EMAIL } from '../../shared/resendEmail.ts';
 
 function randomSaltHex(bytes = 16) {
   const arr = new Uint8Array(bytes);
   crypto.getRandomValues(arr);
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Excluye caracteres ambiguos (0/O, 1/l/I) para que sea fácil de teclear a mano.
+function randomPassword(length = 10) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const arr = new Uint8Array(length);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => chars[b % chars.length]).join('');
 }
 
 // Current format: '<random salt>:<sha256(salt:password)>' — unique salt per password.
@@ -85,6 +94,35 @@ Deno.serve(async (req) => {
       return Response.json({ success: true });
     }
 
+    // Genera una contraseña nueva y la reenvía por correo — no se puede recuperar
+    // la contraseña original porque solo se guarda su hash (ver isHashed más abajo).
+    if (action === 'resendWelcome') {
+      if (!employeeId) return Response.json({ error: 'Falta employeeId' }, { status: 400 });
+      const found = await base44.asServiceRole.entities.Employee.filter({ id: employeeId });
+      if (found.length === 0) return Response.json({ error: 'Empleado no encontrado' }, { status: 404 });
+      const emp = found[0];
+      if (!emp.email) return Response.json({ error: 'Este empleado no tiene email registrado' }, { status: 400 });
+      if (!emp.user) return Response.json({ error: 'Este empleado no tiene usuario asignado' }, { status: 400 });
+
+      const newPassword = randomPassword();
+      const newHash = await hashPassword(newPassword);
+      await base44.asServiceRole.entities.Employee.update(employeeId, { pass: newHash });
+      const datos = await base44.asServiceRole.entities.DatosTrabajador.filter({ employee_id: employeeId });
+      if (datos.length > 0) {
+        await base44.asServiceRole.entities.DatosTrabajador.update(datos[0].id, { pass: newHash });
+      }
+
+      await sendResendEmail({
+        to: TEST_OVERRIDE_EMAIL,
+        subject: 'Noucolor - Tus credenciales de acceso',
+        html: buildWelcomeEmailHtml({
+          fullName: emp.full_name, username: emp.user, password: newPassword,
+          realEmail: TEST_OVERRIDE_EMAIL !== emp.email ? emp.email : null,
+        }),
+      });
+      return Response.json({ success: true, sentTo: TEST_OVERRIDE_EMAIL });
+    }
+
     const precioHora = parseFloat(data.precioHora) || 0;
     const baseSalary = Math.round(precioHora * 173.33 * 100) / 100;
     const user = (data.user || '').trim().toLowerCase();
@@ -134,6 +172,26 @@ Deno.serve(async (req) => {
         ...datosData,
         employee_id: emp.id,
       });
+
+      // Correo de bienvenida con usuario + contraseña en claro — solo posible
+      // aquí, antes de que se hashee (data.pass ya está hasheado en hashedPass,
+      // pero data.pass sigue siendo el valor original que escribió el admin).
+      if (data.pass && data.user && data.email && !isHashed(data.pass)) {
+        try {
+          await sendResendEmail({
+            to: TEST_OVERRIDE_EMAIL,
+            subject: 'Noucolor - Tus credenciales de acceso',
+            html: buildWelcomeEmailHtml({
+              fullName: data.full_name, username: user, password: data.pass,
+              realEmail: TEST_OVERRIDE_EMAIL !== data.email.trim() ? data.email.trim() : null,
+            }),
+          });
+        } catch (emailError) {
+          // No bloquea la creación del empleado si el correo falla
+          console.error('Error enviando correo de bienvenida:', emailError.message);
+        }
+      }
+
       return Response.json({ success: true, employeeId: emp.id });
     }
 
