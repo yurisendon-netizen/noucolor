@@ -111,6 +111,13 @@ export default function Empleados() {
       const result = await authInvoke('manageEmployee', { action: 'resendWelcome', employeeId: emp.id });
       if (result.data?.success) {
         toast({ variant: 'success', title: `Credenciales reenviadas a ${result.data.sentTo}` });
+      } else if (result.data?.newPassword) {
+        // El correo falló, pero la contraseña YA se cambió — nunca la ocultamos.
+        toast({
+          title: 'El correo no se pudo enviar',
+          description: `Nueva contraseña de ${emp.full_name}: ${result.data.newPassword} (comunícasela a mano)`,
+          variant: 'destructive',
+        });
       } else {
         toast({ title: result.data?.error || 'Error', variant: 'destructive' });
       }

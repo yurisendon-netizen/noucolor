@@ -3,6 +3,16 @@
 // integrado de Base44 (Core.SendEmail) solo entrega a usuarios registrados de
 // Base44 — por eso los avisos a trabajadores nunca llegaban.
 
+// Envío gratuito vía el sistema de correo nativo de Base44. Solo entrega a
+// direcciones que ya son un User verificado de la plataforma (por ejemplo,
+// alguien que aceptó una invitación desde "Invitar usuario" en Empleados).
+// Requiere el cliente `base44` de la petición en curso (para asServiceRole).
+export async function sendCoreEmail(base44, { to, subject, html }) {
+  return base44.asServiceRole.integrations.Core.SendEmail({
+    to, from_name: 'Noucolor', subject, body: html,
+  });
+}
+
 export async function sendResendEmail({ to, subject, html }) {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   if (!apiKey) throw new Error('RESEND_API_KEY no configurado');
