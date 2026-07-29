@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
-import { Plus, Edit, Trash2, Download, Users, UserPlus, Mail } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Users, UserPlus, Mail, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,6 +22,8 @@ export default function Empleados() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [resendAllOpen, setResendAllOpen] = useState(false);
+  const [resendingAll, setResendingAll] = useState(false);
   const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, user: '', pass: '' });
 
   useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
@@ -111,18 +113,34 @@ export default function Empleados() {
       const result = await authInvoke('manageEmployee', { action: 'resendWelcome', employeeId: emp.id });
       if (result.data?.success) {
         toast({ variant: 'success', title: `Credenciales reenviadas a ${result.data.sentTo}` });
-      } else if (result.data?.newPassword) {
-        // El correo falló, pero la contraseña YA se cambió — nunca la ocultamos.
+      } else {
+        toast({ title: result.data?.error || 'Error', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error al reenviar credenciales', variant: 'destructive' });
+    }
+  }
+
+  async function handleResendWelcomeAll() {
+    setResendingAll(true);
+    try {
+      const result = await authInvoke('manageEmployee', { action: 'resendWelcomeAll' });
+      if (result.data?.success) {
+        const sent = result.data.results.filter(r => r.sent).length;
+        const skipped = result.data.results.length - sent;
         toast({
-          title: 'El correo no se pudo enviar',
-          description: `Nueva contraseña de ${emp.full_name}: ${result.data.newPassword} (comunícasela a mano)`,
-          variant: 'destructive',
+          variant: 'success',
+          title: `Credenciales reenviadas a ${sent} empleado${sent !== 1 ? 's' : ''}`,
+          description: skipped > 0 ? `${skipped} omitido${skipped !== 1 ? 's' : ''} (sin email/usuario o error)` : undefined,
         });
       } else {
         toast({ title: result.data?.error || 'Error', variant: 'destructive' });
       }
     } catch (e) {
       toast({ title: 'Error al reenviar credenciales', variant: 'destructive' });
+    } finally {
+      setResendingAll(false);
+      setResendAllOpen(false);
     }
   }
 
@@ -207,6 +225,9 @@ export default function Empleados() {
           <div className="flex items-center gap-2">
             <Button onClick={exportExcel} variant="outline" className="gap-2 border-border bg-secondary">
               <Download size={18} /> Excel
+            </Button>
+            <Button onClick={() => setResendAllOpen(true)} variant="outline" className="gap-2 border-border bg-secondary">
+              <Send size={18} /> Reenviar credenciales a todos
             </Button>
             <Button onClick={openCreate} className="gap-2">
               <Plus size={18} /> Nuevo Empleado
@@ -297,6 +318,23 @@ export default function Empleados() {
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-secondary border-border">Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={resendAllOpen} onOpenChange={(open) => !resendingAll && setResendAllOpen(open)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reenviar credenciales a todos los empleados?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se generará una contraseña nueva para cada empleado activo con email y usuario asignados, y se le enviará por correo. Las contraseñas actuales dejarán de funcionar. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resendingAll} className="bg-secondary border-border">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResendWelcomeAll} disabled={resendingAll} className="bg-primary hover:bg-primary/90">
+              {resendingAll ? 'Enviando…' : 'Reenviar a todos'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
