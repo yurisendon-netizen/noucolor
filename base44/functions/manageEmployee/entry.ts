@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { verifySession } from '../../shared/employeeAuth.ts';
-import { sendResendEmail, sendCoreEmail, buildWelcomeEmailHtml } from '../../shared/resendEmail.ts';
+import { sendResendEmail, buildWelcomeEmailHtml } from '../../shared/resendEmail.ts';
 
 function randomSaltHex(bytes = 16) {
   const arr = new Uint8Array(bytes);
@@ -37,37 +37,22 @@ function isHashed(pwd) {
   return isLegacyHash(pwd) || isSaltedHash(pwd);
 }
 
-// Intenta primero el correo nativo de Base44 (gratis, pero solo entrega a
-// direcciones que ya son un User verificado de la plataforma), y si falla,
-// cae a Resend (gratis solo hacia la propia cuenta, hasta verificar un
-// dominio). Devuelve { sent: bool, method, error } — nunca lanza.
-async function sendWelcomeEmail(base44, { fullName, username, password, email }) {
-  const subject = 'Noucolor - Tus credenciales de acceso';
-  const html = buildWelcomeEmailHtml({ fullName, username, password });
-  try {
-    await sendCoreEmail(base44, { to: email, subject, html });
-    return { sent: true, method: 'core' };
-  } catch (coreError) {
-    try {
-      await sendResendEmail({ to: email, subject, html });
-      return { sent: true, method: 'resend' };
-    } catch (resendError) {
-      return { sent: false, error: `${coreError.message} / ${resendError.message}` };
-    }
-  }
-}
-
 // Correo de bienvenida con usuario + contraseña en claro — solo posible si se
 // llama ANTES de hashear la contraseña (data.pass en 'create'/'update' es el
 // valor original que escribió el admin; hashedPass es lo que se guarda).
 // Usado tanto al crear un empleado como al asignarle una contraseña nueva
 // desde "Editar Empleado".
-async function sendWelcomeEmailIfNeeded(base44, { fullName, username, plainPassword, email }) {
+async function sendWelcomeEmailIfNeeded({ fullName, username, plainPassword, email }) {
   if (!plainPassword || !username || !email || isHashed(plainPassword)) return;
-  const result = await sendWelcomeEmail(base44, { fullName, username, password: plainPassword, email: email.trim() });
-  if (!result.sent) {
+  try {
+    await sendResendEmail({
+      to: email.trim(),
+      subject: 'Noucolor - Tus credenciales de acceso',
+      html: buildWelcomeEmailHtml({ fullName, username, password: plainPassword }),
+    });
+  } catch (emailError) {
     // No bloquea la creación/actualización del empleado si el correo falla
-    console.error('Error enviando correo de bienvenida:', result.error);
+    console.error('Error enviando correo de bienvenida:', emailError.message);
   }
 }
 
@@ -146,21 +131,46 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.DatosTrabajador.update(datos[0].id, { pass: newHash });
       }
 
-      const result = await sendWelcomeEmail(base44, {
-        fullName: emp.full_name, username: emp.user, password: newPassword, email: emp.email,
+      await sendResendEmail({
+        to: emp.email,
+        subject: 'Noucolor - Tus credenciales de acceso',
+        html: buildWelcomeEmailHtml({ fullName: emp.full_name, username: emp.user, password: newPassword }),
       });
-      if (!result.sent) {
-        // La contraseña YA se cambió aunque el correo falle — la devolvemos
-        // en la respuesta para que no se pierda sin que nadie se entere
-        // (esto es justo lo que pasó antes: una contraseña nueva generada
-        // y perdida porque el envío falló en silencio).
-        return Response.json({
-          success: false,
-          error: `Contraseña actualizada, pero el correo no se pudo enviar: ${result.error}`,
-          newPassword,
-        }, { status: 502 });
+      return Response.json({ success: true, sentTo: emp.email });
+    }
+
+    // Igual que 'resendWelcome' pero para todos los empleados activos con
+    // email + usuario a la vez — cada uno recibe una contraseña nueva propia.
+    if (action === 'resendWelcomeAll') {
+      const employees = await base44.asServiceRole.entities.Employee.list('-created_date', 200);
+      const results = [];
+
+      for (const emp of employees) {
+        if (!emp.is_active) { results.push({ id: emp.id, name: emp.full_name, error: 'Empleado inactivo — omitido' }); continue; }
+        if (!emp.email) { results.push({ id: emp.id, name: emp.full_name, error: 'Sin email registrado — omitido' }); continue; }
+        if (!emp.user) { results.push({ id: emp.id, name: emp.full_name, error: 'Sin usuario asignado — omitido' }); continue; }
+
+        try {
+          const newPassword = randomPassword();
+          const newHash = await hashPassword(newPassword);
+          await base44.asServiceRole.entities.Employee.update(emp.id, { pass: newHash });
+          const datos = await base44.asServiceRole.entities.DatosTrabajador.filter({ employee_id: emp.id });
+          if (datos.length > 0) {
+            await base44.asServiceRole.entities.DatosTrabajador.update(datos[0].id, { pass: newHash });
+          }
+
+          await sendResendEmail({
+            to: emp.email,
+            subject: 'Noucolor - Tus credenciales de acceso',
+            html: buildWelcomeEmailHtml({ fullName: emp.full_name, username: emp.user, password: newPassword }),
+          });
+          results.push({ id: emp.id, name: emp.full_name, sentTo: emp.email, sent: true });
+        } catch (emailError) {
+          results.push({ id: emp.id, name: emp.full_name, error: emailError.message });
+        }
       }
-      return Response.json({ success: true, sentTo: emp.email, method: result.method });
+
+      return Response.json({ success: true, results });
     }
 
     const precioHora = parseFloat(data.precioHora) || 0;
@@ -213,7 +223,7 @@ Deno.serve(async (req) => {
         employee_id: emp.id,
       });
 
-      await sendWelcomeEmailIfNeeded(base44, {
+      await sendWelcomeEmailIfNeeded({
         fullName: data.full_name, username: user, plainPassword: data.pass, email: data.email,
       });
 
@@ -237,7 +247,7 @@ Deno.serve(async (req) => {
 
       // Si el admin asignó una contraseña nueva desde "Editar Empleado",
       // avisa por correo igual que al crear un empleado.
-      await sendWelcomeEmailIfNeeded(base44, {
+      await sendWelcomeEmailIfNeeded({
         fullName: data.full_name, username: user, plainPassword: data.pass, email: data.email,
       });
 
