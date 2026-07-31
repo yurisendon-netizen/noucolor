@@ -47,14 +47,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { operation } = body;
 
-    // ── OPERACIÓN DE SISTEMA: mantenida para pruebas manuales (Test Function
-    // desde Base44 Studio, sin body). El cron real vive en la función
-    // autoCloseTimeEntries, que llama a la misma lógica compartida. ──
-    if (operation === 'autoCloseAll') {
-      const closed = await autoCloseAllOpenEntries(base44);
-      return Response.json({ success: true, closedCount: closed });
-    }
-
     const { sessionToken } = body;
 
     // Verify caller identity via session token (not client-supplied employeeId)
@@ -165,6 +157,14 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
+      // Cierre masivo: solo administradores autenticados. El cron real vive en
+      // la función autoCloseTimeEntries (service role), no en este endpoint público.
+      case 'autoCloseAll': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const closed = await autoCloseAllOpenEntries(base44);
+        return Response.json({ success: true, closedCount: closed });
+      }
+
       case 'registerAbsence': {
         const { clockIn, date, description } = body;
         await base44.asServiceRole.entities.TimeEntry.create({
@@ -179,6 +179,7 @@ Deno.serve(async (req) => {
       }
 
       case 'approveOvertime': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { overtimeId, status } = body;
         if (!['aprobado', 'rechazado', 'pendiente'].includes(status)) {
           return Response.json({ error: 'Estado no válido' }, { status: 400 });
@@ -207,14 +208,17 @@ Deno.serve(async (req) => {
           }
         }
 
-        const total = parseFloat((duration * targetPrecioHora * multiplier).toFixed(2));
+        // Non-admins cannot approve their own overtime or inflate the multiplier.
+        const effectiveMultiplier = isAdmin ? multiplier : 1.4;
+        const effectiveStatus = isAdmin ? (status || 'pendiente') : 'pendiente';
+        const total = parseFloat((duration * targetPrecioHora * effectiveMultiplier).toFixed(2));
         const payload = {
           employee_id: targetEmpId, employee_name: targetEmpName,
           date, start_time: startTime, end_time: endTime,
           duration: parseFloat(duration.toFixed(2)),
           obra_motivo: obraMotivo,
-          precio_hora: targetPrecioHora, multiplier,
-          total, status: status || 'pendiente'
+          precio_hora: targetPrecioHora, multiplier: effectiveMultiplier,
+          total, status: effectiveStatus
         };
 
         if (overtimeId) {
