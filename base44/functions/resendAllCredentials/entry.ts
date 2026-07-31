@@ -17,22 +17,16 @@ async function hashPassword(password, salt) {
 }
 
 // Utilidad de un solo uso: reasigna la contraseña conocida de cada empleado
-// (la misma de la tabla de nóminas, confirmada por el usuario) y le envía el
-// correo de bienvenida real a su propio email — igual que resendYuriCredentials,
-// pero para el resto del equipo de una vez. Se dispara a mano desde Base44
-// Studio (Test Function, sin body).
+// y le envía el correo de bienvenida real a su propio email — igual que
+// resendYuriCredentials, pero para el resto del equipo de una vez. Se dispara
+// a mano desde Base44 Studio (Test Function, sin body).
 //
-// Julio Eduardo Malter (usuario "julio") no tiene email registrado — se omite.
-const EMPLOYEES = [
-  { user: 'andrea', password: '190701U' },
-  { user: 'bruno', password: '106031H' },
-  { user: 'fernando', password: '191699C' },
-  { user: 'nabil', password: '232335X' },
-  { user: 'jordi', password: '028809T' },
-  { user: 'roger', password: '362041F' },
-  { user: 'jordism', password: '031938W' },
-];
-
+// Las contraseñas NUNCA se hardcodean aquí: se leen del secreto
+// RESET_PASSWORDS_JSON (Base44 > Panel > Secretos), con este formato:
+// [{"user":"andrea","password":"..."}, {"user":"bruno","password":"..."}, ...]
+//
+// Julio Eduardo Malter (usuario "julio") no tiene email registrado — se omite
+// igualmente si aparece en la lista.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -41,11 +35,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'No autorizado' }, { status: 403 });
     }
 
+    const raw = Deno.env.get('RESET_PASSWORDS_JSON');
+    if (!raw) {
+      return Response.json({ error: 'Falta configurar el secreto RESET_PASSWORDS_JSON' }, { status: 500 });
+    }
+    let employeesToReset;
+    try {
+      employeesToReset = JSON.parse(raw);
+    } catch {
+      return Response.json({ error: 'El secreto RESET_PASSWORDS_JSON no contiene un JSON válido' }, { status: 500 });
+    }
+
     const employees = await base44.asServiceRole.entities.Employee.list('-created_date', 200);
     const results = [];
 
-    for (const { user: username, password } of EMPLOYEES) {
-      const emp = employees.find(e => (e.user || '').toLowerCase() === username);
+    for (const { user: username, password } of employeesToReset) {
+      const emp = employees.find(e => (e.user || '').toLowerCase() === username.toLowerCase());
       if (!emp) {
         results.push({ user: username, error: 'No se encontró ningún empleado con ese usuario' });
         continue;
