@@ -113,6 +113,13 @@ export default function Empleados() {
       const result = await authInvoke('manageEmployee', { action: 'resendWelcome', employeeId: emp.id });
       if (result.data?.success) {
         toast({ variant: 'success', title: `Credenciales reenviadas a ${result.data.sentTo}` });
+      } else if (result.data?.newPassword) {
+        // El correo falló, pero la contraseña YA se cambió — nunca la ocultamos.
+        toast({
+          title: 'El correo no se pudo enviar',
+          description: `Nueva contraseña de ${emp.full_name}: ${result.data.newPassword} (comunícasela a mano)`,
+          variant: 'destructive',
+        });
       } else {
         toast({ title: result.data?.error || 'Error', variant: 'destructive' });
       }
@@ -205,7 +212,6 @@ export default function Empleados() {
     { key: 'net_salary', label: 'Salario Neto', render: r => <span className="font-medium text-emerald-400">{r.net_salary ? `${r.net_salary.toFixed(2)}€` : '—'}</span> },
     { key: 'email', label: 'Correo Electrónico', render: r => <span className="text-xs">{r.email || '—'}</span> },
     { key: 'phone', label: 'Teléfono', render: r => r.phone || '—' },
-    { key: 'nss', label: 'Tarjeta CASS', render: r => r.nss || '—' },
     { key: 'iban', label: 'IBAN', render: r => <span className="text-xs font-mono">{r.iban || '—'}</span> },
     { key: 'hire_date', label: 'Incorporación', render: r => r.hire_date ? moment(r.hire_date).format('DD/MM/YYYY') : '—' },
   ];
