@@ -14,6 +14,16 @@ const JUSTIFICANTE_LABELS = {
   otro: 'Otro'
 };
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function fmtDate(dateStr) {
   if (!dateStr) return '-';
   const d = new Date(dateStr + 'T00:00:00');
@@ -32,11 +42,11 @@ function buildEmployeeSection(emp, monthEntries, monthOvertimes, monthIncumplimi
 
   let s = `<div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:24px;border:1px solid #eee;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #f59e0b;">
-      <div style="background:#f59e0b;color:#fff;font-weight:700;font-size:14px;padding:4px 10px;border-radius:6px;">${(emp.full_name || '').split(' ')[0]}</div>
-      <span style="color:#1a1a1a;font-weight:700;font-size:16px;">${emp.full_name}</span>
+      <div style="background:#f59e0b;color:#fff;font-weight:700;font-size:14px;padding:4px 10px;border-radius:6px;">${escapeHtml((emp.full_name || '').split(' ')[0])}</div>
+      <span style="color:#1a1a1a;font-weight:700;font-size:16px;">${escapeHtml(emp.full_name)}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
-      <tr><td style="padding:6px 0;color:#999;width:130px;border-bottom:1px solid #eee;">Puesto</td><td style="padding:6px 0;font-weight:600;color:#1a1a1a;border-bottom:1px solid #eee;">${emp.position || '-'}</td></tr>
+      <tr><td style="padding:6px 0;color:#999;width:130px;border-bottom:1px solid #eee;">Puesto</td><td style="padding:6px 0;font-weight:600;color:#1a1a1a;border-bottom:1px solid #eee;">${escapeHtml(emp.position || '-')}</td></tr>
       <tr><td style="padding:6px 0;color:#999;border-bottom:1px solid #eee;">Precio/hora</td><td style="padding:6px 0;font-weight:600;color:#1a1a1a;border-bottom:1px solid #eee;">${(emp.precioHora || 0).toFixed(2)} €</td></tr>
       <tr><td style="padding:6px 0;color:#999;border-bottom:1px solid #eee;">Salario base</td><td style="padding:6px 0;font-weight:600;color:#1a1a1a;border-bottom:1px solid #eee;">${(emp.base_salary || 0).toFixed(2)} €</td></tr>
       <tr><td style="padding:6px 0;color:#999;">Días fichados</td><td style="padding:6px 0;font-weight:600;color:#1a1a1a;">${monthEntries.length}</td></tr>
@@ -85,7 +95,7 @@ function buildEmployeeSection(emp, monthEntries, monthOvertimes, monthIncumplimi
       s += `<tr style="border-bottom:1px solid #eee;">
         <td style="padding:5px 6px;">${fmtDate(o.date)}</td>
         <td style="padding:5px 6px;text-align:center;">${(o.duration || 0).toFixed(1)}h</td>
-        <td style="padding:5px 6px;">${o.obra_motivo || '-'}</td>
+        <td style="padding:5px 6px;">${escapeHtml(o.obra_motivo || '-')}</td>
         <td style="padding:5px 6px;text-align:right;">${(o.total || 0).toFixed(2)} €</td>
       </tr>`;
     }
@@ -104,8 +114,8 @@ function buildEmployeeSection(emp, monthEntries, monthOvertimes, monthIncumplimi
     for (const i of monthIncumplimientos) {
       s += `<tr style="border-bottom:1px solid #eee;">
         <td style="padding:5px 6px;">${fmtDate(i.date)}</td>
-        <td style="padding:5px 6px;">${INCIDENT_LABELS[i.type] || i.type}</td>
-        <td style="padding:5px 6px;">${i.description || '-'}</td>
+        <td style="padding:5px 6px;">${escapeHtml(INCIDENT_LABELS[i.type] || i.type)}</td>
+        <td style="padding:5px 6px;">${escapeHtml(i.description || '-')}</td>
       </tr>`;
     }
     s += `</tbody></table>`;
@@ -125,10 +135,10 @@ function buildEmployeeSection(emp, monthEntries, monthOvertimes, monthIncumplimi
       </tr></thead><tbody>`;
     for (const j of monthJustificantes) {
       s += `<tr style="border-bottom:1px solid #eee;">
-        <td style="padding:5px 6px;">${JUSTIFICANTE_LABELS[j.type] || j.type}</td>
+        <td style="padding:5px 6px;">${escapeHtml(JUSTIFICANTE_LABELS[j.type] || j.type)}</td>
         <td style="padding:5px 6px;">${fmtDate(j.date_from)}</td>
         <td style="padding:5px 6px;">${fmtDate(j.date_to)}</td>
-        <td style="padding:5px 6px;">${j.reason || '-'}</td>
+        <td style="padding:5px 6px;">${escapeHtml(j.reason || '-')}</td>
       </tr>`;
     }
     s += `</tbody></table>`;
@@ -146,8 +156,8 @@ function buildEmployeeSection(emp, monthEntries, monthOvertimes, monthIncumplimi
     for (const w of monthWorkOrders) {
       s += `<tr style="border-bottom:1px solid #eee;">
         <td style="padding:5px 6px;">${fmtDate(w.date)}</td>
-        <td style="padding:5px 6px;">${w.client_name || '-'}</td>
-        <td style="padding:5px 6px;">${w.title || '-'}</td>
+        <td style="padding:5px 6px;">${escapeHtml(w.client_name || '-')}</td>
+        <td style="padding:5px 6px;">${escapeHtml(w.title || '-')}</td>
       </tr>`;
     }
     s += `</tbody></table>`;
