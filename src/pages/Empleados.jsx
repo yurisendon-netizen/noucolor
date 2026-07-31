@@ -32,7 +32,7 @@ export default function Empleados() {
     try {
       const result = await authInvoke('manageEmployee', {
         action: 'list',
-        
+
       });
       if (result.data?.success) {
         setEmployees(result.data.employees);
@@ -65,7 +65,7 @@ export default function Empleados() {
       const precioHora = parseFloat(form.precioHora) || 0;
       const result = await authInvoke('manageEmployee', {
         action: editing ? 'update' : 'create',
-        
+
         employeeId: editing?.id,
         data: {
           full_name: form.full_name,
@@ -149,7 +149,7 @@ export default function Empleados() {
     try {
       const result = await authInvoke('manageEmployee', {
         action: 'delete',
-        
+
         employeeId: deleteTarget.id,
       });
       if (result.data?.success) {
@@ -169,7 +169,6 @@ export default function Empleados() {
       'ID': e.id,
       'Nombre Completo': e.full_name,
       'Usuario': e.user,
-      'Contraseña': e.nss,
       'Cargo': e.role,
       'Precio Hora (€)': e.precioHora,
       'Salario Bruto (€)': e.base_salary,
@@ -198,7 +197,6 @@ export default function Empleados() {
     { key: 'id', label: 'ID', render: r => <span className="text-xs text-muted-foreground font-mono">{r.id?.slice(-6)}</span> },
     { key: 'full_name', label: 'Nombre Completo', render: r => <span className="font-medium">{r.full_name}</span> },
     { key: 'user', label: 'Usuario', render: r => <span className="text-xs font-mono">{r.user || '—'}</span> },
-    { key: 'pass', label: 'Contraseña', render: r => <span className="text-xs font-mono text-muted-foreground">{r.nss || '—'}</span> },
     { key: 'role', label: 'Cargo', render: r => (
       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleStyles[r.role] || roleStyles.operario}`}>{roleLabels[r.role] || r.role}</span>
     )},
