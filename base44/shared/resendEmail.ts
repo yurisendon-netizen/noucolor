@@ -38,8 +38,20 @@ export async function sendResendEmail({ to, subject, html }) {
   return data;
 }
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function buildWelcomeEmailHtml({ fullName, username, password }) {
-  const firstName = (fullName || '').split(' ')[0];
+  const firstName = escapeHtml((fullName || '').split(' ')[0]);
+  const safeUsername = escapeHtml(username);
+  const safePassword = escapeHtml(password);
 
   return `<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
   <div style="background:linear-gradient(90deg,#f59e0b 0%,#d97706 100%);height:4px;border-radius:2px;margin-bottom:20px;"></div>
@@ -51,8 +63,8 @@ export function buildWelcomeEmailHtml({ fullName, username, password }) {
   <p style="color:#666;font-size:14px;line-height:1.6;margin:0 0 20px;">Ya tienes acceso a la plataforma interna de Noucolor. Estas son tus credenciales:</p>
   <div style="background:#f9fafb;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:8px;">
     <table style="width:100%;font-size:14px;border-collapse:collapse;">
-      <tr><td style="padding:8px 0;color:#999;width:120px;">Usuario</td><td style="padding:8px 0;font-weight:700;color:#1a1a1a;">${username}</td></tr>
-      <tr><td style="padding:8px 0;color:#999;border-top:1px solid #eee;">Contraseña</td><td style="padding:8px 0;font-weight:700;color:#1a1a1a;border-top:1px solid #eee;">${password}</td></tr>
+      <tr><td style="padding:8px 0;color:#999;width:120px;">Usuario</td><td style="padding:8px 0;font-weight:700;color:#1a1a1a;">${safeUsername}</td></tr>
+      <tr><td style="padding:8px 0;color:#999;border-top:1px solid #eee;">Contraseña</td><td style="padding:8px 0;font-weight:700;color:#1a1a1a;border-top:1px solid #eee;">${safePassword}</td></tr>
     </table>
   </div>
   <p style="color:#999;font-size:12px;line-height:1.5;margin:16px 0 0;">Te recomendamos cambiar tu contraseña después del primer inicio de sesión.</p>
