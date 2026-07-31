@@ -78,16 +78,19 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
                   onClick={onClose}
                   title={collapsed ? item.label : undefined}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                    transition-all duration-200
-                    ${active 
-                      ? 'bg-primary/10 text-primary' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    transition-colors duration-150
+                    ${active
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
                     }
                     ${collapsed ? 'justify-center' : ''}
                   `}
                 >
-                  <Icon size={20} className="shrink-0" />
+                  {active && !collapsed && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-primary" aria-hidden="true" />
+                  )}
+                  <Icon size={20} className="shrink-0" strokeWidth={active ? 2.25 : 2} />
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               );
@@ -100,7 +103,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
             onClick={logout}
             className={`
               flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full
-              text-muted-foreground hover:text-foreground hover:bg-secondary transition-all
+              text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors
               ${collapsed ? 'justify-center' : ''}
             `}
           >
