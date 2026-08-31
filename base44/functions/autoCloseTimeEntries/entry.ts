@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { requireCronSecret } from '../../shared/cronAuth.ts';
 
 // Cierre automático de fichajes abiertos — misma lógica que
 // shared/timeEntryAutoClose.ts (usada por trackTime/autoCloseAll), duplicada
@@ -57,6 +58,8 @@ async function autoCloseAllOpenEntries(base44) {
 // ubicación mostrada en Geolocalización se congela con las coordenadas de
 // ese día.
 Deno.serve(async (req) => {
+  const unauthorized = await requireCronSecret(req);
+  if (unauthorized) return unauthorized;
   try {
     const base44 = createClientFromRequest(req);
     const closed = await autoCloseAllOpenEntries(base44);
