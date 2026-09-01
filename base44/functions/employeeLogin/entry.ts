@@ -35,15 +35,24 @@ function isHashed(pwd) {
   return isLegacyHash(pwd) || isSaltedHash(pwd);
 }
 
+// The password is the employee's CASS/DNI, whose trailing letter is conventionally
+// uppercase (e.g. "283634F"). Accept the password case-insensitively so a worker
+// typing the letter lowercase ("283634f") still logs in.
 async function verifyPassword(input, stored) {
-  if (isLegacyHash(stored)) {
-    return (await legacyHashPassword(input)) === stored;
+  const variants = [input];
+  const upper = input.toUpperCase();
+  if (upper !== input) variants.push(upper);
+  for (const v of variants) {
+    if (isLegacyHash(stored)) {
+      if ((await legacyHashPassword(v)) === stored) return true;
+    } else if (isSaltedHash(stored)) {
+      const salt = stored.split(':')[0];
+      if ((await hashPassword(v, salt)) === stored) return true;
+    } else if (v === stored) {
+      return true;
+    }
   }
-  if (isSaltedHash(stored)) {
-    const salt = stored.split(':')[0];
-    return (await hashPassword(input, salt)) === stored;
-  }
-  return input === stored;
+  return false;
 }
 
 Deno.serve(async (req) => {
