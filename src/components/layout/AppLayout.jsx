@@ -5,6 +5,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import KeepAliveOutlet from '@/components/layout/KeepAliveOutlet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png';
 
@@ -41,9 +42,12 @@ export default function AppLayout() {
         >
           <div className="flex items-center justify-between h-14 px-4">
             <img src={LOGO} alt="Noucolor" className="h-7 w-auto" />
-            <button onClick={() => setSidebarOpen(true)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground" aria-label="Abrir menú">
-              <Menu size={22} />
-            </button>
+            <div className="flex items-center gap-1">
+              {isAdmin && <NotificationBell />}
+              <button onClick={() => setSidebarOpen(true)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground" aria-label="Abrir menú">
+                <Menu size={22} />
+              </button>
+            </div>
           </div>
         </header>
         <main className={`flex-1 overscroll-none relative ${isMobile ? 'overflow-hidden' : 'overflow-y-auto'}`}>

@@ -5,6 +5,7 @@ import {
   CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: LayoutDashboard, adminOnly: false },
@@ -58,12 +59,15 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
             <img src="https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png" alt="Noucolor" className="h-9 w-auto" />
           )}
 
-          <button onClick={onClose} className="lg:hidden text-muted-foreground hover:text-foreground">
-            <X size={20} />
-          </button>
-          <button onClick={onToggleCollapse} className="hidden lg:block text-muted-foreground hover:text-foreground">
-            <ChevronLeft size={18} className={`transition-transform ${collapsed ? 'rotate-180' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1">
+            {isAdmin && !collapsed && <NotificationBell />}
+            <button onClick={onClose} className="lg:hidden text-muted-foreground hover:text-foreground">
+              <X size={20} />
+            </button>
+            <button onClick={onToggleCollapse} className="hidden lg:block text-muted-foreground hover:text-foreground">
+              <ChevronLeft size={18} className={`transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
