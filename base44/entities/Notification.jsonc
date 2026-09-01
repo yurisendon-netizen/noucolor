@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "name": "Notification",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "fichaje_entrada",
+        "fichaje_salida",
+        "parte_trabajo",
+        "hora_extra",
+        "justificante",
+        "nomina",
+        "geolocalizacion",
+        "jornada_abierta"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Empleado que gener\u00f3 el evento"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "type",
+    "title",
+    "message"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
