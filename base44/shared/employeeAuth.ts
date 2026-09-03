@@ -21,6 +21,15 @@ export async function generateSessionToken() {
   return { token, tokenHash };
 }
 
+// Código de seguridad (PIN de 4 dígitos): mismo formato de hash con sal única
+// que las contraseñas ('<salt>:<sha256(salt:pin)>'). Usado por manageEmployee
+// (acción 'setPin') para que el hash nunca salga del backend.
+export async function hashPin(pin, salt) {
+  const useSalt = salt || randomTokenHex(16);
+  const hash = await sha256Hex(`${useSalt}:${pin}`);
+  return `${useSalt}:${hash}`;
+}
+
 // Verifies a session token against the stored hash. Returns { employee, isAdmin } or null.
 export async function verifySession(base44, sessionToken) {
   if (!sessionToken || typeof sessionToken !== 'string') return null;

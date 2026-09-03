@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
-import { Plus, Edit, Trash2, Download, Users, UserPlus, Mail, Send } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Users, UserPlus, Mail, Send, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,6 +24,9 @@ export default function Empleados() {
   const [editing, setEditing] = useState(null);
   const [resendAllOpen, setResendAllOpen] = useState(false);
   const [resendingAll, setResendingAll] = useState(false);
+  const [pinTarget, setPinTarget] = useState(null);
+  const [pinValue, setPinValue] = useState('');
+  const [pinSaving, setPinSaving] = useState(false);
   const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, user: '', pass: '' });
 
   useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
@@ -151,6 +154,29 @@ export default function Empleados() {
     }
   }
 
+  async function handleAssignPin() {
+    if (!/^\d{4}$/.test(pinValue)) {
+      toast({ title: 'El PIN debe tener 4 dígitos', variant: 'destructive' });
+      return;
+    }
+    setPinSaving(true);
+    try {
+      const result = await authInvoke('manageEmployee', { action: 'setPin', employeeId: pinTarget.id, data: { pin: pinValue } });
+      if (result.data?.success) {
+        toast({ variant: 'success', title: `PIN asignado a ${pinTarget.full_name}` });
+        setPinTarget(null);
+        setPinValue('');
+        loadEmployees();
+      } else {
+        toast({ title: result.data?.error || 'Error', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error al asignar el PIN', variant: 'destructive' });
+    } finally {
+      setPinSaving(false);
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
@@ -265,6 +291,9 @@ export default function Empleados() {
             <Button variant="ghost" size="sm" onClick={() => handleResendWelcome(row)} className="text-primary hover:bg-primary/10" title="Reenviar credenciales por correo">
               <Mail size={16} />
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setPinTarget(row); setPinValue(''); }} className="text-amber-400 hover:bg-amber-500/10" title="Asignar código de seguridad (PIN)">
+              <KeyRound size={16} />
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => openEdit(row)} className="text-blue-400 hover:bg-blue-500/10">
               <Edit size={16} />
             </Button>
@@ -306,6 +335,33 @@ export default function Empleados() {
             </div>
             <Button onClick={handleSave} disabled={!form.full_name || !form.email || (!editing && (!form.user || !form.pass))} className="w-full h-11">
               {editing ? 'Guardar Cambios' : 'Crear Empleado'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pinTarget} onOpenChange={(open) => { if (!open) { setPinTarget(null); setPinValue(''); } }}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader><DialogTitle>Asignar código de seguridad</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">
+              PIN de 4 dígitos para <strong className="text-foreground">{pinTarget?.full_name}</strong>. A partir de ahora entrará solo con su usuario + este PIN (la contraseña dejará de servir).
+            </p>
+            <div className="flex gap-2">
+              <Input
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="0000"
+                value={pinValue}
+                onChange={e => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="bg-secondary border-border text-center text-lg tracking-[0.5em]"
+              />
+              <Button variant="outline" onClick={() => setPinValue(String(Math.floor(1000 + Math.random() * 9000)))} className="border-border shrink-0">
+                Generar
+              </Button>
+            </div>
+            <Button onClick={handleAssignPin} disabled={pinSaving || pinValue.length !== 4} className="w-full h-11">
+              {pinSaving ? 'Guardando…' : 'Asignar PIN'}
             </Button>
           </div>
         </DialogContent>

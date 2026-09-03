@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { verifySession } from '../../shared/employeeAuth.ts';
+import { verifySession, hashPin } from '../../shared/employeeAuth.ts';
 import { sendResendEmail, buildWelcomeEmailHtml } from '../../shared/resendEmail.ts';
 
 function randomSaltHex(bytes = 16) {
@@ -110,6 +110,17 @@ Deno.serve(async (req) => {
       const found = await base44.asServiceRole.entities.Employee.filter({ id: employeeId });
       if (found.length === 0) return Response.json({ error: 'Empleado no encontrado' }, { status: 404 });
       await base44.asServiceRole.entities.Employee.update(employeeId, { is_active: !found[0].is_active });
+      return Response.json({ success: true });
+    }
+
+    // Asignar o cambiar el código de seguridad (PIN) directamente desde el panel
+    // de Gestión de Empleados, sin que el empleado tenga que loguearse antes
+    // con contraseña. A partir de aquí solo entra con usuario + PIN.
+    if (action === 'setPin') {
+      if (!employeeId) return Response.json({ error: 'Falta employeeId' }, { status: 400 });
+      const pin = String(data?.pin || '');
+      if (!/^\d{4}$/.test(pin)) return Response.json({ error: 'El PIN debe tener exactamente 4 dígitos' }, { status: 400 });
+      await base44.asServiceRole.entities.Employee.update(employeeId, { pin_hash: await hashPin(pin) });
       return Response.json({ success: true });
     }
 
