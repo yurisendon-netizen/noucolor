@@ -40,7 +40,12 @@ export default function CodigoSeguridad() {
       });
       if (res.data?.success) {
         sessionStorage.setItem('noucolor_pin_ok', '1');
-        toast({ title: 'Código de seguridad guardado' });
+        toast({
+          title: 'Código de seguridad guardado',
+          description: hasPin
+            ? undefined
+            : 'A partir de ahora entrarás solo con tu código, sin contraseña.',
+        });
         navigate('/');
       } else {
         setStep('current');

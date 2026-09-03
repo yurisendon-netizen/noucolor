@@ -125,7 +125,9 @@ Deno.serve(async (req) => {
 
       const newPassword = randomPassword();
       const newHash = await hashPassword(newPassword);
-      await base44.asServiceRole.entities.Employee.update(employeeId, { pass: newHash });
+      // Al reenviar credenciales se resetea también el código de seguridad:
+      // el empleado entra con la contraseña nueva y vuelve a registrar su PIN.
+      await base44.asServiceRole.entities.Employee.update(employeeId, { pass: newHash, pin_hash: null });
       const datos = await base44.asServiceRole.entities.DatosTrabajador.filter({ employee_id: employeeId });
       if (datos.length > 0) {
         await base44.asServiceRole.entities.DatosTrabajador.update(datos[0].id, { pass: newHash });
@@ -153,7 +155,7 @@ Deno.serve(async (req) => {
         try {
           const newPassword = randomPassword();
           const newHash = await hashPassword(newPassword);
-          await base44.asServiceRole.entities.Employee.update(emp.id, { pass: newHash });
+          await base44.asServiceRole.entities.Employee.update(emp.id, { pass: newHash, pin_hash: null });
           const datos = await base44.asServiceRole.entities.DatosTrabajador.filter({ employee_id: emp.id });
           if (datos.length > 0) {
             await base44.asServiceRole.entities.DatosTrabajador.update(datos[0].id, { pass: newHash });

@@ -55,12 +55,27 @@ async function verifyPassword(input, stored) {
   return false;
 }
 
+// Código de seguridad (PIN de 4 dígitos): mismo formato de hash con sal única
+// que las contraseñas ('<salt>:<sha256(salt:pin)>').
+async function hashPin(pin, salt) {
+  const useSalt = salt || randomSaltHex();
+  const data = new TextEncoder().encode(`${useSalt}:${pin}`);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${useSalt}:${hex}`;
+}
+async function verifyPin(input, stored) {
+  if (typeof stored !== 'string' || !stored.includes(':')) return false;
+  const salt = stored.split(':')[0];
+  return (await hashPin(input, salt)) === stored;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { username, password } = await req.json();
+    const { username, password, pin } = await req.json();
 
-    if (!username || !password) {
+    if (!username || (!password && !pin)) {
       return Response.json({ success: false }, { status: 400 });
     }
 
@@ -74,6 +89,23 @@ Deno.serve(async (req) => {
 
     if (!emp) {
       return Response.json({ success: false });
+    }
+
+    // Login con código de seguridad: única credencial válida una vez el
+    // empleado ha registrado su PIN (la contraseña queda desactivada).
+    if (pin) {
+      if (!emp.pin_hash || !(await verifyPin(String(pin), emp.pin_hash))) {
+        return Response.json({ success: false });
+      }
+      const { token: pinSessionToken, tokenHash: pinTokenHash } = await generateSessionToken();
+      await base44.asServiceRole.entities.Employee.update(emp.id, { session_token: pinTokenHash });
+      const { pass, session_token, pin_hash, ...pinSafeEmployee } = emp;
+      return Response.json({ success: true, employee: { ...pinSafeEmployee, pin_set: true }, sessionToken: pinSessionToken });
+    }
+
+    // Login con contraseña: rechazado si el empleado ya tiene PIN registrado.
+    if (emp.pin_hash) {
+      return Response.json({ success: false, pin_required: true });
     }
     const valid = await verifyPassword(password, emp.pass);
     if (!valid) {

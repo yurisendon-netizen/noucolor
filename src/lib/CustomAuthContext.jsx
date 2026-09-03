@@ -86,8 +86,16 @@ export function CustomAuthProvider({ children }) {
     }
   }, []);
 
-  async function login(username, password) {
-    const result = await base44.functions.invoke('employeeLogin', { username, password });
+  // pin=true → la credencial es el código de seguridad (PIN), no la contraseña
+  async function login(username, credential, { pin = false } = {}) {
+    const payload = pin ? { username, pin: credential } : { username, password: credential };
+    const result = await base44.functions.invoke('employeeLogin', payload);
+    // Empleado migrado al código de seguridad: su contraseña ya no vale para entrar
+    if (!pin && result.data?.pin_required) {
+      const err = new Error('PIN_REQUIRED');
+      err.pinRequired = true;
+      throw err;
+    }
     if (result.data?.success) {
       localStorage.setItem(KEYS.empId, result.data.employee.id);
       localStorage.setItem(KEYS.token, result.data.sessionToken);
