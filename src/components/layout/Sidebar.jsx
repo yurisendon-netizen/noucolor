@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Clock, FileText, ShieldCheck, Users,
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, User
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
@@ -22,6 +22,8 @@ const navItems = [
   { path: '/empleados', label: 'Empleados', icon: Users, adminOnly: true },
 
   { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false },
+
+  { path: '/perfil', label: 'Perfil', icon: User, adminOnly: false },
 ];
 
 export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
@@ -82,7 +84,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
                   onClick={onClose}
                   title={collapsed ? item.label : undefined}
                   className={`
-                    relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    relative flex items-center gap-3 px-3 py-3.5 rounded-lg text-sm font-medium
                     transition-colors duration-150
                     ${active
                       ? 'text-primary'

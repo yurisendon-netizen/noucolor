@@ -1,17 +1,19 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Clock, FileText, Users } from 'lucide-react';
+import { LayoutDashboard, Clock, FileText, Users, User } from 'lucide-react';
 
 const defaultTabs = [
   { path: '/', label: 'Inicio', icon: LayoutDashboard },
   { path: '/control-horario', label: 'Horario', icon: Clock },
   { path: '/partes-trabajo', label: 'Partes', icon: FileText },
+  { path: '/perfil', label: 'Perfil', icon: User },
 ];
 
 const jefeTabs = [
   { path: '/', label: 'Inicio', icon: LayoutDashboard },
   { path: '/partes-trabajo', label: 'Partes', icon: FileText },
   { path: '/empleados', label: 'Equipo', icon: Users },
+  { path: '/perfil', label: 'Perfil', icon: User },
 ];
 
 export default function BottomTabs({ isJefe }) {
