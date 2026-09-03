@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     );
 
     if (!emp) {
-      return Response.json({ success: false, debug: { buscado: username, activos: activeEmployees.map(e => e.user) } });
+      return Response.json({ success: false });
     }
     const valid = await verifyPassword(password, emp.pass);
     if (!valid) {
