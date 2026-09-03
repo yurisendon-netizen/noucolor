@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
       }
       const merged = employees.map(emp => {
         const d = datosByEmpId[emp.id] || datosByName[(emp.full_name || '').toLowerCase().trim()];
-        const { pass, session_token, ...safeEmp } = emp;
-        return { ...safeEmp, iban: d?.iban || emp.iban || null };
+        const { pass, session_token, pin_hash, ...safeEmp } = emp;
+        return { ...safeEmp, pin_set: !!pin_hash, iban: d?.iban || emp.iban || null };
       });
       return Response.json({ success: true, employees: merged });
     }
@@ -96,8 +96,8 @@ Deno.serve(async (req) => {
       if (!employeeId) return Response.json({ error: 'Falta employeeId' }, { status: 400 });
       const found = await base44.asServiceRole.entities.Employee.filter({ id: employeeId });
       if (found.length === 0) return Response.json({ error: 'Empleado no encontrado' }, { status: 404 });
-      const { pass, session_token, ...safeEmployee } = found[0];
-      return Response.json({ success: true, employee: safeEmployee });
+      const { pass, session_token, pin_hash, ...safeEmployee } = found[0];
+      return Response.json({ success: true, employee: { ...safeEmployee, pin_set: !!pin_hash } });
     }
 
     if (action === 'listDatos') {

@@ -61,6 +61,10 @@
       "type": "string",
       "description": "Contrasenya"
     },
+    "pin_hash": {
+      "type": "string",
+      "description": "Hash del codi de seguretat (PIN de 4 d\u00edgits) \u2014 mai el codi en clar"
+    },
     "precioHora": {
       "type": "number",
       "description": "Preu per hora (\u20ac)",

@@ -22,9 +22,10 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const success = await login(username, password);
-      if (success) {
-        navigate('/');
+      const emp = await login(username, password);
+      if (emp) {
+        // Primera vez sin código de seguridad → pantalla para crearlo (estilo Armo)
+        navigate(emp.pin_set === false ? '/codigo-seguridad' : '/');
       } else {
         setError('Usuario o contraseña incorrectos');
       }

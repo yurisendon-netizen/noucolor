@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     );
 
     if (!emp) {
-      return Response.json({ success: false });
+      return Response.json({ success: false, debug: { buscado: username, activos: activeEmployees.map(e => e.user) } });
     }
     const valid = await verifyPassword(password, emp.pass);
     if (!valid) {
@@ -94,9 +94,10 @@ Deno.serve(async (req) => {
     const { token: sessionToken, tokenHash } = await generateSessionToken();
     await base44.asServiceRole.entities.Employee.update(emp.id, { session_token: tokenHash });
 
-    // Return employee data without the password or session token hash
-    const { pass, session_token, ...safeEmployee } = emp;
-    return Response.json({ success: true, employee: safeEmployee, sessionToken });
+    // Return employee data without the password, PIN or session token hash.
+    // pin_set indica al cliente si el empleado ya tiene código de seguridad.
+    const { pass, session_token, pin_hash, ...safeEmployee } = emp;
+    return Response.json({ success: true, employee: { ...safeEmployee, pin_set: !!pin_hash }, sessionToken });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

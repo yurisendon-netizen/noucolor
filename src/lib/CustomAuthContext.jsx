@@ -20,6 +20,7 @@ function clearSessionStorage() {
   localStorage.removeItem(KEYS.token);
   localStorage.removeItem(KEYS.cache);
   localStorage.removeItem('noucolor_session');
+  sessionStorage.removeItem('noucolor_pin_ok');
 }
 
 export function CustomAuthProvider({ children }) {
@@ -27,6 +28,9 @@ export function CustomAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // El desbloqueo con código de seguridad solo vale para la carga actual:
+    // al reabrir la app se vuelve a pedir el código (si el empleado tiene uno).
+    sessionStorage.removeItem('noucolor_pin_ok');
     const savedId = localStorage.getItem(KEYS.empId);
     const sessionToken = localStorage.getItem(KEYS.token);
     const cached = localStorage.getItem(KEYS.cache);
@@ -89,10 +93,12 @@ export function CustomAuthProvider({ children }) {
       localStorage.setItem(KEYS.token, result.data.sessionToken);
       localStorage.setItem(KEYS.cache, JSON.stringify(result.data.employee));
       localStorage.setItem('noucolor_session', 'active');
+      // Acabar de iniciar sesión con credenciales ya autentica: no se pide el código.
+      sessionStorage.setItem('noucolor_pin_ok', '1');
       setEmployee(result.data.employee);
-      return true;
+      return result.data.employee;
     }
-    return false;
+    return null;
   }
 
   function logout() {

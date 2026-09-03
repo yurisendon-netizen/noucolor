@@ -6,13 +6,17 @@ import KeepAliveOutlet from '@/components/layout/KeepAliveOutlet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import PinLock from '@/components/pin/PinLock';
 
 const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png';
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { isAdmin, isJefe, loading } = useEmployeeProfile();
+  const { employee, isAdmin, isJefe, loading } = useEmployeeProfile();
+  const [pinUnlocked, setPinUnlocked] = useState(
+    () => sessionStorage.getItem('noucolor_pin_ok') === '1'
+  );
   const isMobile = useIsMobile();
   const keepAlivePaths = isJefe
     ? ['/', '/partes-trabajo', '/empleados']
@@ -23,6 +27,19 @@ export default function AppLayout() {
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
       </div>
+    );
+  }
+
+  // Pantalla de bloqueo: al reabrir la app con sesión guardada se pide el
+  // código de seguridad (si el empleado tiene uno configurado).
+  if (employee && employee.pin_set === true && !pinUnlocked) {
+    return (
+      <PinLock
+        onUnlock={() => {
+          sessionStorage.setItem('noucolor_pin_ok', '1');
+          setPinUnlocked(true);
+        }}
+      />
     );
   }
 
