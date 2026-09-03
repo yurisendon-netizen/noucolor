@@ -1,9 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { requireCronSecret } from '../../shared/cronAuth.ts';
 
 // Disparada por automatizaciones de entidad (create/update) sobre TimeEntry,
 // WorkOrder, OvertimeHour, Justificante, Payroll y EmployeeLocation. Crea un
 // registro en Notification para el centro de notificaciones de admins. No
-// requiere sesión de usuario: corre en service role a partir del propio evento.
+// requiere sesión de usuario: corre en service role a partir del propio evento,
+// pero SÍ exige el secreto de automatización (entregado por la automatización vía
+// function_args) — sin él, nadie puede inyectar notificaciones desde fuera.
 
 const JUSTIFICANTE_LABELS = {
   baja_medica: 'Baja médica',
@@ -25,6 +28,11 @@ async function createNotification(base44, n) {
 
 Deno.serve(async (req) => {
   try {
+    // Solo la automatización de la plataforma puede llamar aquí: sin el secreto
+    // la petición se rechaza con 401 antes de tocar la base de datos.
+    const unauthorized = await requireCronSecret(req);
+    if (unauthorized) return unauthorized;
+
     const base44 = createClientFromRequest(req);
     const payload = await req.json();
     const event = payload.event || {};
