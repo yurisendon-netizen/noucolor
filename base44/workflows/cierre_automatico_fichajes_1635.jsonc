@@ -1,0 +1,46 @@
+{
+  "name": "cierre_automatico_fichajes_1635",
+  "description": "Cierra los fichajes que sigan abiertos a las 16:35 hora de Andorra (UTC+2 verano) y desactiva su geolocalizaci\u00f3n, para que no se queden colgados si nadie abri\u00f3 la app pasada la ventana de salida",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "35 14 * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "cierre_automatico_fichajes_1635",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "autoCloseTimeEntries",
+            "args": {
+              "cron_secret": "ncr_cron_9f3c7a1e8b2d4f6a0c5e9b7d3f1a8c6e4b7d2f0a"
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "autoCloseTimeEntries"
+  }
+}

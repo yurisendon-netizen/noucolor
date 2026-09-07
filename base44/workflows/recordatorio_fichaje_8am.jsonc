@@ -1,0 +1,46 @@
+{
+  "name": "recordatorio_fichaje_8am",
+  "description": "Recuerda fichar entrada a las 8:00 hora de Andorra (UTC+2 verano) en d\u00edas laborables",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 6 * * 1-5",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "recordatorio_fichaje_8am",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyMissingClockIn",
+            "args": {
+              "cron_secret": "ncr_cron_9f3c7a1e8b2d4f6a0c5e9b7d3f1a8c6e4b7d2f0a"
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "notifyMissingClockIn"
+  }
+}
