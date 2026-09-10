@@ -13,7 +13,7 @@ const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { employee, isJefe, loading } = useEmployeeProfile();
+  const { employee, isAdmin, isJefe, loading } = useEmployeeProfile();
   const [pinUnlocked, setPinUnlocked] = useState(
     () => sessionStorage.getItem('noucolor_pin_ok') === '1'
   );
