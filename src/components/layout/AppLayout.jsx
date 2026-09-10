@@ -13,7 +13,7 @@ const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { employee, isAdmin, isJefe, loading } = useEmployeeProfile();
+  const { employee, isJefe, loading } = useEmployeeProfile();
   const [pinUnlocked, setPinUnlocked] = useState(
     () => sessionStorage.getItem('noucolor_pin_ok') === '1'
   );
@@ -60,13 +60,18 @@ export default function AppLayout() {
           <div className="flex items-center justify-between h-14 px-4">
             <img src={LOGO} alt="Noucolor" className="h-7 w-auto" />
             <div className="flex items-center gap-1">
-              {isAdmin && <NotificationBell />}
+              <NotificationBell />
               <button onClick={() => setSidebarOpen(true)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground" aria-label="Abrir menú">
                 <Menu size={22} />
               </button>
             </div>
           </div>
         </header>
+
+        <header className="hidden lg:flex h-14 items-center justify-end px-4 bg-sidebar border-b border-border shrink-0">
+          <NotificationBell />
+        </header>
+
         <main className={`flex-1 overscroll-none relative ${isMobile ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           {isMobile ? (
             <KeepAliveOutlet keepAlivePaths={keepAlivePaths} />

@@ -13,29 +13,42 @@ Deno.serve(async (req) => {
 
     const session = await verifySession(base44, sessionToken);
     if (!session) return Response.json({ error: 'No autorizado' }, { status: 401 });
-    if (!session.isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+
+    // Los admins ven todas las notificaciones (centro de notificaciones / log).
+    // Los operarios ven SOLO las suyas (mismo employee_id): como todo tipo de
+    // notificación lleva employee_id, el filtro aísla a cada trabajador y nunca
+    // le llega nada destinado a otro empleado o genérico de admin.
+    const callerEmployeeId = session.employee.id;
+    const isAdmin = session.isAdmin;
+    const ownOnly = (n) => isAdmin || (n.employee_id && n.employee_id === callerEmployeeId);
 
     switch (operation) {
       case 'list': {
         const data = await base44.asServiceRole.entities.Notification.list('-created_date', 50);
-        return Response.json({ success: true, notifications: data });
+        return Response.json({ success: true, notifications: data.filter(ownOnly) });
       }
       case 'unreadCount': {
         const data = await base44.asServiceRole.entities.Notification.filter({ read: false });
-        return Response.json({ success: true, count: data.length });
+        return Response.json({ success: true, count: data.filter(ownOnly).length });
       }
       case 'markRead': {
         const { id } = body;
         if (!id) return Response.json({ error: 'Falta id' }, { status: 400 });
+        const found = await base44.asServiceRole.entities.Notification.filter({ id });
+        if (found.length === 0) return Response.json({ error: 'No encontrada' }, { status: 404 });
+        if (!isAdmin && found[0].employee_id !== callerEmployeeId) {
+          return Response.json({ error: 'Prohibido' }, { status: 403 });
+        }
         await base44.asServiceRole.entities.Notification.update(id, { read: true });
         return Response.json({ success: true });
       }
       case 'markAllRead': {
         const unread = await base44.asServiceRole.entities.Notification.filter({ read: false });
-        for (const n of unread) {
+        const mine = unread.filter(ownOnly);
+        for (const n of mine) {
           await base44.asServiceRole.entities.Notification.update(n.id, { read: true });
         }
-        return Response.json({ success: true, updated: unread.length });
+        return Response.json({ success: true, updated: mine.length });
       }
       default:
         return Response.json({ error: 'Operación no válida' }, { status: 400 });

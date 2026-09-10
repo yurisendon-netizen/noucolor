@@ -5,7 +5,6 @@ import {
   CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, User
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
-import NotificationBell from '@/components/notifications/NotificationBell';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: LayoutDashboard, adminOnly: false },
@@ -62,7 +61,6 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
           )}
 
           <div className="flex items-center gap-1">
-            {isAdmin && !collapsed && <NotificationBell />}
             <button onClick={onClose} className="lg:hidden text-muted-foreground hover:text-foreground">
               <X size={20} />
             </button>
