@@ -38,21 +38,10 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, date: today, sent: 0, message: 'Todos los empleados ya han fichado' });
     }
 
-    // Empareja cada empleado con su usuario de plataforma por email. SendPushNotification
-    // envía a un usuario de plataforma (user_id), no a un registro de Employee: el id de
-    // Employee y el id de usuario de plataforma son distintos, así que el cruce se hace
-    // por email. Solo los empleados que además son usuarios de plataforma (y con la app
-    // nativa instalada + notificaciones activadas) recibirán el push; el resto recibe
-    // solo el email. Hoy solo Yuri (jefe, exento) y Andrea son usuarios de plataforma,
-    // así que de momento el push solo llega a Andrea; cuando el resto de operarios sean
-    // usuarios de plataforma, empezarán a recibirlo automáticamente.
-    const platformUsers = await base44.asServiceRole.entities.User.list();
-    const emailToUserId = new Map(
-      platformUsers
-        .filter(u => u.email)
-        .map(u => [u.email.toLowerCase(), u.id])
-    );
-
+    // El push de recordatorio ahora lo envía onesignalClockInReminder (vía API REST
+    // de OneSignal con external_user_id = id del empleado). Este workflow conserva
+    // únicamente el email de recordatorio al trabajador, sin push de plataforma,
+    // para no duplicar notificaciones a las 08:00.
     const results = [];
     for (const emp of pending) {
       const html = `<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
@@ -82,31 +71,11 @@ Deno.serve(async (req) => {
         emailError = err.message;
       }
 
-      // Push de recordatorio (solo a usuarios de plataforma). Al pulsarlo abre la
-      // app directamente en la pantalla de fichaje (/control-horario).
-      let push = { sent: false, reason: 'sin usuario de plataforma' };
-      const platformUserId = emailToUserId.get((emp.email || '').toLowerCase());
-      if (platformUserId) {
-        try {
-          await base44.asServiceRole.integrations.Core.SendPushNotification({
-            user_id: platformUserId,
-            title: '⏰ Recuerda fichar tu entrada',
-            content: `Hola ${(emp.full_name || '').split(' ')[0]}, todavía no hemos registrado tu entrada de hoy. Ficha antes de las 8:30 para evitar una incidencia.`,
-            action_label: 'Fichar ahora',
-            action_url: '/control-horario'
-          });
-          push = { sent: true };
-        } catch (err) {
-          push = { sent: false, error: err.message };
-        }
-      }
-
       results.push({
         name: emp.full_name,
         email: emp.email,
         sent: emailSent,
-        ...(emailError ? { emailError } : {}),
-        push
+        ...(emailError ? { emailError } : {})
       });
     }
 
@@ -114,7 +83,6 @@ Deno.serve(async (req) => {
       success: true,
       date: today,
       sent: results.filter(r => r.sent).length,
-      pushed: results.filter(r => r.push?.sent).length,
       results
     });
   } catch (error) {
