@@ -50,7 +50,25 @@ Deno.serve(async (req) => {
         content: 'No has fichado tu entrada todavía',
         data: { target_url: '/control-horario', url: '/control-horario' }
       });
-      results.push({ id: emp.id, name: emp.full_name, push });
+
+      // Registro en el centro de notificaciones interno (campanita), con los
+      // mismos campos que usa el envío manual desde el panel de admin.
+      let inApp = { created: false };
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          type: 'fichaje_entrada',
+          employee_id: emp.id,
+          employee_name: emp.full_name,
+          title: 'Recordatorio de fichaje',
+          message: 'Recuerda fichar tu entrada antes de las 8:30 para evitar incidencias.',
+          read: false
+        });
+        inApp = { created: true };
+      } catch (err) {
+        inApp = { created: false, error: err.message };
+      }
+
+      results.push({ id: emp.id, name: emp.full_name, push, inApp });
     }
 
     return Response.json({
@@ -59,6 +77,7 @@ Deno.serve(async (req) => {
       checked: recipients.length,
       pending: pending.length,
       pushed: results.filter(r => r.push?.sent).length,
+      notified: results.filter(r => r.inApp?.created).length,
       results
     });
   } catch (error) {

@@ -60,7 +60,24 @@ Deno.serve(async (req) => {
         data: { target_url: '/control-horario', url: '/control-horario' }
       });
 
-      results.push({ id: emp.id, name: emp.full_name, registered: true, push });
+      // Registro en el centro de notificaciones interno (campanita), con los
+      // mismos campos que usa el envío manual desde el panel de admin.
+      let inApp = { created: false };
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          type: 'fichaje_entrada',
+          employee_id: emp.id,
+          employee_name: emp.full_name,
+          title: 'Falta de fichaje registrada',
+          message: 'Se ha registrado una incidencia por no fichar tu entrada antes de las 08:30.',
+          read: false
+        });
+        inApp = { created: true };
+      } catch (err) {
+        inApp = { created: false, error: err.message };
+      }
+
+      results.push({ id: emp.id, name: emp.full_name, registered: true, push, inApp });
     }
 
     return Response.json({
@@ -68,6 +85,7 @@ Deno.serve(async (req) => {
       date: today,
       pending: pending.length,
       registered: results.filter(r => r.registered).length,
+      notified: results.filter(r => r.inApp?.created).length,
       results
     });
   } catch (error) {
