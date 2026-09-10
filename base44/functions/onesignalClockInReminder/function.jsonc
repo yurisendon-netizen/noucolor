@@ -1,0 +1,15 @@
+{
+  "name": "onesignalClockInReminder",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "type": "scheduled",
+      "name": "onesignal_recordatorio_fichaje_0800",
+      "description": "Push OneSignal 'Recuerda fichar' a operarios activos sin entrada a las 08:00 hora de Andorra (UTC+2 verano)",
+      "is_active": true,
+      "schedule_mode": "recurring",
+      "schedule_type": "cron",
+      "cron_expression": "0 6 * * 1-5"
+    }
+  ]
+}

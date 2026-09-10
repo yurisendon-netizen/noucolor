@@ -1,0 +1,15 @@
+{
+  "name": "registerClockInAbsence",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "type": "scheduled",
+      "name": "onesignal_registro_falta_fichaje_0830",
+      "description": "Registra Incumplimiento (sin_fichar) para operarios sin entrada a las 08:30 hora de Andorra (UTC+2 verano) y avisa por push de OneSignal",
+      "is_active": true,
+      "schedule_mode": "recurring",
+      "schedule_type": "cron",
+      "cron_expression": "30 6 * * 1-5"
+    }
+  ]
+}
