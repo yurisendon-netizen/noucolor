@@ -125,6 +125,27 @@ export default function ControlHorario() {
     }
   }
 
+  // Traduce un error de navigator.geolocation a un mensaje claro en español
+  // para el operario (permiso denegado / GPS apagado / timeout). Devuelve null
+  // si el error no es de geolocalización (p.ej. un fallo de red del servidor).
+  function geoErrorMessage(e) {
+    if (!e) return null;
+    if (typeof e.code === 'number' && e.code >= 1 && e.code <= 3) {
+      if (e.code === 1) {
+        return 'No hemos podido obtener tu ubicación porque el permiso está denegado. Ve a Ajustes de tu móvil → Apps → Noucolor → Permisos → Ubicación → Permitir, y vuelve a intentar fichar.';
+      }
+      if (e.code === 3) {
+        return 'No hemos podido obtener tu ubicación (tiempo agotado). Asegúrate de tener el GPS activado y buena señal, e inténtalo de nuevo.';
+      }
+      // code 2 — POSITION_UNAVAILABLE: GPS apagado o sin señal
+      return 'No hemos podido obtener tu ubicación. Activa el GPS de tu móvil (Ajustes → Ubicación → Activar) con buena señal y vuelve a intentar fichar.';
+    }
+    if (typeof e.message === 'string' && /geolocalización no disponible/i.test(e.message)) {
+      return 'Tu dispositivo no admite geolocalización: necesitas un móvil con GPS para fichar.';
+    }
+    return null;
+  }
+
   function getLocation() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) return reject(new Error('Geolocalización no disponible'));
@@ -158,7 +179,8 @@ export default function ControlHorario() {
 
       loadEntries();
     } catch (e) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      const geoMsg = geoErrorMessage(e);
+      toast({ title: geoMsg ? 'Ubicación necesaria' : 'Error al fichar', description: geoMsg || e.message, variant: 'destructive' });
     } finally {
       setClockingIn(false);
     }
@@ -188,7 +210,8 @@ export default function ControlHorario() {
       }
       loadEntries();
     } catch (e) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      const geoMsg = geoErrorMessage(e);
+      toast({ title: geoMsg ? 'Ubicación necesaria' : 'Error al fichar', description: geoMsg || e.message, variant: 'destructive' });
     } finally {
       setClockingOut(false);
     }
