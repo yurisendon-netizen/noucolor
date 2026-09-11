@@ -130,6 +130,7 @@ export default function RevisionJornadas() {
           <DataTable
             data={entries}
             columns={entryColumns}
+            pageSize={50}
             searchField={['employee_name', 'date']}
             filterField="status"
             filterOptions={[
@@ -144,6 +145,7 @@ export default function RevisionJornadas() {
           <DataTable
             data={incumplimientos}
             columns={incColumns}
+            pageSize={50}
             searchField={['employee_name', 'date']}
             filterField="type"
             filterOptions={[

@@ -99,28 +99,44 @@ export default function DataTable({
           </div>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm text-muted-foreground pt-2">
+          <span className="font-medium">
+            Mostrando {filtered.length === 0 ? 0 : page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} de {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(0)}
+                disabled={page === 0}
+                className="h-9 px-3 rounded-lg border border-border bg-secondary hover:bg-secondary/80 disabled:opacity-30 transition-colors text-xs font-medium"
+              >
+                Primera
+              </button>
               <button
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="p-1.5 rounded-lg hover:bg-secondary disabled:opacity-30 transition-colors"
+                className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-border bg-secondary hover:bg-secondary/80 disabled:opacity-30 transition-colors"
               >
                 <ChevronLeft size={16} />
               </button>
-              <span>{page + 1} / {totalPages}</span>
+              <span className="px-3 font-semibold text-foreground tabular-nums">{page + 1} / {totalPages}</span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="p-1.5 rounded-lg hover:bg-secondary disabled:opacity-30 transition-colors"
+                className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-border bg-secondary hover:bg-secondary/80 disabled:opacity-30 transition-colors"
               >
                 <ChevronRight size={16} />
               </button>
+              <button
+                onClick={() => setPage(totalPages - 1)}
+                disabled={page >= totalPages - 1}
+                className="h-9 px-3 rounded-lg border border-border bg-secondary hover:bg-secondary/80 disabled:opacity-30 transition-colors text-xs font-medium"
+              >
+                Última
+              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </PullToRefresh>
   );
