@@ -201,14 +201,16 @@ export default function ControlHorario() {
   const todayEntry = entries.find(e => e.date === today);
   const hasClosedToday = todayEntry && todayEntry.status === 'cerrado';
   const hasAbsenceToday = todayEntry && todayEntry.status === 'ausencia_injustificada';
-  // Entry window: 7:45 - 8:30 (falta fires at 8:30)
-  const inEntryWindow = (hour === 7 && minutes >= 45) || (hour === 8 && minutes < 30);
+  // Un operario puede fichar su entrada en CUALQUIER momento del día: la falta
+  // por no fichar antes de las 8:30 (Incumplimiento sin_fichar del cron) es solo
+  // informativa y NO debe bloquear el fichaje real. El servidor ya marca
+  // isLate/entrada_tardia y bloquea el descanso 12:30-13:00 por su cuenta.
   const showBanner = hour === 8 && minutes < 30 && !openEntry && !hasAbsenceToday;
-  const canClockIn = !openEntry && !hasClosedToday && !hasAbsenceToday && inEntryWindow;
+  const canClockIn = !openEntry && !hasClosedToday;
   // Exit window: 16:00 - 16:30
   const inExitWindow = hour === 16 && minutes <= 30;
   const canClockOut = !!openEntry && inExitWindow;
-  const showProximo = !openEntry && !canClockIn && !hasAbsenceToday;
+  const showProximo = !openEntry && !canClockIn;
 
   const columns = [
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
