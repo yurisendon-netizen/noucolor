@@ -282,7 +282,14 @@ Deno.serve(async (req) => {
         if (isBreakTime(new Date())) {
           return Response.json({ success: true, locations: [], onBreak: true });
         }
-        const data = await base44.asServiceRole.entities.EmployeeLocation.filter({ is_active: true });
+        // Solo ubicaciones del día actual (hora de Andorra): is_active puede
+        // quedar "pegado" en true si un fichaje de un día anterior no se
+        // desactivó (clock-out/autoClose), y entonces el mapa mostraría
+        // posiciones de hace días en vez de los fichajes de hoy. Ordenamos por
+        // recencia para que el centro del mapa y las tarjetas sean las más nuevas.
+        const today = getLocalParts(new Date()).dateStr;
+        const all = await base44.asServiceRole.entities.EmployeeLocation.filter({ is_active: true }, '-last_update');
+        const data = all.filter(loc => loc.last_update && getLocalParts(new Date(loc.last_update)).dateStr === today);
         return Response.json({ success: true, locations: data });
       }
 
