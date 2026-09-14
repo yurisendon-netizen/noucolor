@@ -224,12 +224,11 @@ export default function ControlHorario() {
   const todayEntry = entries.find(e => e.date === today);
   const hasClosedToday = todayEntry && todayEntry.status === 'cerrado';
   const hasAbsenceToday = todayEntry && todayEntry.status === 'ausencia_injustificada';
-  // Un operario puede fichar su entrada en CUALQUIER momento del día: la falta
-  // por no fichar antes de las 8:30 (Incumplimiento sin_fichar del cron) es solo
-  // informativa y NO debe bloquear el fichaje real. El servidor ya marca
-  // isLate/entrada_tardia y bloquea el descanso 12:30-13:00 por su cuenta.
+  // El botón verde de entrada solo aparece dentro de la ventana de fichaje
+  // (7:45 - 8:30); fuera de ese tramo se muestra en gris "Próximo fichaje".
+  const inClockInWindow = (hour === 7 && minutes >= 45) || (hour === 8 && minutes <= 30);
   const showBanner = hour === 8 && minutes < 30 && !openEntry && !hasAbsenceToday;
-  const canClockIn = !openEntry && !hasClosedToday;
+  const canClockIn = !openEntry && !hasClosedToday && inClockInWindow;
   // Exit window: 16:00 - 16:30
   const inExitWindow = hour === 16 && minutes <= 30;
   const canClockOut = !!openEntry && inExitWindow;
