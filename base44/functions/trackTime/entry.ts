@@ -71,6 +71,15 @@ Deno.serve(async (req) => {
         }
         const clockIn = now.toISOString();
         const { hour, minutes, dateStr: date } = getLocalParts(now);
+        const totalMinutes = hour * 60 + minutes;
+        // Ventana de fichaje de entrada: 7:45 (465) – 8:30 (510). Fuera de este
+        // tramo no se puede fichar la entrada.
+        if (totalMinutes < 465) {
+          return Response.json({ error: 'El fichaje de entrada abre a las 7:45' }, { status: 400 });
+        }
+        if (totalMinutes > 510) {
+          return Response.json({ error: 'El fichaje de entrada se cerró a las 8:30. Contacta con tu encargado.' }, { status: 400 });
+        }
         const isLate = hour > 8 || (hour === 8 && minutes > 15);
         const localTime = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         const lateDescription = `Fichó entrada a las ${localTime} (límite 8:15)`;
