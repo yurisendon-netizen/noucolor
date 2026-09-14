@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { Download, BarChart3, Loader2, ShieldAlert, FileText, Pen } from 'lucide-react';
 import InformeSignDialog from '@/components/informes/InformeSignDialog';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,17 @@ export default function Informes() {
     try {
       const config = REPORT_CONFIG[reportType];
       const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
-      const data = await base44.entities[config.entity].list(config.sortField, 1000);
+      // TimeEntry tiene RLS basada en el usuario de la plataforma, que no coincide
+      // con el sistema de PIN de esta app — por eso se lee vía la función del
+      // backend (trackTime/listAllEntries, en modo service role). Las demás
+      // entidades (WorkOrder, Justificante) se leen normalmente por el SDK.
+      let data;
+      if (reportType === 'fichajes') {
+        const res = await authInvoke('trackTime', { operation: 'listAllEntries', limit: 1000 });
+        data = res.data?.entries || [];
+      } else {
+        data = await base44.entities[config.entity].list(config.sortField, 1000);
+      }
       const filtered = data.filter(r => r[config.dateField] && String(r[config.dateField]).startsWith(prefix));
       setRows(filtered);
       setGenerated(true);
