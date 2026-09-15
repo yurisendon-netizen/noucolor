@@ -73,8 +73,8 @@ export default function Geolocalizacion() {
         {!loading && !onBreak && (
           <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+              attribution='Tiles &copy; Esri, Source: Esri, HERE, Garmin, USGS, Intermap, METI/NASA'
             />
             {locations.map(loc => (
               <Marker key={loc.id} position={[loc.latitude, loc.longitude]}>
