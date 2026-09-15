@@ -197,6 +197,20 @@ export default function Empleados() {
     }
   }
 
+  async function handleSetEstado(emp, estado) {
+    try {
+      const result = await authInvoke('manageEmployee', { action: 'setEstadoLaboral', employeeId: emp.id, data: { estado_laboral: estado } });
+      if (result.data?.success) {
+        setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, estado_laboral: estado } : e));
+        toast({ variant: 'success', title: `${emp.full_name}: ${estadoLabels[estado]}` });
+      } else {
+        toast({ title: result.data?.error || 'Error', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error al cambiar el estado', variant: 'destructive' });
+    }
+  }
+
   function exportExcel() {
     const rows = employees.map(e => ({
       'ID': e.id,
@@ -212,6 +226,7 @@ export default function Empleados() {
       'IBAN': e.iban,
       'Fecha de Incorporación': e.hire_date ? moment(e.hire_date).format('DD/MM/YYYY') : '',
       'Estado': e.is_active ? 'Activo' : 'Inactivo',
+      'Estado Laboral': estadoLabels[e.estado_laboral] || 'Activo',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -226,6 +241,9 @@ export default function Empleados() {
   };
   const roleLabels = { jefe: 'Jefe', administrador: 'Admin', operario: 'Operario' };
 
+  const estadoLabels = { activo: 'Activo', baja: 'Baja', vacaciones: 'Vacaciones' };
+  const estadoStyles = { activo: 'bg-emerald-500/15 text-emerald-400', baja: 'bg-amber-500/15 text-amber-400', vacaciones: 'bg-red-500/15 text-red-400' };
+
   const columns = [
     { key: 'id', label: 'ID', render: r => <span className="text-xs text-muted-foreground font-mono">{r.id?.slice(-6)}</span> },
     { key: 'full_name', label: 'Nombre Completo', render: r => <span className="font-medium">{r.full_name}</span> },
@@ -233,6 +251,24 @@ export default function Empleados() {
     { key: 'role', label: 'Cargo', render: r => (
       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleStyles[r.role] || roleStyles.operario}`}>{roleLabels[r.role] || r.role}</span>
     )},
+    { key: 'estado_laboral', label: 'Estado', render: r => {
+      const estado = r.estado_laboral || 'activo';
+      if (!isAdmin) {
+        return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${estadoStyles[estado]}`}>{estadoLabels[estado]}</span>;
+      }
+      return (
+        <Select value={estado} onValueChange={v => handleSetEstado(r, v)}>
+          <SelectTrigger className={`h-7 text-xs w-[125px] border-0 ${estadoStyles[estado]}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="activo">Activo</SelectItem>
+            <SelectItem value="baja">Baja</SelectItem>
+            <SelectItem value="vacaciones">Vacaciones</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }},
     { key: 'precioHora', label: 'Precio Hora', render: r => <span className="font-medium">{r.precioHora ? `${r.precioHora.toFixed(2)}€` : '—'}</span> },
     { key: 'base_salary', label: 'Salario Bruto', render: r => <span className="font-medium">{r.base_salary ? `${r.base_salary.toFixed(2)}€` : '—'}</span> },
     { key: 'net_salary', label: 'Salario Neto', render: r => <span className="font-medium text-emerald-400">{r.net_salary ? `${r.net_salary.toFixed(2)}€` : '—'}</span> },

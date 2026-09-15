@@ -73,6 +73,16 @@
     "session_token": {
       "type": "string",
       "description": "Hash del token de sessi\u00f3 (mai el token en clar)"
+    },
+    "estado_laboral": {
+      "type": "string",
+      "enum": [
+        "activo",
+        "baja",
+        "vacaciones"
+      ],
+      "default": "activo",
+      "description": "Estat laboral de l'empleat (admin el canvia manualment)"
     }
   },
   "required": [

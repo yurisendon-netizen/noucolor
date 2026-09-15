@@ -124,6 +124,18 @@ Deno.serve(async (req) => {
       return Response.json({ success: true });
     }
 
+    // Cambiar el estado laboral de un empleado (activo / baja / vacaciones).
+    // Solo administradores: el gate de isAdminCaller ya lo protege.
+    if (action === 'setEstadoLaboral') {
+      if (!employeeId) return Response.json({ error: 'Falta employeeId' }, { status: 400 });
+      const estado = data?.estado_laboral;
+      if (!['activo', 'baja', 'vacaciones'].includes(estado)) {
+        return Response.json({ error: 'Estado laboral no válido' }, { status: 400 });
+      }
+      await base44.asServiceRole.entities.Employee.update(employeeId, { estado_laboral: estado });
+      return Response.json({ success: true });
+    }
+
     // Genera una contraseña nueva y la reenvía por correo — no se puede recuperar
     // la contraseña original porque solo se guarda su hash (ver isHashed más abajo).
     if (action === 'resendWelcome') {

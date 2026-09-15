@@ -62,6 +62,11 @@ Deno.serve(async (req) => {
     switch (operation) {
       case 'clockIn': {
         const { lat, lng } = body;
+        // Un empleado marcado como de baja o de vacaciones no puede fichar la
+        // entrada — se valida en el servidor, no solo en el frontend.
+        if (caller.estado_laboral === 'baja' || caller.estado_laboral === 'vacaciones') {
+          return Response.json({ error: `No puedes fichar: estás marcado como de ${caller.estado_laboral}. Contacta con tu encargado.` }, { status: 403 });
+        }
         // La hora de entrada, la fecha y si llega tarde se calculan aquí con el reloj
         // del servidor — nunca a partir de lo que envíe el cliente (el móvil de un
         // trabajador podría tener la hora adelantada/atrasada para evitar una falta).

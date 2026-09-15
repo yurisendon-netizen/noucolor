@@ -23,7 +23,8 @@ Deno.serve(async (req) => {
     const today = todayLocalDate();
 
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
-    const recipients = employees.filter(e => e.role !== 'jefe');
+    // Los empleados de baja o de vacaciones no generan incidencia por no fichar.
+    const recipients = employees.filter(e => e.role !== 'jefe' && e.estado_laboral !== 'baja' && e.estado_laboral !== 'vacaciones');
 
     const todayEntries = await base44.asServiceRole.entities.TimeEntry.filter({ date: today });
     const clockedInIds = new Set(todayEntries.map(e => e.employee_id));
