@@ -149,11 +149,21 @@ export default function ControlHorario() {
   function getLocation() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) return reject(new Error('Geolocalización no disponible'));
-      navigator.geolocation.getCurrentPosition(
-        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        err => reject(err),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+      const onSuccess = pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      // Primera intenta: alta precisión con 15s. Si falla por timeout o sin
+      // señal (GPS lento en interiores), reintentamos con precisión normal
+      // (más rápida, permite una posición en caché de hasta 2 min).
+      navigator.geolocation.getCurrentPosition(onSuccess, err => {
+        if (err.code === 2 || err.code === 3) {
+          navigator.geolocation.getCurrentPosition(
+            onSuccess,
+            err2 => reject(err2),
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 }
+          );
+        } else {
+          reject(err);
+        }
+      }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     });
   }
 
