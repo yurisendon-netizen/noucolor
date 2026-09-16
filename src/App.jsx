@@ -23,6 +23,7 @@ import Nominas from '@/pages/Nominas';
 import Geolocalizacion from '@/pages/Geolocalizacion';
 import Normas from '@/pages/Normas';
 import Informes from '@/pages/Informes';
+import Estadisticas from '@/pages/Estadisticas';
 import Perfil from '@/pages/Perfil';
 import CodigoSeguridad from '@/pages/CodigoSeguridad';
 
@@ -50,6 +51,7 @@ function App() {
                   <Route path="/geolocalizacion" element={<Geolocalizacion />} />
                   <Route path="/normas" element={<Normas />} />
                   <Route path="/informes" element={<Informes />} />
+                  <Route path="/estadisticas" element={<Estadisticas />} />
                   <Route path="/perfil" element={<Perfil />} />
                   <Route path="/codigo-seguridad" element={<CodigoSeguridad />} />
                 </Route>
