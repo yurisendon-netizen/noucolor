@@ -146,24 +146,31 @@ export default function ControlHorario() {
     return null;
   }
 
+  // Obtiene la ubicación del operario. El GPS NUNCA debe bloquear el fichaje:
+  // si tras varios intentos no hay posición (GPS lento/apagado, interior, mala
+  // señal), se resuelve con null y el fichaje se registra igualmente (sin
+  // coordenadas) para que el trabajador no se quede sin fichar y le cueste
+  // una falta. El servidor acepta lat/lng null en clockIn/clockOut.
   function getLocation() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject(new Error('Geolocalización no disponible'));
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
       const onSuccess = pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      // Primera intenta: alta precisión con 15s. Si falla por timeout o sin
-      // señal (GPS lento en interiores), reintentamos con precisión normal
-      // (más rápida, permite una posición en caché de hasta 2 min).
-      navigator.geolocation.getCurrentPosition(onSuccess, err => {
-        if (err.code === 2 || err.code === 3) {
+      // Intento rápido: posición en caché de hasta 5 min, precisión normal.
+      // Suele resolver al instante (el móvil ya tiene una fix reciente) y evita
+      // esperar a un GPS frío que agota el timeout.
+      navigator.geolocation.getCurrentPosition(
+        onSuccess,
+        () => {
+          // Segundo intento: alta precisión con más tiempo (GPS real, lento en
+          // interiores). Si también falla, resolvemos null (fichaje sin GPS).
           navigator.geolocation.getCurrentPosition(
             onSuccess,
-            err2 => reject(err2),
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 }
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 }
           );
-        } else {
-          reject(err);
-        }
-      }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+      );
     });
   }
 
