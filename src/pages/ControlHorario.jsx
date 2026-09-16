@@ -181,14 +181,17 @@ export default function ControlHorario() {
     try {
       const loc = await getLocation();
       // La hora de entrada y si llega tarde las decide el servidor con su propio
-      // reloj (ver trackTime/clockIn) — el móvil solo manda la ubicación.
+      // reloj (ver trackTime/clockIn) — el móvil solo manda la ubicación. Si el
+      // GPS no respondió, fichamos igualmente sin coordenadas para no bloquear.
       const res = await authInvoke('trackTime', {
         operation: 'clockIn',
-        lat: loc.lat, lng: loc.lng,
+        ...(loc ? { lat: loc.lat, lng: loc.lng } : {}),
       });
       const clockedAt = res.data?.clockIn ? moment(res.data.clockIn) : moment();
 
-      if (res.data?.isLate) {
+      if (!loc) {
+        toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Sin ubicación (GPS no disponible)` });
+      } else if (res.data?.isLate) {
         toast({ title: '⚠️ Entrada tardía', description: `${clockedAt.format('HH:mm')} — Incumplimiento registrado` });
       } else {
         toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Ubicación registrada` });
@@ -210,11 +213,11 @@ export default function ControlHorario() {
       const loc = await getLocation();
       // Horas trabajadas y horas extra las calcula el servidor a partir de la hora
       // de entrada guardada y su propio reloj (ver trackTime/clockOut) — el móvil
-      // solo manda la ubicación.
+      // solo manda la ubicación. Si el GPS no respondió, fichamos sin coordenadas.
       const res = await authInvoke('trackTime', {
         operation: 'clockOut',
         entryId: openEntry.id,
-        lat: loc.lat, lng: loc.lng,
+        ...(loc ? { lat: loc.lat, lng: loc.lng } : {}),
       });
       const clockedAt = res.data?.clockOut ? moment(res.data.clockOut) : moment();
       const regularHours = res.data?.totalHours ?? 0;
