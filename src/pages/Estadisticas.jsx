@@ -28,8 +28,7 @@ function KpiCard({ icon: Icon, label, value, color }) {
 }
 
 export default function Estadisticas() {
-  const { employee, loading } = useEmployeeProfile();
-  const isAdmin = employee?.role === 'administrador' || employee?.role === 'jefe';
+  const { employee, loading, isAdmin } = useEmployeeProfile();
   const [entries, setEntries] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [month, setMonth] = useState(new Date().getMonth());
