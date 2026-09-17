@@ -166,10 +166,10 @@ export default function ControlHorario() {
           navigator.geolocation.getCurrentPosition(
             onSuccess,
             () => resolve(null),
-            { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 }
+            { enableHighAccuracy: true, timeout: 6000, maximumAge: 300000 }
           );
         },
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+        { enableHighAccuracy: false, timeout: 4000, maximumAge: 300000 }
       );
     });
   }
@@ -199,8 +199,20 @@ export default function ControlHorario() {
 
       loadEntries();
     } catch (e) {
-      const geoMsg = geoErrorMessage(e);
-      toast({ title: geoMsg ? 'Ubicación necesaria' : 'Error al fichar', description: geoMsg || e.message, variant: 'destructive' });
+      // El GPS NUNCA debe impedir fichar. Si el fallo fue de geolocalización,
+      // reintentamos el fichaje sin coordenadas en lugar de bloquear al operario.
+      if (geoErrorMessage(e)) {
+        try {
+          const retry = await authInvoke('trackTime', { operation: 'clockIn' });
+          const at = retry.data?.clockIn ? moment(retry.data.clockIn) : moment();
+          toast({ variant: 'success', title: '✅ Entrada fichada', description: `${at.format('HH:mm')} — Sin ubicación (GPS no disponible)` });
+          loadEntries();
+        } catch (e2) {
+          toast({ title: 'Error al fichar', description: e2.message, variant: 'destructive' });
+        }
+      } else {
+        toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
+      }
     } finally {
       setClockingIn(false);
     }
@@ -230,8 +242,19 @@ export default function ControlHorario() {
       }
       loadEntries();
     } catch (e) {
-      const geoMsg = geoErrorMessage(e);
-      toast({ title: geoMsg ? 'Ubicación necesaria' : 'Error al fichar', description: geoMsg || e.message, variant: 'destructive' });
+      // Mismo criterio que en la entrada: un fallo de GPS no bloquea la salida.
+      if (geoErrorMessage(e) && openEntry) {
+        try {
+          const retry = await authInvoke('trackTime', { operation: 'clockOut', entryId: openEntry.id });
+          const at = retry.data?.clockOut ? moment(retry.data.clockOut) : moment();
+          toast({ variant: 'success', title: '✅ Salida fichada', description: `${at.format('HH:mm')} — Sin ubicación (GPS no disponible)` });
+          loadEntries();
+        } catch (e2) {
+          toast({ title: 'Error al fichar', description: e2.message, variant: 'destructive' });
+        }
+      } else {
+        toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
+      }
     } finally {
       setClockingOut(false);
     }
