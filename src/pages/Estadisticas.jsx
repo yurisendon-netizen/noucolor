@@ -70,16 +70,17 @@ export default function Estadisticas() {
           ausencias: 0,
         };
       }
-      const normales = Number(e.total_hours) || 0;
       const extra = Number(e.overtime_hours) || 0;
       if (e.status === 'ausencia_injustificada') {
         map[id].ausencias += 1;
       } else {
-        map[id].normales += normales;
         map[id].extra += extra;
         map[id].dias_fichados += 1;
       }
     });
+    // Las horas normales se calculan por días fichados × 8h (jornada estándar),
+    // no sumando total_hours de cada fichaje — así el conteo siempre es exacto.
+    Object.values(map).forEach(e => { e.normales = e.dias_fichados * 8; });
     return Object.values(map).sort((a, b) => (b.normales + b.extra) - (a.normales + a.extra));
   }, [monthEntries]);
 
