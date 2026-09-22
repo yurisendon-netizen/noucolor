@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
 import { Plus, Download, FileText, Calculator, CheckCircle2, Pen, Trash2 } from 'lucide-react';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
