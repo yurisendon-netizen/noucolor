@@ -39,12 +39,12 @@ export default function Nominas() {
 
   async function loadData() {
     try {
-      const [pRes, e] = await Promise.all([
+      const [pRes, empRes] = await Promise.all([
         authInvoke('trackTime', { operation: 'listPayrolls',  limit: 200 }),
-        base44.entities.Employee.filter({ is_active: true }),
+        authInvoke('manageEmployee', { action: 'list' }),
       ]);
       setPayrolls(pRes.data?.payrolls || []);
-      setEmployees(e);
+      setEmployees((empRes.data?.employees || []).filter(e => e.is_active));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
