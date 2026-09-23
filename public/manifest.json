@@ -1,0 +1,15 @@
+{
+  "name": "Noucolor — Gestió Interna",
+  "short_name": "Noucolor",
+  "description": "Aplicación de gestión interna de Noucolor — Pintura i Decoració, Andorra",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e2432",
+  "theme_color": "#e6a030",
+  "icons": [
+    { "src": "/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "maskable" }
+  ]
+}
