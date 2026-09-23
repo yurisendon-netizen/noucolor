@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authInvoke } from '@/lib/authInvoke';
-import { Clock, LogIn, LogOut, AlertTriangle, ShieldCheck, Eye, MapPin, ChevronDown, WifiOff } from 'lucide-react';
+import { Clock, LogIn, LogOut, AlertTriangle, ShieldCheck, Eye, MapPin, ChevronDown, WifiOff, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -9,6 +9,7 @@ import useOnlineStatus from '@/hooks/useOnlineStatus';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import ClockInBanner from '@/components/clock/ClockInBanner';
+import AdminOpenEntryDialog from '@/components/clock/AdminOpenEntryDialog';
 import StatusBadge from '@/components/shared/StatusBadge';
 import moment from 'moment';
 
@@ -18,7 +19,7 @@ const WORKSHOP_COORDS = { lat: 42.46768, lng: 1.49327 };
 const ACCURACY_THRESHOLD_M = 100;
 
 export default function ControlHorario() {
-  const { employee, user } = useEmployeeProfile();
+  const { employee, user, isAdmin } = useEmployeeProfile();
   const { toast } = useToast();
   const isOnline = useOnlineStatus();
   const [entries, setEntries] = useState([]);
@@ -27,6 +28,7 @@ export default function ControlHorario() {
   const [clockingIn, setClockingIn] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [adminEntryOpen, setAdminEntryOpen] = useState(false);
   const notifiedRef = useRef({ date: '', reminded8: false, absent830: false, notified16: false });
 
   const empId = employee?.id || user?.id;
@@ -321,6 +323,9 @@ export default function ControlHorario() {
           <h2 className="text-xl font-semibold mb-2">Exento de fichaje</h2>
           <p className="text-muted-foreground max-w-md mx-auto">Como jefe y propietario, no necesitas fichar entrada ni salida. Tu rol es supervisar al equipo.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button onClick={() => setAdminEntryOpen(true)} className="gap-2">
+              <UserPlus size={16} /> Abrir fichaje a trabajador
+            </Button>
             <Link to="/revision-jornadas" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80 transition-colors">
               <Eye size={16} /> Ver fichajes del equipo
             </Link>
@@ -329,13 +334,22 @@ export default function ControlHorario() {
             </Link>
           </div>
         </div>
+        <AdminOpenEntryDialog open={adminEntryOpen} onOpenChange={setAdminEntryOpen} onDone={loadEntries} />
       </div>
     );
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
-      <PageHeader title="Control Horario" subtitle="Jornada 8:00 - 16:00 · Legislación laboral de Andorra" />
+      <PageHeader
+        title="Control Horario"
+        subtitle="Jornada 8:00 - 16:00 · Legislación laboral de Andorra"
+        actions={isAdmin ? (
+          <Button variant="outline" onClick={() => setAdminEntryOpen(true)} className="gap-2">
+            <UserPlus size={16} /> Abrir fichaje a trabajador
+          </Button>
+        ) : undefined}
+      />
 
       <ClockInBanner
         visible={showBanner}
@@ -425,6 +439,10 @@ export default function ControlHorario() {
         ]}
         emptyMessage="No hay fichajes registrados"
       />
+
+      {isAdmin && (
+        <AdminOpenEntryDialog open={adminEntryOpen} onOpenChange={setAdminEntryOpen} onDone={loadEntries} />
+      )}
     </div>
   );
 }

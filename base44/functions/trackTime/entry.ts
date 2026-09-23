@@ -25,6 +25,29 @@ function isBreakTime(utcDate) {
   return totalMinutes >= 750 && totalMinutes < 780; // 12:30 (750) .. 13:00 (780)
 }
 
+// Offset en minutos de Europe/Andorra para un instante dado (maneja DST de
+// verano/invierno). Usado por admin_open_entry para convertir la hora "de pared"
+// elegida por el admin a UTC, sin asumir un offset fijo.
+function andorraOffsetMinutes(instant) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/Andorra', timeZoneName: 'longOffset'
+    }).formatToParts(instant);
+    const tz = (parts.find(p => p.type === 'timeZoneName') || {}).value || 'GMT+00:00';
+    const m = tz.match(/([+-])(\d{1,2}):(\d{2})/);
+    if (!m) return 0;
+    return (m[1] === '-' ? -1 : 1) * (parseInt(m[2], 10) * 60 + parseInt(m[3], 10));
+  } catch { return 120; }
+}
+
+// Convierte una hora "de pared" de Andorra (YYYY-MM-DD + HH:mm) a ISO UTC.
+function andorraLocalToUtcIso(dateStr, timeStr) {
+  const hhmm = String(timeStr).padStart(5, '0');
+  const naive = new Date(`${dateStr}T${hhmm}:00.000Z`);
+  const offset = andorraOffsetMinutes(naive);
+  return new Date(naive.getTime() - offset * 60000).toISOString();
+}
+
 async function upsertLocation(base44, empId, empName, isActive, lat, lng) {
   try {
     const locs = await base44.asServiceRole.entities.EmployeeLocation.filter({ employee_id: empId });
@@ -353,6 +376,92 @@ Deno.serve(async (req) => {
         if (!targetEmployeeId) return Response.json({ error: 'Falta targetEmployeeId' }, { status: 400 });
         const data = await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: targetEmployeeId }, '-date', limit || 200);
         return Response.json({ success: true, overtime: data });
+      }
+
+      // ── Apertura manual de fichaje por un admin/jefe: para los operarios que se
+      // olvidan de fichar. El admin elige trabajador(es), fecha, hora y ubicación
+      // (punto en el mapa). El servidor valida permisos, que el trabajador existe
+      // y está activo, y que no tenga ya una entrada abierta ese día (no duplica).
+      case 'admin_open_entry': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { employeeIds, date, time, lat, lng } = body;
+        if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+          return Response.json({ error: 'Selecciona al menos un trabajador' }, { status: 400 });
+        }
+        if (!date || !time || lat == null || lng == null) {
+          return Response.json({ error: 'Faltan datos (fecha, hora o ubicación)' }, { status: 400 });
+        }
+
+        const allEmployees = await base44.asServiceRole.entities.Employee.list('-created_date', 500);
+        const byId = new Map(allEmployees.map(e => [e.id, e]));
+        const targetIds = employeeIds.filter(id => byId.has(id));
+
+        if (targetIds.length === 0) {
+          return Response.json({ error: 'Los trabajadores seleccionados no existen' }, { status: 400 });
+        }
+
+        // Validar que están activos.
+        const inactive = targetIds.filter(id => byId.get(id).is_active === false);
+        if (inactive.length > 0) {
+          const names = inactive.map(id => byId.get(id).full_name).join(', ');
+          return Response.json({ error: `Trabajadores inactivos: ${names}` }, { status: 400 });
+        }
+
+        const clockInIso = andorraLocalToUtcIso(date, time);
+
+        const opened = [];
+        const skippedOpen = [];
+        const skippedAbsent = [];
+
+        for (const id of targetIds) {
+          const emp = byId.get(id);
+          const dayEntries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: id, date });
+          const openEntry = dayEntries.find(e => e.status === 'abierto');
+
+          if (openEntry) {
+            skippedOpen.push(emp.full_name);
+            continue;
+          }
+
+          const absenceEntry = dayEntries.find(e => e.status === 'ausencia_injustificada');
+          if (absenceEntry) {
+            // Si había una falta registrada ese día, la convertimos en entrada
+            // abierta en vez de crear un duplicado.
+            await base44.asServiceRole.entities.TimeEntry.update(absenceEntry.id, {
+              clock_in: clockInIso,
+              clock_in_lat: lat, clock_in_lng: lng,
+              clock_in_fallback: false,
+              status: 'abierto',
+              opened_by_admin: true, opened_by: empId
+            });
+            skippedAbsent.push(emp.full_name);
+          } else {
+            await base44.asServiceRole.entities.TimeEntry.create({
+              employee_id: id, employee_name: emp.full_name,
+              clock_in: clockInIso, date,
+              clock_in_lat: lat, clock_in_lng: lng,
+              clock_in_fallback: false,
+              status: 'abierto',
+              opened_by_admin: true, opened_by: empId
+            });
+          }
+
+          // Resolver la incidencia/aviso de falta por no fichar ese día.
+          const incs = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: id, date });
+          for (const inc of incs) {
+            if (inc.type === 'sin_fichar' && inc.status !== 'resuelto') {
+              await base44.asServiceRole.entities.Incumplimiento.update(inc.id, { status: 'resuelto' });
+            }
+          }
+
+          opened.push(emp.full_name);
+        }
+
+        return Response.json({
+          success: true,
+          date, clockIn: clockInIso,
+          opened, skippedOpen, skippedAbsent
+        });
       }
 
       default:

@@ -63,6 +63,15 @@
         "ausencia_injustificada"
       ],
       "default": "abierto"
+    },
+    "opened_by_admin": {
+      "type": "boolean",
+      "default": false,
+      "description": "True si el fichaje lo abrio un admin/jefe manualmente (no el propio operario)"
+    },
+    "opened_by": {
+      "type": "string",
+      "description": "ID del empleado admin/jefe que abrio el fichaje manualmente"
     }
   },
   "required": [
