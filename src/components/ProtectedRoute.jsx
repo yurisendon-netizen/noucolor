@@ -1,8 +1,9 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 
 export default function ProtectedRoute({ unauthenticatedElement }) {
   const { employee, loading } = useCustomAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -13,7 +14,13 @@ export default function ProtectedRoute({ unauthenticatedElement }) {
   }
 
   if (!employee) {
-    return unauthenticatedElement || <Navigate to="/login" replace />;
+    // Si abren una ruta protegida sin sesión, van a login y vuelven después a
+    // esa pantalla (returnTo) — clave para el deep-link de la notificación push.
+    const returnTo = location.pathname + location.search;
+    const dest = returnTo && !returnTo.startsWith('/login')
+      ? `/login?returnTo=${encodeURIComponent(returnTo)}`
+      : '/login';
+    return <Navigate to={dest} replace />;
   }
 
   return <Outlet />;

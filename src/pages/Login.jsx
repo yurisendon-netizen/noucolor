@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PinPad from '@/components/pin/PinPad';
 import { LogIn, Loader2, User, Lock, ShieldCheck } from 'lucide-react';
+import { safeReturnTo } from '@/lib/authReturnTo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,11 +20,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   if (employee) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={safeReturnTo()} replace />;
   }
 
   function done(emp) {
-    navigate(emp.pin_set === false ? '/codigo-seguridad' : '/');
+    navigate(emp.pin_set === false ? '/codigo-seguridad' : safeReturnTo());
   }
 
   async function handleSubmit(e) {

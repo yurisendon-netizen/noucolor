@@ -9,6 +9,7 @@ import ScrollToTop from './components/ScrollToTop';
 import { CustomAuthProvider } from '@/lib/CustomAuthContext';
 import { ThemeProvider } from 'next-themes';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import PushNavListener from '@/components/PushNavListener';
 
 import Login from '@/pages/Login';
 import AppLayout from '@/components/layout/AppLayout';
@@ -36,6 +37,7 @@ function App() {
           <OfflineBanner />
           <Router>
             <ScrollToTop />
+            <PushNavListener />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>

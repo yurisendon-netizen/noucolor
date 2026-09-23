@@ -46,9 +46,9 @@ Deno.serve(async (req) => {
     for (const emp of pending) {
       const push = await sendOneSignalPush({
         externalUserIds: emp.id,
-        heading: 'Recuerda fichar',
-        content: 'No has fichado tu entrada todavía',
-        data: { target_url: '/control-horario', url: '/control-horario' }
+        heading: 'Recuerda fichar tu entrada',
+        content: 'Toca para fichar ahora',
+        data: { target_url: '/control-horario' }
       });
 
       // Registro en el centro de notificaciones interno (campanita), con los

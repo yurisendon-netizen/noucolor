@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
+import { linkOneSignalExternalUser, requestPushPermission } from '@/lib/onesignal';
 
 const AuthContext = createContext(null);
 
@@ -23,19 +24,7 @@ function clearSessionStorage() {
   sessionStorage.removeItem('noucolor_pin_ok');
 }
 
-// Vincula el id del empleado como external_user_id en OneSignal (plugin nativo
-// de Median). Solo se llama en apps nativas: en el navegador de escritorio
-// window.median no existe y la llamada se ignora sin error. Best-effort: si
-// falla, nunca debe bloquear el login.
-function linkOneSignalExternalUser(employeeId) {
-  try {
-    if (typeof window === 'undefined' || !employeeId) return;
-    const median = window.median;
-    if (median && median.onesignal && typeof median.onesignal.setExternalUserId === 'function') {
-      median.onesignal.setExternalUserId(String(employeeId));
-    }
-  } catch { /* best-effort: ignoramos silenciosamente */ }
-}
+// Vinculación con OneSignal (nativo + web) centralizada en @/lib/onesignal.
 
 export function CustomAuthProvider({ children }) {
   const [employee, setEmployee] = useState(null);
@@ -120,6 +109,9 @@ export function CustomAuthProvider({ children }) {
       sessionStorage.setItem('noucolor_pin_ok', '1');
       setEmployee(result.data.employee);
       linkOneSignalExternalUser(result.data.employee.id);
+      // Dentro del gesto del clic de login: pide permiso de notificaciones push
+      // (web). En nativo se ignora. No bloquea el flujo de login.
+      requestPushPermission();
       return result.data.employee;
     }
     return null;
