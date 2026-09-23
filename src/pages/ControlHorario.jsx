@@ -14,7 +14,7 @@ import moment from 'moment';
 
 // Coordenadas del taller de Noucolor (Avinguda Rocafort, Sant Julià de Lòria).
 // Se usan como ubicación de respaldo cuando el GPS no consigue una lectura real.
-const WORKSHOP_COORDS = { lat: 42.4637, lng: 1.4913 };
+const WORKSHOP_COORDS = { lat: 42.4666, lng: 1.4924 };
 const ACCURACY_THRESHOLD_M = 100;
 
 export default function ControlHorario() {
