@@ -1,15 +1,15 @@
-// Helper compartido para enviar notificaciones push vía la API REST de OneSignal.
-// Usado por las funciones programadas de fichaje (onesignalClockInReminder y
-// registerClockInAbsence). El id del empleado se vincula en la app nativa con
-// window.median.onesignal.setExternalUserId(id) tras el login, y aquí se usa
-// como include_external_user_ids para dirigir el push solo a ese empleado.
+// Helper compartido para enviar notificaciones push vía la nueva API REST de
+// OneSignal (api.onesignal.com/notifications). Usado por las funciones
+// programadas de fichaje (onesignalClockInReminder y registerClockInAbsence).
+// El id del empleado se vincula como external_id (web y nativa) tras el login,
+// y aquí se dirige con include_aliases { external_id } + target_channel "push".
 import { secrets } from 'base44:runtime';
 
-const ONESIGNAL_API_URL = 'https://onesignal.com/api/v1/notifications';
+const ONESIGNAL_API_URL = 'https://api.onesignal.com/notifications';
 
 // Devuelve { sent, recipients?, id?, error? }. Nunca lanza: el fallo de un push
 // no debe romper el resto del procesamiento del cron.
-export async function sendOneSignalPush({ externalUserIds, heading, content, data }) {
+export async function sendOneSignalPush({ externalUserIds, heading, content, data, url }) {
   const appId = secrets.get('ONESIGNAL_APP_ID');
   const restKey = secrets.get('ONESIGNAL_REST_API_KEY');
   if (!appId || !restKey) {
@@ -24,9 +24,11 @@ export async function sendOneSignalPush({ externalUserIds, heading, content, dat
 
   const body = {
     app_id: appId,
-    include_external_user_ids: ids,
+    include_aliases: { external_id: ids },
+    target_channel: 'push',
     headings: { en: heading, es: heading },
     contents: { en: content, es: content },
+    url: url || 'https://noucolor.base44.app/control-horario',
     data: data || {}
   };
 
@@ -35,7 +37,7 @@ export async function sendOneSignalPush({ externalUserIds, heading, content, dat
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Authorization': `Basic ${restKey}`
+        'Authorization': `Key ${restKey}`
       },
       body: JSON.stringify(body)
     });

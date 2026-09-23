@@ -1,15 +1,15 @@
 {
   "name": "onesignal_recordatorio_fichaje_0800",
-  "description": "Push OneSignal 'Recuerda fichar' a operarios activos sin entrada a las 08:00 hora de Andorra (UTC+2 verano)",
+  "description": "Push OneSignal 'Recuerda fichar' a operarios activos sin entrada a las 08:00 hora de Andorra (zona Europe/Andorra)",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "0 6 * * 1-5",
+      "cron_expression": "0 8 * * 1-5",
       "one_time_date": null,
-      "timezone": "UTC",
+      "timezone": "Europe/Andorra",
       "interval_value": null,
       "interval_unit": null,
       "interval_anchor": null,

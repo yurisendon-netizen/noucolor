@@ -2,20 +2,21 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireCronSecret } from '../../shared/cronAuth.ts';
 import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 
-// ── OPERACIÓN DE SISTEMA: disparada por cron a las 08:00 hora de Andorra
-// (UTC+2 verano → 06:00 UTC) en días laborables. Sin usuario detrás.
-// Lista los empleados activos, comprueba quién no ha fichado la entrada hoy
-// (TimeEntry con date=hoy) y les envía un push de OneSignal recordándoles fichar.
-// El id del empleado se vincula como external_user_id en la app nativa tras el
-// login (window.median.onesignal.setExternalUserId), por eso aquí se dirige con
-// include_external_user_ids.
+// ── OPERACIÓN DE SISTEMA: disparada por cron a las 08:00 (zona horaria
+// Europe/Andorra) en días laborables. Sin usuario detrás. Lista los empleados
+// activos, comprueba quién no ha fichado la entrada hoy (TimeEntry con
+// date=hoy) y les envía un push de OneSignal recordándoles fichar. El id del
+// empleado se vincula como external_id en la app (web y nativa) tras el login,
+// por eso aquí se dirige con include_aliases { external_id }.
 
-// Andorra: +01:00 invierno / +02:00 verano. Mismo offset que notifyMissingClockIn.
-const LOCAL_UTC_OFFSET_HOURS = 2;
-
+// Fecha "de pared" en Andorra calculada con la zona horaria real (Europe/Andorra)
+// vía Intl, no sumando un offset fijo: así funciona en invierno (+01:00) y en
+// verano (+02:00) sin tocar código al cambiar de horario.
 function todayLocalDate() {
-  const shifted = new Date(Date.now() + LOCAL_UTC_OFFSET_HOURS * 3600000);
-  return shifted.toISOString().split('T')[0];
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Andorra',
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date()); // en-CA → YYYY-MM-DD
 }
 
 Deno.serve(async (req) => {
