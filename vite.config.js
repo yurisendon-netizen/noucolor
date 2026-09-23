@@ -42,6 +42,9 @@ export default defineConfig({
         // cobertura en obra — los datos siguen necesitando conexión, pero la app
         // ya no se queda en blanco.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // El bundle principal supera los 2 MiB por defecto de Workbox; lo
+        // subimos para que entre en el precache del SW y no rompa el build.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
