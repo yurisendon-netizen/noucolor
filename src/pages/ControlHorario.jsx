@@ -12,6 +12,11 @@ import ClockInBanner from '@/components/clock/ClockInBanner';
 import StatusBadge from '@/components/shared/StatusBadge';
 import moment from 'moment';
 
+// Coordenadas del taller de Noucolor (Avinguda Rocafort, Sant Julià de Lòria).
+// Se usan como ubicación de respaldo cuando el GPS no consigue una lectura real.
+const WORKSHOP_COORDS = { lat: 42.4637, lng: 1.4913 };
+const ACCURACY_THRESHOLD_M = 100;
+
 export default function ControlHorario() {
   const { employee, user } = useEmployeeProfile();
   const { toast } = useToast();
@@ -146,30 +151,41 @@ export default function ControlHorario() {
     return null;
   }
 
-  // Obtiene la ubicación del operario. El GPS NUNCA debe bloquear el fichaje:
-  // si tras varios intentos no hay posición (GPS lento/apagado, interior, mala
-  // señal), se resuelve con null y el fichaje se registra igualmente (sin
-  // coordenadas) para que el trabajador no se quede sin fichar y le cueste
-  // una falta. El servidor acepta lat/lng null en clockIn/clockOut.
+  // Obtiene la ubicación del operario con validación de precisión. El GPS NUNCA
+  // debe bloquear el fichaje: si no se consigue una lectura GPS válida, se
+  // resuelve con las coordenadas del taller (respaldo) marcadas con isBackup.
+  // Así el fichaje siempre lleva una ubicación fiable, nunca null ni errática.
   function getLocation() {
     return new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      const onSuccess = pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      // Intento rápido: posición en caché de hasta 5 min, precisión normal.
-      // Suele resolver al instante (el móvil ya tiene una fix reciente) y evita
-      // esperar a un GPS frío que agota el timeout.
+      const backup = () => resolve({ ...WORKSHOP_COORDS, isBackup: true });
+
+      if (!navigator.geolocation) return backup();
+
+      const accept = (pos, isHighAccuracy) => {
+        const acc = pos.coords.accuracy ?? Infinity;
+        // Primera lectura de baja precisión: si el margen de error es > 100m,
+        // no la aceptamos (suele ser triangulación wifi/antenas, poco fiable).
+        if (!isHighAccuracy && acc > ACCURACY_THRESHOLD_M) {
+          retryHighAccuracy();
+          return;
+        }
+        resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, isBackup: false });
+      };
+
+      const retryHighAccuracy = () => {
+        navigator.geolocation.getCurrentPosition(
+          pos => accept(pos, true),
+          () => backup(),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      };
+
+      // Intento rápido: precisión normal, caché de hasta 60s (sin reutilizar
+      // posiciones viejas). Resuelve al instante si el móvil ya tiene un fix.
       navigator.geolocation.getCurrentPosition(
-        onSuccess,
-        () => {
-          // Segundo intento: alta precisión con más tiempo (GPS real, lento en
-          // interiores). Si también falla, resolvemos null (fichaje sin GPS).
-          navigator.geolocation.getCurrentPosition(
-            onSuccess,
-            () => resolve(null),
-            { enableHighAccuracy: true, timeout: 6000, maximumAge: 300000 }
-          );
-        },
-        { enableHighAccuracy: false, timeout: 4000, maximumAge: 300000 }
+        pos => accept(pos, false),
+        () => retryHighAccuracy(),
+        { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
       );
     });
   }
@@ -182,15 +198,15 @@ export default function ControlHorario() {
       const loc = await getLocation();
       // La hora de entrada y si llega tarde las decide el servidor con su propio
       // reloj (ver trackTime/clockIn) — el móvil solo manda la ubicación. Si el
-      // GPS no respondió, fichamos igualmente sin coordenadas para no bloquear.
+      // GPS no respondió, fichamos con la ubicación de respaldo del taller.
       const res = await authInvoke('trackTime', {
         operation: 'clockIn',
-        ...(loc ? { lat: loc.lat, lng: loc.lng } : {}),
+        lat: loc.lat, lng: loc.lng, locFallback: loc.isBackup,
       });
       const clockedAt = res.data?.clockIn ? moment(res.data.clockIn) : moment();
 
-      if (!loc) {
-        toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Sin ubicación (GPS no disponible)` });
+      if (loc.isBackup) {
+        toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Ubicación aproximada (respaldo del taller)` });
       } else if (res.data?.isLate) {
         toast({ title: '⚠️ Entrada tardía', description: `${clockedAt.format('HH:mm')} — Incumplimiento registrado` });
       } else {
@@ -225,20 +241,21 @@ export default function ControlHorario() {
       const loc = await getLocation();
       // Horas trabajadas y horas extra las calcula el servidor a partir de la hora
       // de entrada guardada y su propio reloj (ver trackTime/clockOut) — el móvil
-      // solo manda la ubicación. Si el GPS no respondió, fichamos sin coordenadas.
+      // solo manda la ubicación. Si el GPS no respondió, fichamos con respaldo.
       const res = await authInvoke('trackTime', {
         operation: 'clockOut',
         entryId: openEntry.id,
-        ...(loc ? { lat: loc.lat, lng: loc.lng } : {}),
+        lat: loc.lat, lng: loc.lng, locFallback: loc.isBackup,
       });
       const clockedAt = res.data?.clockOut ? moment(res.data.clockOut) : moment();
       const regularHours = res.data?.totalHours ?? 0;
       const overtimeHours = res.data?.overtimeHours ?? 0;
+      const locNote = loc.isBackup ? ' (ubicación aproximada)' : '';
 
       if (overtimeHours > 0) {
-        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras` });
+        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras${locNote}` });
       } else {
-        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas` });
+        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas${locNote}` });
       }
       loadEntries();
     } catch (e) {

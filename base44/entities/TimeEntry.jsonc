@@ -28,6 +28,16 @@
     "clock_out_lng": {
       "type": "number"
     },
+    "clock_in_fallback": {
+      "type": "boolean",
+      "default": false,
+      "description": "True si la ubicaci\u00f3n de entrada es de respaldo (taller), no GPS real"
+    },
+    "clock_out_fallback": {
+      "type": "boolean",
+      "default": false,
+      "description": "True si la ubicaci\u00f3n de salida es de respaldo (taller), no GPS real"
+    },
     "total_hours": {
       "type": "number"
     },

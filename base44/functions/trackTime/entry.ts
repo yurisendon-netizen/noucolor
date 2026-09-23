@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     switch (operation) {
       case 'clockIn': {
-        const { lat, lng } = body;
+        const { lat, lng, locFallback } = body;
         // Un empleado marcado como de baja o de vacaciones no puede fichar la
         // entrada — se valida en el servidor, no solo en el frontend.
         if (caller.estado_laboral === 'baja' || caller.estado_laboral === 'vacaciones') {
@@ -101,12 +101,12 @@ Deno.serve(async (req) => {
 
         if (absenceEntry) {
           await base44.asServiceRole.entities.TimeEntry.update(absenceEntry.id, {
-            clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, status: 'abierto'
+            clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: !!locFallback, status: 'abierto'
           });
         } else {
           await base44.asServiceRole.entities.TimeEntry.create({
             employee_id: empId, employee_name: empName,
-            clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, status: 'abierto'
+            clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: !!locFallback, status: 'abierto'
           });
         }
 
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       }
 
       case 'clockOut': {
-        const { entryId, lat, lng } = body;
+        const { entryId, lat, lng, locFallback } = body;
         // Verify the entry belongs to the caller
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ id: entryId });
         if (entries.length === 0 || entries[0].employee_id !== empId) {
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
         regularHours = parseFloat(Math.min(Math.max(regularHours, 0), 8).toFixed(2));
 
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
-          clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng,
+          clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: !!locFallback,
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
         });
         await upsertLocation(base44, empId, empName, false, lat, lng);
