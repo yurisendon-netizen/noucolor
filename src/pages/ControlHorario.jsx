@@ -215,13 +215,13 @@ export default function ControlHorario() {
 
       loadEntries();
     } catch (e) {
-      // El GPS NUNCA debe impedir fichar. Si el fallo fue de geolocalización,
-      // reintentamos el fichaje sin coordenadas en lugar de bloquear al operario.
+      // El GPS NUNCA debe impedir fichar. Si algo falla tras obtener ubicación,
+      // reintentamos el fichaje con las coordenadas del taller como respaldo.
       if (geoErrorMessage(e)) {
         try {
-          const retry = await authInvoke('trackTime', { operation: 'clockIn' });
+          const retry = await authInvoke('trackTime', { operation: 'clockIn', ...WORKSHOP_COORDS, locFallback: true });
           const at = retry.data?.clockIn ? moment(retry.data.clockIn) : moment();
-          toast({ variant: 'success', title: '✅ Entrada fichada', description: `${at.format('HH:mm')} — Sin ubicación (GPS no disponible)` });
+          toast({ variant: 'success', title: '✅ Entrada fichada', description: `${at.format('HH:mm')} — Ubicación aproximada (respaldo del taller)` });
           loadEntries();
         } catch (e2) {
           toast({ title: 'Error al fichar', description: e2.message, variant: 'destructive' });
@@ -259,12 +259,13 @@ export default function ControlHorario() {
       }
       loadEntries();
     } catch (e) {
-      // Mismo criterio que en la entrada: un fallo de GPS no bloquea la salida.
+      // Mismo criterio que en la entrada: un fallo no bloquea la salida; usamos
+      // el respaldo del taller para que siempre quede una ubicación registrada.
       if (geoErrorMessage(e) && openEntry) {
         try {
-          const retry = await authInvoke('trackTime', { operation: 'clockOut', entryId: openEntry.id });
+          const retry = await authInvoke('trackTime', { operation: 'clockOut', entryId: openEntry.id, ...WORKSHOP_COORDS, locFallback: true });
           const at = retry.data?.clockOut ? moment(retry.data.clockOut) : moment();
-          toast({ variant: 'success', title: '✅ Salida fichada', description: `${at.format('HH:mm')} — Sin ubicación (GPS no disponible)` });
+          toast({ variant: 'success', title: '✅ Salida fichada', description: `${at.format('HH:mm')} — Ubicación aproximada (respaldo del taller)` });
           loadEntries();
         } catch (e2) {
           toast({ title: 'Error al fichar', description: e2.message, variant: 'destructive' });
