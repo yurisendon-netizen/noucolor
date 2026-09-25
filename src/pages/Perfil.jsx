@@ -3,6 +3,7 @@ import { useCustomAuth } from '@/lib/CustomAuthContext';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import DeleteAccountDialog from '@/components/perfil/DeleteAccountDialog';
+import NotificationSettings from '@/components/perfil/NotificationSettings';
 import { Mail, Phone, Briefcase, Calendar, User, Hash, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -77,6 +78,8 @@ export default function Perfil() {
             <DetailRow icon={Calendar} label="Fecha de incorporación" value={hireDate} />
           </CardContent>
         </Card>
+
+        <NotificationSettings employee={employee} />
 
         <Card className="border-primary/30 h-fit">
           <CardHeader>
