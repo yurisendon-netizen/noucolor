@@ -1,0 +1,57 @@
+{
+  "name": "CronRun",
+  "type": "object",
+  "properties": {
+    "nombre_tarea": {
+      "type": "string",
+      "description": "Nombre de la funci\u00f3n/tarea programada"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha (Europe/Andorra) en la que se ejecut\u00f3"
+    },
+    "estado": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "error"
+      ]
+    },
+    "mensaje_error": {
+      "type": "string",
+      "description": "Mensaje de error resumido si fall\u00f3"
+    },
+    "duracion_ms": {
+      "type": "number",
+      "description": "Duraci\u00f3n de la ejecuci\u00f3n en milisegundos"
+    }
+  },
+  "required": [
+    "nombre_tarea",
+    "fecha",
+    "estado"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

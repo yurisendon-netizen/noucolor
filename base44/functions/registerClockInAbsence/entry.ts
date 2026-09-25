@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireCronSecret } from '../../shared/cronAuth.ts';
 import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
+import { runCronTracked } from '../../shared/cronMonitor.ts';
 
 // ── OPERACIÓN DE SISTEMA: disparada por cron a las 08:30 hora de Andorra
 // (UTC+2 verano → 06:30 UTC) en días laborables. Sin usuario detrás.
@@ -18,8 +19,8 @@ function todayLocalDate() {
 Deno.serve(async (req) => {
   const unauthorized = await requireCronSecret(req);
   if (unauthorized) return unauthorized;
-  try {
-    const base44 = createClientFromRequest(req);
+  const base44 = createClientFromRequest(req);
+  return await runCronTracked(base44, 'registerClockInAbsence', async () => {
     const today = todayLocalDate();
 
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
@@ -89,7 +90,5 @@ Deno.serve(async (req) => {
       notified: results.filter(r => r.inApp?.created).length,
       results
     });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+  });
 });

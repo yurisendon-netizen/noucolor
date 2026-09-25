@@ -58,3 +58,38 @@ export async function sendOneSignalPush({ externalUserIds, heading, content, dat
     return { sent: false, error: err?.message || String(err) };
   }
 }
+
+// Lee el estado de suscripción push de un usuario desde la API de OneSignal
+// (GET /apps/{app_id}/users/by/external_id/{external_id}). No expone la clave al
+// cliente: se ejecuta solo en backend con las secrets del app. Usado por la
+// función onesignalUserStatus para el panel de admin "Estado de notificaciones".
+// Devuelve { available, hasDevice, subscriptions } o { available:false, error }.
+export async function getOneSignalUserStatus(externalUserId) {
+  const appId = secrets.get('ONESIGNAL_APP_ID');
+  const restKey = secrets.get('ONESIGNAL_REST_API_KEY');
+  if (!appId || !restKey) {
+    return { available: false, error: 'Faltan ONESIGNAL_APP_ID / ONESIGNAL_REST_API_KEY' };
+  }
+  if (!externalUserId) {
+    return { available: false, error: 'Sin external_id' };
+  }
+  try {
+    const resp = await fetch(
+      `https://api.onesignal.com/apps/${appId}/users/by/external_id/${encodeURIComponent(externalUserId)}`,
+      { headers: { 'Authorization': `Key ${restKey}` } }
+    );
+    // 404 = el usuario no existe en OneSignal (sin dispositivo vinculado)
+    if (resp.status === 404) {
+      return { available: true, hasDevice: false, subscriptions: [] };
+    }
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      return { available: false, error: `OneSignal ${resp.status}: ${text}` };
+    }
+    const json = await resp.json().catch(() => ({}));
+    const subs = Array.isArray(json.subscriptions) ? json.subscriptions : [];
+    return { available: true, hasDevice: subs.length > 0, subscriptions: subs };
+  } catch (err) {
+    return { available: false, error: err?.message || String(err) };
+  }
+}

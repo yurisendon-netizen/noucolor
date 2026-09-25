@@ -72,6 +72,15 @@
     "opened_by": {
       "type": "string",
       "description": "ID del empleado admin/jefe que abrio el fichaje manualmente"
+    },
+    "corregido_por_solicitud": {
+      "type": "boolean",
+      "default": false,
+      "description": "True si el fichaje fue modificado por una solicitud de correccion aprobada"
+    },
+    "solicitud_correccion_id": {
+      "type": "string",
+      "description": "ID de la SolicitudCorreccion que origino la correccion"
     }
   },
   "required": [

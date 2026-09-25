@@ -1,0 +1,103 @@
+{
+  "name": "SolicitudCorreccion",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "D\u00eda del fichaje a corregir"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "olvido_entrada",
+        "olvido_salida",
+        "salida_por_error",
+        "hora_incorrecta",
+        "otro"
+      ]
+    },
+    "hora_propuesta": {
+      "type": "string",
+      "description": "HH:mm propuesta por el trabajador (hora de pared Andorra)"
+    },
+    "lat": {
+      "type": "number"
+    },
+    "lng": {
+      "type": "number"
+    },
+    "motivo": {
+      "type": "string"
+    },
+    "estado": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "aprobada",
+        "rechazada"
+      ],
+      "default": "pendiente"
+    },
+    "resuelta_por": {
+      "type": "string",
+      "description": "Nombre del admin/jefe que resolvi\u00f3 la solicitud"
+    },
+    "fecha_resolucion": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "comentario_admin": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "fecha",
+    "tipo",
+    "motivo"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.employee_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.employee_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

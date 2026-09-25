@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { verifySession } from '../../shared/employeeAuth.ts';
 import { autoCloseAllOpenEntries, autoCloseEntry } from '../../shared/timeEntryAutoClose.ts';
+import { notifyAdminsPush } from '../../shared/cronMonitor.ts';
+import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 
 // Ajusta este offset si Andorra está en horario de invierno (+01:00) vs verano (+02:00)
 const LOCAL_UTC_OFFSET = '+02:00';
@@ -62,6 +64,69 @@ async function upsertLocation(base44, empId, empName, isActive, lat, lng) {
       await base44.asServiceRole.entities.EmployeeLocation.create(locData);
     }
   } catch { /* silent */ }
+}
+
+// Aplica el cambio de fichaje derivado de una SolicitudCorreccion aprobada.
+// Misma lógica que admin_open_entry para olvido_entrada (reabre/crea entrada,
+// resuelve la falta de ese día). Para el resto de tipos ajusta clock_in/out.
+// Marca el TimeEntry con corregido_por_solicitud + el id de la solicitud.
+async function applyCorreccion(base44, sol, adminId) {
+  const proposedIso = sol.hora_propuesta ? andorraLocalToUtcIso(sol.fecha, sol.hora_propuesta) : null;
+  const lat = sol.lat ?? null;
+  const lng = sol.lng ?? null;
+  const mark = { corregido_por_solicitud: true, solicitud_correccion_id: sol.id };
+
+  const dayEntries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: sol.employee_id, date: sol.fecha });
+  const entry = dayEntries[0];
+
+  if (sol.tipo === 'olvido_entrada') {
+    if (entry && entry.status === 'ausencia_injustificada') {
+      await base44.asServiceRole.entities.TimeEntry.update(entry.id, {
+        clock_in: proposedIso, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false,
+        status: 'abierto', opened_by_admin: true, opened_by: adminId, ...mark
+      });
+    } else if (entry) {
+      await base44.asServiceRole.entities.TimeEntry.update(entry.id, { clock_in: proposedIso, ...mark });
+    } else {
+      await base44.asServiceRole.entities.TimeEntry.create({
+        employee_id: sol.employee_id, employee_name: sol.employee_name,
+        clock_in: proposedIso, date: sol.fecha,
+        clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false,
+        status: 'abierto', opened_by_admin: true, opened_by: adminId, ...mark
+      });
+    }
+  } else if (sol.tipo === 'olvido_salida') {
+    if (entry) {
+      await base44.asServiceRole.entities.TimeEntry.update(entry.id, {
+        clock_out: proposedIso, status: 'cerrado', ...mark
+      });
+    }
+  } else if (sol.tipo === 'salida_por_error') {
+    // El trabajador fichó salida por error: se elimina y se reabre la jornada.
+    if (entry) {
+      await base44.asServiceRole.entities.TimeEntry.update(entry.id, {
+        clock_out: null, total_hours: null, overtime_hours: 0,
+        status: 'abierto', auto_closed: false, ...mark
+      });
+    }
+  } else if (sol.tipo === 'hora_incorrecta') {
+    if (entry) {
+      if (entry.clock_out) {
+        await base44.asServiceRole.entities.TimeEntry.update(entry.id, { clock_out: proposedIso, ...mark });
+      } else {
+        await base44.asServiceRole.entities.TimeEntry.update(entry.id, { clock_in: proposedIso, ...mark });
+      }
+    }
+  }
+  // 'otro' → no modifica el fichaje, solo queda registrada como aprobada.
+
+  // Resolver la incidencia de falta (sin_fichar) de ese día, igual que admin_open_entry.
+  const incs = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: sol.employee_id, date: sol.fecha });
+  for (const inc of incs) {
+    if (inc.type === 'sin_fichar' && inc.status !== 'resuelto') {
+      await base44.asServiceRole.entities.Incumplimiento.update(inc.id, { status: 'resuelto' });
+    }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -462,6 +527,91 @@ Deno.serve(async (req) => {
           date, clockIn: clockInIso,
           opened, skippedOpen, skippedAbsent
         });
+      }
+
+      // ── Solicitudes de corrección de fichaje (feature B).
+      // El trabajador crea solicitudes propias; validamos en servidor que es
+      // suya y que no tiene ya una pendiente del mismo tipo para ese día.
+      case 'createCorreccion': {
+        const { fecha, tipo, horaPropuesta, lat, lng, motivo } = body;
+        const validTypes = ['olvido_entrada', 'olvido_salida', 'salida_por_error', 'hora_incorrecta', 'otro'];
+        if (!validTypes.includes(tipo)) return Response.json({ error: 'Tipo no válido' }, { status: 400 });
+        if (!fecha || !motivo) return Response.json({ error: 'Fecha y motivo son obligatorios' }, { status: 400 });
+
+        const pendientes = await base44.asServiceRole.entities.SolicitudCorreccion.filter({
+          employee_id: empId, fecha, estado: 'pendiente'
+        });
+        if (pendientes.some(s => s.tipo === tipo)) {
+          return Response.json({ error: 'Ya tienes una solicitud pendiente de este tipo para ese día' }, { status: 409 });
+        }
+
+        const created = await base44.asServiceRole.entities.SolicitudCorreccion.create({
+          employee_id: empId, employee_name: empName,
+          fecha, tipo,
+          hora_propuesta: horaPropuesta || null,
+          lat: lat ?? null, lng: lng ?? null,
+          motivo, estado: 'pendiente'
+        });
+
+        await notifyAdminsPush(
+          base44,
+          'Nueva solicitud de corrección',
+          `${empName} solicitó corregir su fichaje del ${fecha}.`,
+          { target_url: '/control-horario' }
+        );
+
+        return Response.json({ success: true, solicitud: created });
+      }
+
+      case 'listCorrecciones': {
+        const { onlyPending } = body;
+        let data;
+        if (isAdmin) {
+          data = onlyPending
+            ? await base44.asServiceRole.entities.SolicitudCorreccion.filter({ estado: 'pendiente' }, '-created_date', 200)
+            : await base44.asServiceRole.entities.SolicitudCorreccion.list('-created_date', 200);
+        } else {
+          data = await base44.asServiceRole.entities.SolicitudCorreccion.filter({ employee_id: empId }, '-created_date', 100);
+        }
+        return Response.json({ success: true, solicitudes: data });
+      }
+
+      // Solo admins/jefes pueden aprobar/rechazar (403 si no). Al aprobar se
+      // aplica el cambio con applyCorreccion (marca el TimeEntry) y se avisa al
+      // trabajador por push del resultado.
+      case 'resolveCorreccion': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { solicitudId, accion, comentario } = body;
+        if (!solicitudId) return Response.json({ error: 'Falta solicitudId' }, { status: 400 });
+        if (!['aprobar', 'rechazar'].includes(accion)) return Response.json({ error: 'Acción no válida' }, { status: 400 });
+
+        const recs = await base44.asServiceRole.entities.SolicitudCorreccion.filter({ id: solicitudId });
+        if (recs.length === 0) return Response.json({ error: 'Solicitud no encontrada' }, { status: 404 });
+        const sol = recs[0];
+        if (sol.estado !== 'pendiente') return Response.json({ error: 'La solicitud ya fue resuelta' }, { status: 400 });
+
+        if (accion === 'aprobar') {
+          await applyCorreccion(base44, sol, empId);
+        }
+
+        await base44.asServiceRole.entities.SolicitudCorreccion.update(solicitudId, {
+          estado: accion === 'aprobar' ? 'aprobada' : 'rechazada',
+          resuelta_por: empName,
+          fecha_resolucion: new Date().toISOString(),
+          comentario_admin: comentario || null
+        });
+
+        // Push al trabajador (best-effort).
+        await sendOneSignalPush({
+          externalUserIds: sol.employee_id,
+          heading: accion === 'aprobar' ? 'Solicitud aprobada' : 'Solicitud rechazada',
+          content: accion === 'aprobar'
+            ? `Tu solicitud de corrección del ${sol.fecha} ha sido aprobada.`
+            : `Tu solicitud de corrección del ${sol.fecha} ha sido rechazada.`,
+          data: { target_url: '/control-horario' }
+        });
+
+        return Response.json({ success: true, estado: accion === 'aprobar' ? 'aprobada' : 'rechazada' });
       }
 
       default:

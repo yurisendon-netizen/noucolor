@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireCronSecret } from '../../shared/cronAuth.ts';
+import { runCronTracked } from '../../shared/cronMonitor.ts';
 
 // ── OPERACIÓN DE SISTEMA: pensada para ser disparada por un cron de Base44 a
 // las 8:00 hora de Andorra en días laborables, sin usuario detrás (igual que
@@ -16,8 +17,8 @@ function todayLocalDate() {
 Deno.serve(async (req) => {
   const unauthorized = await requireCronSecret(req);
   if (unauthorized) return unauthorized;
-  try {
-    const base44 = createClientFromRequest(req);
+  const base44 = createClientFromRequest(req);
+  return await runCronTracked(base44, 'notifyMissingClockIn', async () => {
     const today = todayLocalDate();
 
     // Empleados activos con email — los jefes están exentos de fichar (ver ControlHorario)
@@ -85,7 +86,5 @@ Deno.serve(async (req) => {
       sent: results.filter(r => r.sent).length,
       results
     });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+  });
 });

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Clock, FileText, ShieldCheck, Users,
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, TrendingUp, User
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, TrendingUp, User, Bell
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 
@@ -20,6 +20,7 @@ const navItems = [
   { path: '/revision-jornadas', label: 'Revisión Jornadas', icon: CalendarCheck, adminOnly: true },
   { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
   { path: '/empleados', label: 'Empleados', icon: Users, adminOnly: true },
+  { path: '/estado-notificaciones', label: 'Notificaciones', icon: Bell, adminOnly: true },
 
   { path: '/normas', label: 'Normas Empresa', icon: BookOpen, adminOnly: false },
 

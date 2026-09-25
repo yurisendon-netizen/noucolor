@@ -19,6 +19,7 @@ import HorasExtras from '@/pages/HorasExtras';
 import PartesTrabajo from '@/pages/PartesTrabajo';
 import Justificantes from '@/pages/Justificantes';
 import Empleados from '@/pages/Empleados';
+import EstadoNotificaciones from '@/pages/EstadoNotificaciones';
 import RevisionJornadas from '@/pages/RevisionJornadas';
 import Nominas from '@/pages/Nominas';
 import Geolocalizacion from '@/pages/Geolocalizacion';
@@ -48,6 +49,7 @@ function App() {
                   <Route path="/partes-trabajo" element={<PartesTrabajo />} />
                   <Route path="/justificantes" element={<Justificantes />} />
                   <Route path="/empleados" element={<Empleados />} />
+                  <Route path="/estado-notificaciones" element={<EstadoNotificaciones />} />
                   <Route path="/revision-jornadas" element={<RevisionJornadas />} />
                   <Route path="/nominas" element={<Nominas />} />
                   <Route path="/geolocalizacion" element={<Geolocalizacion />} />

@@ -4,6 +4,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import DeleteAccountDialog from '@/components/perfil/DeleteAccountDialog';
 import NotificationSettings from '@/components/perfil/NotificationSettings';
+import CronStatusCard from '@/components/perfil/CronStatusCard';
 import { Mail, Phone, Briefcase, Calendar, User, Hash, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ function DetailRow({ icon: Icon, label, value }) {
 }
 
 export default function Perfil() {
-  const { employee } = useCustomAuth();
+  const { employee, isAdmin } = useCustomAuth();
 
   if (!employee) return null;
 
@@ -80,6 +81,8 @@ export default function Perfil() {
         </Card>
 
         <NotificationSettings employee={employee} />
+
+        {isAdmin && <CronStatusCard />}
 
         <Card className="border-primary/30 h-fit">
           <CardHeader>

@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireCronSecret } from '../../shared/cronAuth.ts';
+import { runCronTracked } from '../../shared/cronMonitor.ts';
 
 // Cierre automático de fichajes abiertos — misma lógica que
 // shared/timeEntryAutoClose.ts (usada por trackTime/autoCloseAll), duplicada
@@ -60,11 +61,9 @@ async function autoCloseAllOpenEntries(base44) {
 Deno.serve(async (req) => {
   const unauthorized = await requireCronSecret(req);
   if (unauthorized) return unauthorized;
-  try {
-    const base44 = createClientFromRequest(req);
+  const base44 = createClientFromRequest(req);
+  return await runCronTracked(base44, 'autoCloseTimeEntries', async () => {
     const closed = await autoCloseAllOpenEntries(base44);
     return Response.json({ success: true, closedCount: closed });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+  });
 });

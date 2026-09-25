@@ -10,7 +10,10 @@ import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import ClockInBanner from '@/components/clock/ClockInBanner';
 import AdminOpenEntryDialog from '@/components/clock/AdminOpenEntryDialog';
+import SolicitudCorreccionDialog from '@/components/clock/SolicitudCorreccionDialog';
+import SolicitudesPendientes from '@/components/clock/SolicitudesPendientes';
 import StatusBadge from '@/components/shared/StatusBadge';
+import { ClipboardEdit } from 'lucide-react';
 import moment from 'moment';
 
 // Coordenadas del taller de Noucolor (Avinguda Rocafort, Sant Julià de Lòria).
@@ -29,6 +32,7 @@ export default function ControlHorario() {
   const [clockingOut, setClockingOut] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [adminEntryOpen, setAdminEntryOpen] = useState(false);
+  const [correccionOpen, setCorreccionOpen] = useState(false);
   const notifiedRef = useRef({ date: '', reminded8: false, absent830: false, notified16: false });
 
   const empId = employee?.id || user?.id;
@@ -334,6 +338,9 @@ export default function ControlHorario() {
             </Link>
           </div>
         </div>
+        <div className="mt-6">
+          <SolicitudesPendientes />
+        </div>
         <AdminOpenEntryDialog open={adminEntryOpen} onOpenChange={setAdminEntryOpen} onDone={loadEntries} />
       </div>
     );
@@ -348,7 +355,11 @@ export default function ControlHorario() {
           <Button variant="outline" onClick={() => setAdminEntryOpen(true)} className="gap-2">
             <UserPlus size={16} /> Abrir fichaje a trabajador
           </Button>
-        ) : undefined}
+        ) : (
+          <Button variant="outline" onClick={() => setCorreccionOpen(true)} className="gap-2">
+            <ClipboardEdit size={16} /> Solicitar corrección
+          </Button>
+        )}
       />
 
       <ClockInBanner
@@ -441,7 +452,17 @@ export default function ControlHorario() {
       />
 
       {isAdmin && (
+        <div className="mt-6">
+          <SolicitudesPendientes />
+        </div>
+      )}
+
+      {isAdmin && (
         <AdminOpenEntryDialog open={adminEntryOpen} onOpenChange={setAdminEntryOpen} onDone={loadEntries} />
+      )}
+
+      {!isAdmin && (
+        <SolicitudCorreccionDialog open={correccionOpen} onOpenChange={setCorreccionOpen} />
       )}
     </div>
   );

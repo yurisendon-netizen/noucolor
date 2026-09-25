@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireCronSecret } from '../../shared/cronAuth.ts';
 import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
+import { runCronTracked } from '../../shared/cronMonitor.ts';
 
 // ── OPERACIÓN DE SISTEMA: disparada por cron a las 08:00 (zona horaria
 // Europe/Andorra) en días laborables. Sin usuario detrás. Lista los empleados
@@ -9,9 +10,6 @@ import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 // empleado se vincula como external_id en la app (web y nativa) tras el login,
 // por eso aquí se dirige con include_aliases { external_id }.
 
-// Fecha "de pared" en Andorra calculada con la zona horaria real (Europe/Andorra)
-// vía Intl, no sumando un offset fijo: así funciona en invierno (+01:00) y en
-// verano (+02:00) sin tocar código al cambiar de horario.
 function todayLocalDate() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Andorra',
@@ -22,8 +20,8 @@ function todayLocalDate() {
 Deno.serve(async (req) => {
   const unauthorized = await requireCronSecret(req);
   if (unauthorized) return unauthorized;
-  try {
-    const base44 = createClientFromRequest(req);
+  const base44 = createClientFromRequest(req);
+  return await runCronTracked(base44, 'onesignalClockInReminder', async () => {
     const today = todayLocalDate();
 
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
@@ -81,7 +79,5 @@ Deno.serve(async (req) => {
       notified: results.filter(r => r.inApp?.created).length,
       results
     });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+  });
 });
