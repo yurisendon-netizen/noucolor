@@ -33,6 +33,14 @@
       "default": false,
       "description": "True si la ubicaci\u00f3n de entrada es de respaldo (taller), no GPS real"
     },
+    "clock_in_accuracy": {
+      "type": "number",
+      "description": "Margen de error del GPS en metros al fichar la entrada"
+    },
+    "clock_out_accuracy": {
+      "type": "number",
+      "description": "Margen de error del GPS en metros al fichar la salida"
+    },
     "clock_out_fallback": {
       "type": "boolean",
       "default": false,
