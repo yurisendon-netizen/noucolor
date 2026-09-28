@@ -129,6 +129,19 @@ async function applyCorreccion(base44, sol, adminId) {
   }
 }
 
+// Una coordenada es valida solo si viene del GPS del movil: numeros finitos,
+// dentro de rango y distinta de 0,0. Sin ubicacion real no se puede fichar.
+function isValidCoord(lat, lng) {
+  if (lat === null || lat === undefined || lng === null || lng === undefined) return false;
+  const la = Number(lat), ln = Number(lng);
+  return Number.isFinite(la) && Number.isFinite(ln) && Math.abs(la) <= 90 && Math.abs(ln) <= 180 && !(la === 0 && ln === 0);
+}
+
+function toAccuracy(accuracy) {
+  const n = Number(accuracy);
+  return accuracy !== null && accuracy !== undefined && Number.isFinite(n) ? Math.round(n) : null;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -149,7 +162,11 @@ Deno.serve(async (req) => {
 
     switch (operation) {
       case 'clockIn': {
-        const { lat, lng, locFallback } = body;
+        const { lat, lng, accuracy } = body;
+        if (!isValidCoord(lat, lng)) {
+          return Response.json({ error: 'Ubicación obligatoria para fichar. Activa el GPS y la ubicación exacta y vuelve a intentarlo.' }, { status: 400 });
+        }
+        const acc = toAccuracy(accuracy);
         // Un empleado marcado como de baja o de vacaciones no puede fichar la
         // entrada — se valida en el servidor, no solo en el frontend.
         if (caller.estado_laboral === 'baja' || caller.estado_laboral === 'vacaciones') {
@@ -189,12 +206,12 @@ Deno.serve(async (req) => {
 
         if (absenceEntry) {
           await base44.asServiceRole.entities.TimeEntry.update(absenceEntry.id, {
-            clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: !!locFallback, status: 'abierto'
+            clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto'
           });
         } else {
           await base44.asServiceRole.entities.TimeEntry.create({
             employee_id: empId, employee_name: empName,
-            clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: !!locFallback, status: 'abierto'
+            clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto'
           });
         }
 
@@ -209,8 +226,36 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, clockIn, isLate });
       }
 
+      case 'reportLocationFailure': {
+        // El movil no pudo dar la ubicacion al fichar: no se ficha y se registra
+        // una incidencia para que la revise un admin (no es falta automatica).
+        const kind = body.kind === 'denied' ? 'ubicacion_denegada' : 'gps_sin_senal';
+        const stage = body.stage === 'out' ? 'la salida' : 'la entrada';
+        const ua = String(body.userAgent || '').slice(0, 200);
+        const { dateStr: date, hour, minutes } = getLocalParts(new Date());
+        const hhmm = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        const existing = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: empId, date, type: kind });
+        if (existing.length > 0) {
+          return Response.json({ success: true, duplicated: true });
+        }
+        const description = kind === 'ubicacion_denegada'
+          ? `Intentó fichar ${stage} a las ${hhmm} con el permiso de ubicación desactivado. Dispositivo: ${ua}`
+          : `Intentó fichar ${stage} a las ${hhmm} sin obtener señal GPS. Dispositivo: ${ua}`;
+        await base44.asServiceRole.entities.Incumplimiento.create({
+          employee_id: empId, employee_name: empName, date, type: kind, description, status: 'pendiente'
+        });
+        await notifyAdminsPush(base44, '⚠️ Fichaje sin ubicación',
+          `${empName} ha intentado fichar ${stage} sin ubicación (${kind === 'ubicacion_denegada' ? 'permiso desactivado' : 'sin señal GPS'})`,
+          { target_url: '/control-horario' });
+        return Response.json({ success: true });
+      }
+
       case 'clockOut': {
-        const { entryId, lat, lng, locFallback } = body;
+        const { entryId, lat, lng, accuracy } = body;
+        if (!isValidCoord(lat, lng)) {
+          return Response.json({ error: 'Ubicación obligatoria para fichar. Activa el GPS y la ubicación exacta y vuelve a intentarlo.' }, { status: 400 });
+        }
+        const acc = toAccuracy(accuracy);
         // Verify the entry belongs to the caller
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ id: entryId });
         if (entries.length === 0 || entries[0].employee_id !== empId) {
@@ -240,7 +285,7 @@ Deno.serve(async (req) => {
         regularHours = parseFloat(Math.min(Math.max(regularHours, 0), 8).toFixed(2));
 
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
-          clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: !!locFallback,
+          clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: false, clock_out_accuracy: acc,
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
         });
         await upsertLocation(base44, empId, empName, false, lat, lng);
