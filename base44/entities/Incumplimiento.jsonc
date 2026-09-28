@@ -16,7 +16,9 @@
       "type": "string",
       "enum": [
         "entrada_tardia",
-        "sin_fichar"
+        "sin_fichar",
+        "ubicacion_denegada",
+        "gps_sin_senal"
       ],
       "default": "entrada_tardia"
     },
