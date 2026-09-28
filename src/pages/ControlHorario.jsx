@@ -16,10 +16,10 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { ClipboardEdit } from 'lucide-react';
 import moment from 'moment';
 
-// Coordenadas del taller de Noucolor (Avinguda Rocafort, Sant Julià de Lòria).
-// Se usan como ubicación de respaldo cuando el GPS no consigue una lectura real.
-const WORKSHOP_COORDS = { lat: 42.46768, lng: 1.49327 };
-const ACCURACY_THRESHOLD_M = 100;
+// Fichar exige la ubicación REAL del móvil: nunca se usan coordenadas de respaldo.
+// Se espera hasta GPS_MAX_WAIT_MS a que el GPS fije y se guarda la mejor lectura.
+const GPS_MAX_WAIT_MS = 25000;
+const GPS_GOOD_ACCURACY_M = 50;
 
 export default function ControlHorario() {
   const { employee, user, isAdmin } = useEmployeeProfile();
@@ -157,84 +157,97 @@ export default function ControlHorario() {
     return null;
   }
 
-  // Obtiene la ubicación del operario con validación de precisión. El GPS NUNCA
-  // debe bloquear el fichaje: si no se consigue una lectura GPS válida, se
-  // resuelve con las coordenadas del taller (respaldo) marcadas con isBackup.
-  // Así el fichaje siempre lleva una ubicación fiable, nunca null ni errática.
+  // Obtiene la ubicación real del móvil. Escucha el GPS hasta 25 s y se queda con
+  // la lectura más precisa; si llega una de 50 m o menos, la acepta al momento.
+  // Si no hay ninguna lectura, rechaza con el código de error (1 = permiso
+  // denegado, 2 = sin posición, 3 = tiempo agotado) y NO se ficha.
   function getLocation() {
-    return new Promise((resolve) => {
-      const backup = () => resolve({ ...WORKSHOP_COORDS, isBackup: true });
-
-      if (!navigator.geolocation) return backup();
-
-      const accept = (pos, isHighAccuracy) => {
-        const acc = pos.coords.accuracy ?? Infinity;
-        // Primera lectura de baja precisión: si el margen de error es > 100m,
-        // no la aceptamos (suele ser triangulación wifi/antenas, poco fiable).
-        if (!isHighAccuracy && acc > ACCURACY_THRESHOLD_M) {
-          retryHighAccuracy();
-          return;
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject({ code: 2, message: 'Geolocalización no disponible' });
+        return;
+      }
+      let best = null;
+      let lastError = null;
+      let done = false;
+      let watchId = null;
+      let timer = null;
+      const accOf = (pos) => (pos.coords.accuracy ?? Infinity);
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+        if (timer) clearTimeout(timer);
+        if (best) {
+          resolve({
+            lat: best.coords.latitude,
+            lng: best.coords.longitude,
+            accuracy: Number.isFinite(accOf(best)) ? Math.round(accOf(best)) : null,
+          });
+        } else {
+          reject(lastError || { code: 3, message: 'Tiempo agotado' });
         }
-        resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, isBackup: false });
       };
-
-      const retryHighAccuracy = () => {
-        navigator.geolocation.getCurrentPosition(
-          pos => accept(pos, true),
-          () => backup(),
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-        );
-      };
-
-      // Intento rápido: precisión normal, caché de hasta 60s (sin reutilizar
-      // posiciones viejas). Resuelve al instante si el móvil ya tiene un fix.
-      navigator.geolocation.getCurrentPosition(
-        pos => accept(pos, false),
-        () => retryHighAccuracy(),
-        { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (!best || accOf(pos) < accOf(best)) best = pos;
+          if (accOf(pos) <= GPS_GOOD_ACCURACY_M) finish();
+        },
+        (err) => {
+          lastError = { code: err?.code ?? 2, message: err?.message || '' };
+          // Permiso denegado: no tiene sentido seguir esperando.
+          if (err?.code === 1) finish();
+        },
+        { enableHighAccuracy: true, timeout: GPS_MAX_WAIT_MS, maximumAge: 0 }
       );
+      timer = setTimeout(finish, GPS_MAX_WAIT_MS);
     });
+  }
+
+  // Si no se pudo obtener la ubicación, se avisa al servidor para que registre la
+  // incidencia (permiso denegado o sin GPS) y notifique a los admins.
+  async function reportLocationFailure(e, stage) {
+    try {
+      await authInvoke('trackTime', {
+        operation: 'reportLocationFailure',
+        kind: e?.code === 1 ? 'denied' : 'unavailable',
+        stage,
+        userAgent: navigator.userAgent,
+      });
+    } catch { /* no bloquea el aviso al trabajador */ }
   }
 
   // Location management now handled server-side via trackTime function
 
   async function handleClockIn() {
     setClockingIn(true);
+    let loc;
     try {
-      const loc = await getLocation();
+      toast({ title: '📍 Obteniendo tu ubicación…', description: 'Espera unos segundos sin cerrar la app.' });
+      loc = await getLocation();
+    } catch (e) {
+      await reportLocationFailure(e, 'in');
+      toast({ title: 'No se ha fichado la entrada', description: geoErrorMessage(e) || 'No se ha podido obtener tu ubicación. Vuelve a intentarlo.', variant: 'destructive' });
+      setClockingIn(false);
+      return;
+    }
+    try {
       // La hora de entrada y si llega tarde las decide el servidor con su propio
-      // reloj (ver trackTime/clockIn) — el móvil solo manda la ubicación. Si el
-      // GPS no respondió, fichamos con la ubicación de respaldo del taller.
+      // reloj (ver trackTime/clockIn); el móvil solo manda su ubicación real.
       const res = await authInvoke('trackTime', {
         operation: 'clockIn',
-        lat: loc.lat, lng: loc.lng, locFallback: loc.isBackup,
+        lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy,
       });
       const clockedAt = res.data?.clockIn ? moment(res.data.clockIn) : moment();
-
-      if (loc.isBackup) {
-        toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Ubicación aproximada (respaldo del taller)` });
-      } else if (res.data?.isLate) {
-        toast({ title: '⚠️ Entrada tardía', description: `${clockedAt.format('HH:mm')} — Incumplimiento registrado` });
+      const precision = loc.accuracy > 100 ? ` (precisión ±${loc.accuracy} m)` : '';
+      if (res.data?.isLate) {
+        toast({ title: '⚠️ Entrada tardía', description: `${clockedAt.format('HH:mm')} — Incumplimiento registrado${precision}` });
       } else {
-        toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Ubicación registrada` });
+        toast({ variant: 'success', title: '✅ Entrada fichada', description: `${clockedAt.format('HH:mm')} — Ubicación registrada${precision}` });
       }
-
       loadEntries();
     } catch (e) {
-      // El GPS NUNCA debe impedir fichar. Si algo falla tras obtener ubicación,
-      // reintentamos el fichaje con las coordenadas del taller como respaldo.
-      if (geoErrorMessage(e)) {
-        try {
-          const retry = await authInvoke('trackTime', { operation: 'clockIn', ...WORKSHOP_COORDS, locFallback: true });
-          const at = retry.data?.clockIn ? moment(retry.data.clockIn) : moment();
-          toast({ variant: 'success', title: '✅ Entrada fichada', description: `${at.format('HH:mm')} — Ubicación aproximada (respaldo del taller)` });
-          loadEntries();
-        } catch (e2) {
-          toast({ title: 'Error al fichar', description: e2.message, variant: 'destructive' });
-        }
-      } else {
-        toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
-      }
+      toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
     } finally {
       setClockingIn(false);
     }
@@ -243,42 +256,35 @@ export default function ControlHorario() {
   async function handleClockOut() {
     if (!openEntry) return;
     setClockingOut(true);
+    let loc;
     try {
-      const loc = await getLocation();
-      // Horas trabajadas y horas extra las calcula el servidor a partir de la hora
-      // de entrada guardada y su propio reloj (ver trackTime/clockOut) — el móvil
-      // solo manda la ubicación. Si el GPS no respondió, fichamos con respaldo.
+      toast({ title: '📍 Obteniendo tu ubicación…', description: 'Espera unos segundos sin cerrar la app.' });
+      loc = await getLocation();
+    } catch (e) {
+      await reportLocationFailure(e, 'out');
+      toast({ title: 'No se ha fichado la salida', description: geoErrorMessage(e) || 'No se ha podido obtener tu ubicación. Vuelve a intentarlo.', variant: 'destructive' });
+      setClockingOut(false);
+      return;
+    }
+    try {
+      // Horas trabajadas y extra las calcula el servidor con su propio reloj.
       const res = await authInvoke('trackTime', {
         operation: 'clockOut',
         entryId: openEntry.id,
-        lat: loc.lat, lng: loc.lng, locFallback: loc.isBackup,
+        lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy,
       });
       const clockedAt = res.data?.clockOut ? moment(res.data.clockOut) : moment();
       const regularHours = res.data?.totalHours ?? 0;
       const overtimeHours = res.data?.overtimeHours ?? 0;
-      const locNote = loc.isBackup ? ' (ubicación aproximada)' : '';
-
+      const precision = loc.accuracy > 100 ? ` (precisión ±${loc.accuracy} m)` : '';
       if (overtimeHours > 0) {
-        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras${locNote}` });
+        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h regulares + ${overtimeHours}h extras${precision}` });
       } else {
-        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas${locNote}` });
+        toast({ variant: 'success', title: '✅ Salida fichada', description: `${clockedAt.format('HH:mm')} — ${regularHours.toFixed(1)}h trabajadas${precision}` });
       }
       loadEntries();
     } catch (e) {
-      // Mismo criterio que en la entrada: un fallo no bloquea la salida; usamos
-      // el respaldo del taller para que siempre quede una ubicación registrada.
-      if (geoErrorMessage(e) && openEntry) {
-        try {
-          const retry = await authInvoke('trackTime', { operation: 'clockOut', entryId: openEntry.id, ...WORKSHOP_COORDS, locFallback: true });
-          const at = retry.data?.clockOut ? moment(retry.data.clockOut) : moment();
-          toast({ variant: 'success', title: '✅ Salida fichada', description: `${at.format('HH:mm')} — Ubicación aproximada (respaldo del taller)` });
-          loadEntries();
-        } catch (e2) {
-          toast({ title: 'Error al fichar', description: e2.message, variant: 'destructive' });
-        }
-      } else {
-        toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
-      }
+      toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
     } finally {
       setClockingOut(false);
     }
