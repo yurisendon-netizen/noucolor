@@ -10,6 +10,15 @@ const LOCAL_UTC_OFFSET_HOURS = 2;
 
 // Una lectura con más margen de error que esto es por red/IP, no GPS: no vale para fichar.
 const GPS_MAX_ACCEPT_M = 200;
+// Coordenadas fijas que ponía la versión antigua de la app cuando fallaba el GPS
+// (respaldo del "taller"). Nunca son una lectura real: se rechazan siempre.
+const LEGACY_BACKUP = { lat: 42.46768, lng: 1.49327 };
+const OUTDATED_MSG = 'Tu app está desactualizada. Ciérrala del todo, vuelve a abrirla y ficha de nuevo.';
+
+function isLegacyBackup(lat, lng) {
+  return Math.abs(Number(lat) - LEGACY_BACKUP.lat) < 0.00001 && Math.abs(Number(lng) - LEGACY_BACKUP.lng) < 0.00001;
+}
+
 const IMPRECISE_MSG = 'Tu móvil solo da una ubicación aproximada, no la del GPS. Activa la ubicación exacta/precisa, sal al exterior y vuelve a fichar.';
 
 // Hora/fecha "de pared" en Andorra a partir de un instante UTC — calculado en el
@@ -171,7 +180,11 @@ Deno.serve(async (req) => {
           return Response.json({ error: 'Ubicación obligatoria para fichar. Activa el GPS y la ubicación exacta y vuelve a intentarlo.' }, { status: 400 });
         }
         const acc = toAccuracy(accuracy);
-        if (acc !== null && acc > GPS_MAX_ACCEPT_M) {
+        // Sin margen de error o con el respaldo fijo del taller = versión antigua de la app.
+        if (acc === null || isLegacyBackup(lat, lng)) {
+          return Response.json({ error: OUTDATED_MSG }, { status: 400 });
+        }
+        if (acc > GPS_MAX_ACCEPT_M) {
           return Response.json({ error: IMPRECISE_MSG }, { status: 400 });
         }
         // Un empleado marcado como de baja o de vacaciones no puede fichar la
@@ -263,7 +276,11 @@ Deno.serve(async (req) => {
           return Response.json({ error: 'Ubicación obligatoria para fichar. Activa el GPS y la ubicación exacta y vuelve a intentarlo.' }, { status: 400 });
         }
         const acc = toAccuracy(accuracy);
-        if (acc !== null && acc > GPS_MAX_ACCEPT_M) {
+        // Sin margen de error o con el respaldo fijo del taller = versión antigua de la app.
+        if (acc === null || isLegacyBackup(lat, lng)) {
+          return Response.json({ error: OUTDATED_MSG }, { status: 400 });
+        }
+        if (acc > GPS_MAX_ACCEPT_M) {
           return Response.json({ error: IMPRECISE_MSG }, { status: 400 });
         }
         // Verify the entry belongs to the caller
