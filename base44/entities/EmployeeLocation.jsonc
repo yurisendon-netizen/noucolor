@@ -14,6 +14,10 @@
     "longitude": {
       "type": "number"
     },
+    "accuracy": {
+      "type": "number",
+      "description": "Margen de error del GPS en metros de la última lectura"
+    },
     "is_active": {
       "type": "boolean",
       "default": true
