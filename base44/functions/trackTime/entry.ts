@@ -8,6 +8,10 @@ import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 const LOCAL_UTC_OFFSET = '+02:00';
 const LOCAL_UTC_OFFSET_HOURS = 2;
 
+// Una lectura con más margen de error que esto es por red/IP, no GPS: no vale para fichar.
+const GPS_MAX_ACCEPT_M = 200;
+const IMPRECISE_MSG = 'Tu móvil solo da una ubicación aproximada, no la del GPS. Activa la ubicación exacta/precisa, sal al exterior y vuelve a fichar.';
+
 // Hora/fecha "de pared" en Andorra a partir de un instante UTC — calculado en el
 // servidor para que ningún cliente pueda fichar con la hora de su propio móvil.
 function getLocalParts(utcDate) {
@@ -50,12 +54,12 @@ function andorraLocalToUtcIso(dateStr, timeStr) {
   return new Date(naive.getTime() - offset * 60000).toISOString();
 }
 
-async function upsertLocation(base44, empId, empName, isActive, lat, lng) {
+async function upsertLocation(base44, empId, empName, isActive, lat, lng, accuracy = null) {
   try {
     const locs = await base44.asServiceRole.entities.EmployeeLocation.filter({ employee_id: empId });
     const locData = {
       employee_id: empId, employee_name: empName,
-      latitude: lat, longitude: lng,
+      latitude: lat, longitude: lng, accuracy,
       is_active: isActive, last_update: new Date().toISOString()
     };
     if (locs.length > 0) {
@@ -167,6 +171,9 @@ Deno.serve(async (req) => {
           return Response.json({ error: 'Ubicación obligatoria para fichar. Activa el GPS y la ubicación exacta y vuelve a intentarlo.' }, { status: 400 });
         }
         const acc = toAccuracy(accuracy);
+        if (acc !== null && acc > GPS_MAX_ACCEPT_M) {
+          return Response.json({ error: IMPRECISE_MSG }, { status: 400 });
+        }
         // Un empleado marcado como de baja o de vacaciones no puede fichar la
         // entrada — se valida en el servidor, no solo en el frontend.
         if (caller.estado_laboral === 'baja' || caller.estado_laboral === 'vacaciones') {
@@ -200,7 +207,7 @@ Deno.serve(async (req) => {
 
         // Already has an open entry today — don't create a duplicate
         if (openEntry) {
-          await upsertLocation(base44, empId, empName, true, lat, lng);
+          await upsertLocation(base44, empId, empName, true, lat, lng, acc);
           return Response.json({ success: true, alreadyClockedIn: true, clockIn: openEntry.clock_in, isLate: false });
         }
 
@@ -215,7 +222,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        await upsertLocation(base44, empId, empName, true, lat, lng);
+        await upsertLocation(base44, empId, empName, true, lat, lng, acc);
 
         if (isLate) {
           await base44.asServiceRole.entities.Incumplimiento.create({
@@ -256,6 +263,9 @@ Deno.serve(async (req) => {
           return Response.json({ error: 'Ubicación obligatoria para fichar. Activa el GPS y la ubicación exacta y vuelve a intentarlo.' }, { status: 400 });
         }
         const acc = toAccuracy(accuracy);
+        if (acc !== null && acc > GPS_MAX_ACCEPT_M) {
+          return Response.json({ error: IMPRECISE_MSG }, { status: 400 });
+        }
         // Verify the entry belongs to the caller
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ id: entryId });
         if (entries.length === 0 || entries[0].employee_id !== empId) {
@@ -288,7 +298,7 @@ Deno.serve(async (req) => {
           clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: false, clock_out_accuracy: acc,
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
         });
-        await upsertLocation(base44, empId, empName, false, lat, lng);
+        await upsertLocation(base44, empId, empName, false, lat, lng, acc);
         return Response.json({ success: true, clockOut, totalHours: regularHours, overtimeHours });
       }
 
