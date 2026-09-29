@@ -82,6 +82,9 @@ export default function Geolocalizacion() {
                   <div className="text-sm">
                     <strong>{loc.employee_name}</strong><br />
                     Última actualización: {moment(loc.last_update).format('HH:mm:ss')}
+                    {Number.isFinite(loc.accuracy) && (
+                      <><br />Precisión: ±{Math.round(loc.accuracy)} m</>
+                    )}
                   </div>
                 </Popup>
               </Marker>
@@ -104,7 +107,9 @@ export default function Geolocalizacion() {
               <div>
                 <p className="font-medium text-sm">{loc.employee_name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} · {moment(loc.last_update).fromNow()}
+                  {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)}
+                  {Number.isFinite(loc.accuracy) && ` · ±${Math.round(loc.accuracy)} m`}
+                  {' · '}{moment(loc.last_update).fromNow()}
                 </p>
               </div>
             </div>
