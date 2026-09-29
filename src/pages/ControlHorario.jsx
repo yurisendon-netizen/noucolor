@@ -20,6 +20,8 @@ import moment from 'moment';
 // Se espera hasta GPS_MAX_WAIT_MS a que el GPS fije y se guarda la mejor lectura.
 const GPS_MAX_WAIT_MS = 25000;
 const GPS_GOOD_ACCURACY_M = 50;
+// Lecturas peores que esto son por red/IP (no GPS): no se aceptan para fichar.
+const GPS_MAX_ACCEPT_M = 200;
 
 export default function ControlHorario() {
   const { employee, user, isAdmin } = useEmployeeProfile();
@@ -141,7 +143,11 @@ export default function ControlHorario() {
   // si el error no es de geolocalización (p.ej. un fallo de red del servidor).
   function geoErrorMessage(e) {
     if (!e) return null;
-    if (typeof e.code === 'number' && e.code >= 1 && e.code <= 3) {
+    if (typeof e.code === 'number' && e.code >= 1 && e.code <= 4) {
+      if (e.code === 4) {
+        const acc = Number.isFinite(e.accuracy) ? e.accuracy : null;
+        return `Tu móvil solo da una ubicación aproximada${acc !== null ? ` (±${acc} m)` : ''}, no la del GPS. En iPhone: Ajustes → Privacidad → Localización → Safari (o Noucolor) → activa "Ubicación exacta". En Android: activa "Ubicación precisa". Sal al exterior y vuelve a fichar.`;
+      }
       if (e.code === 1) {
         return 'No hemos podido obtener tu ubicación porque el permiso está denegado. Ve a Ajustes de tu móvil → Apps → Noucolor → Permisos → Ubicación → Permitir, y vuelve a intentar fichar.';
       }
@@ -160,7 +166,8 @@ export default function ControlHorario() {
   // Obtiene la ubicación real del móvil. Escucha el GPS hasta 25 s y se queda con
   // la lectura más precisa; si llega una de 50 m o menos, la acepta al momento.
   // Si no hay ninguna lectura, rechaza con el código de error (1 = permiso
-  // denegado, 2 = sin posición, 3 = tiempo agotado) y NO se ficha.
+  // denegado, 2 = sin posición, 3 = tiempo agotado, 4 = solo ubicación
+  // aproximada peor de GPS_MAX_ACCEPT_M) y NO se ficha.
   function getLocation() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -178,7 +185,11 @@ export default function ControlHorario() {
         done = true;
         if (watchId !== null) navigator.geolocation.clearWatch(watchId);
         if (timer) clearTimeout(timer);
-        if (best) {
+        if (best && accOf(best) > GPS_MAX_ACCEPT_M) {
+          // Solo hay una posición aproximada (red/IP): no vale para fichar.
+          const acc = accOf(best);
+          reject({ code: 4, message: 'Ubicación imprecisa', accuracy: Number.isFinite(acc) ? Math.round(acc) : null });
+        } else if (best) {
           resolve({
             lat: best.coords.latitude,
             lng: best.coords.longitude,
@@ -210,7 +221,7 @@ export default function ControlHorario() {
     try {
       await authInvoke('trackTime', {
         operation: 'reportLocationFailure',
-        kind: e?.code === 1 ? 'denied' : 'unavailable',
+        kind: e?.code === 1 ? 'denied' : e?.code === 4 ? 'imprecise' : 'unavailable',
         stage,
         userAgent: navigator.userAgent,
       });
