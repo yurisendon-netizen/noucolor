@@ -117,14 +117,13 @@ export default function BalanceObras() {
           onEdit={() => setObraDlg({ open: true, obra: selected })}
           onDelete={async () => {
             if (!confirm(`¿Eliminar la obra «${selected.nombre}» y sus costes? Los partes de trabajo NO se borran.`)) return;
-            await run(() => call('deleteObra', { obraId: selected.id }), 'Obra eliminada');
-            setSelectedId(null);
+            try { await run(() => call('deleteObra', { obraId: selected.id }), 'Obra eliminada'); setSelectedId(null); } catch { /* aviso ya mostrado */ }
           }}
           onAddCoste={() => setCosteDlg({ open: true, coste: null })}
           onEditCoste={c => setCosteDlg({ open: true, coste: c })}
-          onDeleteCoste={c => confirm(`¿Eliminar «${c.concepto}»?`) && run(() => call('deleteCoste', { costeId: c.id }), 'Coste eliminado')}
+          onDeleteCoste={c => { if (confirm(`¿Eliminar «${c.concepto}»?`)) run(() => call('deleteCoste', { costeId: c.id }), 'Coste eliminado').catch(() => {}); }}
           onAsignar={() => setAsignar({ open: true, obra: selected })}
-          onUnlink={p => run(() => call('linkPartes', { obraId: null, parteIds: [p.id] }), 'Parte quitado de la obra')}
+          onUnlink={p => { run(() => call('linkPartes', { obraId: null, parteIds: [p.id] }), 'Parte quitado de la obra').catch(() => {}); }}
         />
         {dialogs}
       </div>
