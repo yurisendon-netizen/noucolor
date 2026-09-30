@@ -25,7 +25,9 @@ export default function PartesTrabajo() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '' });
+  const emptyForm = { title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '', obra_id: '' };
+  const [form, setForm] = useState(emptyForm);
+  const [obras, setObras] = useState([]);
   const [firmaDataUrl, setFirmaDataUrl] = useState(null);
   const [creating, setCreating] = useState(false);
   const [workers, setWorkers] = useState([]);
@@ -37,6 +39,24 @@ export default function PartesTrabajo() {
       .then(res => setWorkers(res.data?.workers || []))
       .catch(() => setWorkers([]));
   }, []);
+
+  // Obras abiertas del Balance de Obras, para vincular el parte a su obra.
+  useEffect(() => {
+    if (!dialogOpen) return;
+    authInvoke('balanceObras', { operation: 'listObrasAbiertas' })
+      .then(res => setObras(res.data?.obras || []))
+      .catch(() => setObras([]));
+  }, [dialogOpen]);
+
+  function selectObra(id) {
+    const o = obras.find(x => x.id === id);
+    setForm(f => ({
+      ...f,
+      obra_id: id,
+      title: o && !f.title ? o.nombre : f.title,
+      client_name: o && !f.client_name ? o.cliente : f.client_name,
+    }));
+  }
 
   // Al abrir el formulario, el propio trabajador aparece ya en la primera fila.
   useEffect(() => {
@@ -74,7 +94,7 @@ export default function PartesTrabajo() {
       if (res?.data?.error) throw new Error(res.data.error);
       toast({ variant: 'success', title: 'Parte creado correctamente' });
       setDialogOpen(false);
-      setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '' });
+      setForm(emptyForm);
       setHoras(emptyHoras());
       setFirmaDataUrl(null);
       loadOrders();
@@ -215,6 +235,19 @@ export default function PartesTrabajo() {
             <DialogTitle>Nuevo Parte de Trabajo</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
+            {obras.length > 0 && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Obra</label>
+                <select
+                  value={form.obra_id}
+                  onChange={e => selectObra(e.target.value)}
+                  className="w-full h-10 rounded-md bg-secondary border border-border px-2 text-sm"
+                >
+                  <option value="">Sin obra asignada</option>
+                  {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}{o.cliente ? ` · ${o.cliente}` : ''}</option>)}
+                </select>
+              </div>
+            )}
             <Input placeholder="Título *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Cliente *" value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} className="bg-secondary border-border" />
             <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
