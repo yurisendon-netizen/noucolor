@@ -519,8 +519,15 @@ Deno.serve(async (req) => {
           } catch (e) { console.error('upload firma', e); }
         }
 
+        // Obra del balance (opcional): solo se guarda si existe.
+        let obra_id = null;
+        if (typeof f.obra_id === 'string' && f.obra_id) {
+          const ob = await base44.asServiceRole.entities.Obra.filter({ id: f.obra_id });
+          if (ob.length > 0) obra_id = ob[0].id;
+        }
+
         const created = await base44.asServiceRole.entities.WorkOrder.create({
-          title, client_name, date, priority,
+          title, client_name, date, priority, obra_id,
           description: str(f.description),
           materials: str(f.materials),
           notes: str(f.notes),
