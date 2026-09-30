@@ -490,6 +490,20 @@ Deno.serve(async (req) => {
         }
         const priority = ['baja', 'media', 'alta'].includes(f.priority) ? f.priority : 'media';
 
+        // Horas trabajadas: una fila por trabajador (0,25 h a 24 h).
+        const rawHoras = Array.isArray(f.horas_trabajadas) ? f.horas_trabajadas : [];
+        const horas_trabajadas = rawHoras
+          .map(h => ({
+            employee_id: typeof h?.employee_id === 'string' ? h.employee_id : '',
+            employee_name: str(h?.employee_name, 200),
+            horas: Math.round((parseFloat(String(h?.horas ?? '').replace(',', '.')) || 0) * 100) / 100,
+          }))
+          .filter(h => h.employee_name && h.horas > 0 && h.horas <= 24);
+        if (horas_trabajadas.length === 0) {
+          return Response.json({ error: 'Indica las horas trabajadas de al menos un trabajador.' }, { status: 400 });
+        }
+        const total_horas = Math.round(horas_trabajadas.reduce((s, h) => s + h.horas, 0) * 100) / 100;
+
         // Firma: se sube como imagen; si la subida falla se guarda la propia
         // imagen (data URL) para no perder nunca el parte.
         let firma = null;
@@ -512,11 +526,22 @@ Deno.serve(async (req) => {
           notes: str(f.notes),
           encargado_obra: str(f.encargado_obra, 200) || empName,
           encargado_firma: firma,
+          horas_trabajadas,
+          total_horas,
           assigned_to: empId,
           assigned_name: empName,
           status: 'pendiente',
         });
         return Response.json({ success: true, workOrder: created });
+      }
+
+      // Lista de trabajadores activos (id + nombre) para el formulario de partes.
+      case 'listWorkers': {
+        const all = await base44.asServiceRole.entities.Employee.list('full_name', 200);
+        const workers = all
+          .filter(e => e.is_active !== false && e.role !== 'jefe' && e.estado_laboral !== 'baja' && !/tester/i.test(e.full_name || ''))
+          .map(e => ({ id: e.id, full_name: e.full_name }));
+        return Response.json({ success: true, workers });
       }
 
       case 'updateWorkOrderStatus': {
