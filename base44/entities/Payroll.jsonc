@@ -14,6 +14,15 @@
     "employee_nss": {
       "type": "string"
     },
+    "employee_iban": {
+      "type": "string"
+    },
+    "employee_position": {
+      "type": "string"
+    },
+    "employee_hire_date": {
+      "type": "string"
+    },
     "period_month": {
       "type": "number"
     },
@@ -25,6 +34,11 @@
       "description": "Preu per hora del treballador (\u20ac)",
       "default": 0
     },
+    "precio_hora_extra": {
+      "type": "number",
+      "description": "Preu per hora extra (\u20ac), ja net",
+      "default": 0
+    },
     "total_hours": {
       "type": "number",
       "description": "Hores treballades totals del per\u00edode",
@@ -32,6 +46,10 @@
     },
     "base_salary": {
       "type": "number"
+    },
+    "base_net_salary": {
+      "type": "number",
+      "description": "Salari net mensual pactat (\u20ac)"
     },
     "overtime_hours": {
       "type": "number",
