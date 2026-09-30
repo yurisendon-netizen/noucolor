@@ -26,6 +26,7 @@ import Geolocalizacion from '@/pages/Geolocalizacion';
 import Normas from '@/pages/Normas';
 import Informes from '@/pages/Informes';
 import Estadisticas from '@/pages/Estadisticas';
+import BalanceObras from '@/pages/BalanceObras';
 import Perfil from '@/pages/Perfil';
 import CodigoSeguridad from '@/pages/CodigoSeguridad';
 
@@ -56,6 +57,7 @@ function App() {
                   <Route path="/normas" element={<Normas />} />
                   <Route path="/informes" element={<Informes />} />
                   <Route path="/estadisticas" element={<Estadisticas />} />
+                  <Route path="/balance-obras" element={<BalanceObras />} />
                   <Route path="/perfil" element={<Perfil />} />
                   <Route path="/codigo-seguridad" element={<CodigoSeguridad />} />
                 </Route>
