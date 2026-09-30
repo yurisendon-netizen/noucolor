@@ -69,6 +69,15 @@ export default function HorasExtras() {
     } catch (e) { console.error(e); }
   }
 
+  // Precio de la hora extra: el de la ficha del trabajador (hoja de nóminas);
+  // si no lo tiene, precio/hora × 1,4.
+  function getPrecioExtraForEmployee(empId) {
+    const emp = !isAdmin ? employee : employees.find(e => e.id === empId);
+    if (!emp) return 0;
+    if (emp.precioHoraExtra > 0) return emp.precioHoraExtra;
+    return Math.round((emp.precioHora || 0) * OVERTIME_MULTIPLIER * 100) / 100;
+  }
+
   function getPrecioHoraForEmployee(empId) {
     if (!isAdmin) return employee?.precioHora || 0;
     const emp = employees.find(e => e.id === empId);
@@ -192,7 +201,7 @@ export default function HorasExtras() {
   }
 
   const previewDuration = form.start_time && form.end_time ? calcDuration(form.start_time, form.end_time) : 0;
-  const previewPrecio = getPrecioHoraForEmployee(isAdmin ? form.employee_id : employee?.id) * OVERTIME_MULTIPLIER;
+  const previewPrecio = getPrecioExtraForEmployee(isAdmin ? form.employee_id : employee?.id);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
@@ -269,7 +278,7 @@ export default function HorasExtras() {
                 <ResponsiveSelect
                   value={form.employee_id}
                   onValueChange={v => setForm({ ...form, employee_id: v })}
-                  options={employees.map(e => ({ value: e.id, label: `${e.full_name} — ${e.precioHora?.toFixed(2) || '0.00'} €/h` }))}
+                  options={employees.map(e => ({ value: e.id, label: `${e.full_name} — extra ${(e.precioHoraExtra || 0).toFixed(2)} €/h` }))}
                   className="bg-secondary border-border"
                 />
               </div>
