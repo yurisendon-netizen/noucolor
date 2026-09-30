@@ -1,60 +1,82 @@
 {
   "name": "WorkOrder",
-  "type": "object",
   "properties": {
-    "title": {
-      "type": "string"
-    },
-    "description": {
-      "type": "string"
-    },
-    "client_name": {
-      "type": "string"
-    },
     "address": {
-      "type": "string"
-    },
-    "assigned_to": {
       "type": "string"
     },
     "assigned_name": {
       "type": "string"
     },
-    "encargado_obra": {
-      "type": "string",
-      "description": "Nom de l'encarregat d'obra"
+    "assigned_to": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
     },
     "encargado_firma": {
-      "type": "string",
-      "description": "URL de la firma digital de l'encarregat"
+      "description": "URL de la firma digital de l'encarregat",
+      "type": "string"
     },
-    "status": {
-      "type": "string",
-      "enum": [
-        "pendiente",
-        "en_progreso",
-        "completado"
-      ],
-      "default": "pendiente"
+    "encargado_obra": {
+      "description": "Nom de l'encarregat d'obra",
+      "type": "string"
+    },
+    "horas_trabajadas": {
+      "description": "Hores treballades per cada treballador",
+      "items": {
+        "properties": {
+          "employee_id": {
+            "type": "string"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "horas": {
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "materials": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
     },
     "priority": {
-      "type": "string",
+      "default": "media",
       "enum": [
         "baja",
         "media",
         "alta"
       ],
-      "default": "media"
-    },
-    "date": {
-      "type": "string",
-      "format": "date"
-    },
-    "notes": {
       "type": "string"
     },
-    "materials": {
+    "status": {
+      "default": "pendiente",
+      "enum": [
+        "pendiente",
+        "en_progreso",
+        "completado"
+      ],
       "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "total_horas": {
+      "default": 0,
+      "description": "Total d'hores del parte",
+      "type": "number"
     }
   },
   "required": [
@@ -62,6 +84,7 @@
     "client_name",
     "date"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
