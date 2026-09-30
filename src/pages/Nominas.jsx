@@ -14,6 +14,23 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { generateNominaPdf } from '@/components/nominas/NominaPdf';
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+// Regla de nómina de Noucolor:
+//   NETO = salario neto de la hoja de la empresa
+//        + horas extra × precio hora extra (ya es neto, no se le descuenta nada)
+//        + bonificaciones − otras deducciones
+//   El CASS mostrado es el del salario base: bruto − neto (cuadra al céntimo).
+function computePayroll(emp, overtimeHours, bonus, otherDeductions) {
+  const base = r2(emp.base_salary);
+  const baseNet = r2(emp.net_salary);
+  const extraPrice = r2(emp.precioHoraExtra);
+  const hours = r2(overtimeHours);
+  const overtimePay = r2(hours * extraPrice);
+  const cass = r2(base - baseNet);
+  const net = r2(baseNet + overtimePay + r2(bonus) - r2(otherDeductions));
+  return { base, baseNet, extraPrice, hours, overtimePay, cass, gross: r2(base + overtimePay + r2(bonus)), net };
+}
 
 // PDF generation moved to src/components/nominas/NominaPdf.js
 
@@ -53,31 +70,24 @@ export default function Nominas() {
     if (!emp) return;
     setCalculating(true);
     try {
-      const entriesRes = await authInvoke('trackTime', { operation: 'listAllEntries',  limit: 500 });
+      const entriesRes = await authInvoke('trackTime', { operation: 'listAllEntries', employeeId: emp.id, limit: 1000 });
       const allEntries = (entriesRes.data?.entries || []).filter(e => e.employee_id === emp.id);
       const year = parseInt(form.period_year);
       const month = parseInt(form.period_month);
-      const monthEntries = allEntries.filter(e => {
-        const d = new Date(e.date);
-        return d.getMonth() + 1 === month && d.getFullYear() === year;
-      });
-      // Fetch approved OvertimeHour records for the period
-      const overtimeRes = await authInvoke('trackTime', { operation: 'listOvertimeByEmployee',  targetEmployeeId: emp.id, limit: 200 });
+      const prefix = `${year}-${String(month).padStart(2, '0')}`;
+      const inPeriod = (d) => typeof d === 'string' && d.startsWith(prefix);
+      const monthEntries = allEntries.filter(e => inPeriod(e.date));
+      // Horas extra aprobadas del período
+      const overtimeRes = await authInvoke('trackTime', { operation: 'listOvertimeByEmployee',  targetEmployeeId: emp.id, limit: 500 });
       const allOvertime = overtimeRes.data?.overtime || [];
-      const monthOvertime = allOvertime.filter(o => {
-        const d = new Date(o.date);
-        return d.getMonth() + 1 === month && d.getFullYear() === year && o.status === 'aprobado';
-      });
+      const monthOvertime = allOvertime.filter(o => inPeriod(o.date) && o.status === 'aprobado');
 
       const overtimeFromEntries = monthEntries.reduce((sum, e) => sum + (e.overtime_hours || 0), 0);
-      const empPrecio = emp.precioHora || 0;
       const hasOvertimeRecords = monthOvertime.length > 0;
       const overtimeHours = hasOvertimeRecords
         ? monthOvertime.reduce((sum, o) => sum + (o.duration || 0), 0)
         : overtimeFromEntries;
-      const overtimePay = hasOvertimeRecords
-        ? monthOvertime.reduce((sum, o) => sum + (o.total || 0), 0)
-        : overtimeHours * empPrecio * 1.4;
+      const overtimePay = r2(r2(overtimeHours) * r2(emp.precioHoraExtra));
 
       const absences = monthEntries.filter(e => e.status === 'ausencia_injustificada').length;
       const regularHours = monthEntries.reduce((sum, e) => sum + (e.total_hours || 0), 0);
@@ -90,41 +100,43 @@ export default function Nominas() {
   async function handleCreate() {
     const emp = employees.find(e => e.id === form.employee_id);
     if (!emp) return;
-    const precioHora = emp.precioHora || 0;
-    const monthlyBase = emp.base_salary || 0;
+    if (!emp.net_salary || !emp.base_salary) {
+      toast({ title: 'Faltan datos', description: `${emp.full_name} no tiene salario bruto/neto en su ficha de Empleados.`, variant: 'destructive' });
+      return;
+    }
+    if ((calcSummary?.overtimeHours || 0) > 0 && !emp.precioHoraExtra) {
+      toast({ title: 'Faltan datos', description: `${emp.full_name} tiene horas extra pero no tiene precio hora extra en su ficha.`, variant: 'destructive' });
+      return;
+    }
     const year = parseInt(form.period_year);
     const month = parseInt(form.period_month);
 
-    // Una falta/ausencia registrada NO descuenta sueldo — es lo que se le
-    // promete al trabajador en Control Horario. El salario base es fijo;
-    // solo las horas extra y las bonificaciones ajustan el total.
-    const adjustedBase = monthlyBase;
-
-    const overtimePay = calcSummary?.overtimePay || ((form.overtime_hours || 0) * precioHora * 1.4);
-    const gross = adjustedBase + overtimePay + (parseFloat(form.bonus) || 0);
-    const cass = adjustedBase * 0.065;
-    const irpf = 0;
-    const net = gross - cass - irpf - (parseFloat(form.other_deductions) || 0);
+    // Una falta/ausencia registrada NO descuenta sueldo. El neto base es el
+    // pactado; solo las horas extra y las bonificaciones lo aumentan.
+    const p = computePayroll(emp, calcSummary?.overtimeHours || 0, form.bonus, form.other_deductions);
 
     try {
       await authInvoke('trackTime', {
         operation: 'createPayroll',
-        
         payroll: {
           employee_id: emp.id, employee_name: emp.full_name,
           employee_dni: emp.dni || '', employee_nss: emp.nss || '',
+          employee_iban: emp.iban || '', employee_position: emp.position || emp.role || '',
+          employee_hire_date: emp.hire_date || '',
           period_month: month, period_year: year,
-          precio_hora: parseFloat(precioHora.toFixed(2)),
-          total_hours: parseFloat((calcSummary?.regularHours || 0).toFixed(2)),
-          base_salary: parseFloat(adjustedBase.toFixed(2)),
-          overtime_hours: parseFloat(form.overtime_hours) || 0,
-          overtime_pay: parseFloat(overtimePay.toFixed(2)),
-          bonus: parseFloat(form.bonus) || 0,
-          gross_salary: parseFloat(gross.toFixed(2)),
-          cass_employee: parseFloat(cass.toFixed(2)),
-          irpf: parseFloat(irpf.toFixed(2)),
-          other_deductions: parseFloat(form.other_deductions) || 0,
-          net_salary: parseFloat(net.toFixed(2)),
+          precio_hora: r2(emp.precioHora),
+          precio_hora_extra: p.extraPrice,
+          total_hours: r2(calcSummary?.regularHours || 0),
+          base_salary: p.base,
+          base_net_salary: p.baseNet,
+          overtime_hours: p.hours,
+          overtime_pay: p.overtimePay,
+          bonus: r2(form.bonus),
+          gross_salary: p.gross,
+          cass_employee: p.cass,
+          irpf: 0,
+          other_deductions: r2(form.other_deductions),
+          net_salary: p.net,
           status: 'borrador',
         },
       });
@@ -248,7 +260,7 @@ export default function Nominas() {
               value={form.employee_id}
               onValueChange={v => setForm({ ...form, employee_id: v })}
               placeholder="Seleccionar empleado"
-              options={employees.map(e => ({ value: e.id, label: `${e.full_name} — ${(e.precioHora || 0).toFixed(2)}€/h` }))}
+              options={employees.filter(e => e.role !== 'jefe').map(e => ({ value: e.id, label: `${e.full_name} — neto ${(e.net_salary || 0).toFixed(2)}€` }))}
               className="bg-secondary border-border"
             />
             <div className="grid grid-cols-2 gap-3">
@@ -276,6 +288,18 @@ export default function Nominas() {
                 {calcSummary.absences > 0 && (
                   <div className="flex justify-between"><span className="text-muted-foreground">Ausencias injustificadas</span><span className="text-red-400 font-medium">{calcSummary.absences}</span></div>
                 )}
+                {(() => {
+                  const emp = employees.find(e => e.id === form.employee_id);
+                  if (!emp) return null;
+                  const p = computePayroll(emp, calcSummary.overtimeHours, form.bonus, form.other_deductions);
+                  return (
+                    <div className="border-t border-border mt-2 pt-2 space-y-1.5">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Salario neto base</span><span>{p.baseNet.toFixed(2)} €</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Extras ({p.hours.toFixed(2)}h × {p.extraPrice.toFixed(2)} €)</span><span>{p.overtimePay.toFixed(2)} €</span></div>
+                      <div className="flex justify-between font-semibold"><span>Neto a cobrar</span><span className="text-emerald-400">{p.net.toFixed(2)} €</span></div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
