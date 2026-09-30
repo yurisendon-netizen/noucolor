@@ -4,6 +4,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import DeleteAccountDialog from '@/components/perfil/DeleteAccountDialog';
 import NotificationSettings from '@/components/perfil/NotificationSettings';
+import LocationSettings from '@/components/perfil/LocationSettings';
 import CronStatusCard from '@/components/perfil/CronStatusCard';
 import { Mail, Phone, Briefcase, Calendar, User, Hash, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -81,6 +82,8 @@ export default function Perfil() {
         </Card>
 
         <NotificationSettings employee={employee} />
+
+        <LocationSettings />
 
         {isAdmin && <CronStatusCard />}
 
