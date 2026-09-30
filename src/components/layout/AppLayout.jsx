@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
@@ -7,6 +7,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import PinLock from '@/components/pin/PinLock';
+import LocationBanner from '@/components/shared/LocationBanner';
+import { startLocationWarmup } from '@/lib/locationWarmup';
 
 const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png';
 
@@ -18,6 +20,17 @@ export default function AppLayout() {
     () => sessionStorage.getItem('noucolor_pin_ok') === '1'
   );
   const isMobile = useIsMobile();
+  const unlocked = !!employee && (employee.pin_set !== true || pinUnlocked);
+
+  // Al abrir la app (y al volver a ella) se pide la ubicación y se calienta el GPS,
+  // para que al fichar ya haya una lectura exacta.
+  useEffect(() => {
+    if (!unlocked) return;
+    startLocationWarmup();
+    const onVisible = () => { if (document.visibilityState === 'visible') startLocationWarmup(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [unlocked]);
   const keepAlivePaths = isJefe
     ? ['/', '/partes-trabajo', '/empleados']
     : ['/', '/control-horario', '/partes-trabajo'];
@@ -71,6 +84,8 @@ export default function AppLayout() {
         <header className="hidden lg:flex h-14 items-center justify-end px-4 bg-sidebar border-b border-border shrink-0">
           <NotificationBell />
         </header>
+
+        <LocationBanner />
 
         <main className={`flex-1 overscroll-none relative ${isMobile ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           {isMobile ? (
