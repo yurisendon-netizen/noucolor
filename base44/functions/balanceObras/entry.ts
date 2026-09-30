@@ -16,8 +16,14 @@ const DEFAULT_CONFIG = { horas_mes: 162, cass_empresa_pct: 15.5 };
 const ESTADOS = ['presupuestada', 'en_curso', 'finalizada', 'facturada', 'cobrada'];
 const CATEGORIAS = ['material', 'subcontrata', 'desplazamiento', 'maquinaria', 'mano_obra_externa', 'otros'];
 
+// Acepta 1234.5, "1234,5" y "1.234,50" (formato español).
 const toCents = (v) => {
-  const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/\./g, (m, i, s) => (s.includes(',') ? '' : m)).replace(',', '.'));
+  let n;
+  if (typeof v === 'number') n = v;
+  else {
+    const s = String(v ?? '').trim().replace(/\s|€/g, '');
+    n = parseFloat(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+  }
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 };
 const euros = (c) => Math.round(c) / 100;
