@@ -284,7 +284,7 @@ export default function PartesTrabajo() {
                     className="flex-1 min-w-0 h-10 rounded-md bg-secondary border border-border px-2 text-sm"
                   >
                     <option value="">Trabajador…</option>
-                    {workers.map(w => <option key={w.id} value={w.id}>{w.full_name}</option>)}
+                    {workers.map(w => <option key={w.id} value={w.id}>{w.full_name}{w.externo ? ` (${w.empresa || 'externo'})` : ''}</option>)}
                   </select>
                   <Input
                     type="number" inputMode="decimal" step="0.25" min="0" max="24"
