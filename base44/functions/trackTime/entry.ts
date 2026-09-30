@@ -548,6 +548,14 @@ Deno.serve(async (req) => {
         const workers = all
           .filter(e => e.is_active !== false && e.role !== 'jefe' && e.estado_laboral !== 'baja' && !/tester/i.test(e.full_name || ''))
           .map(e => ({ id: e.id, full_name: e.full_name }));
+        // Trabajadores de otras empresas (p. ej. ARMO) que trabajan en obras de
+        // Noucolor: solo salen en los partes, no tienen acceso a la app.
+        try {
+          const externos = await base44.asServiceRole.entities.TrabajadorExterno.list('full_name', 200);
+          externos
+            .filter(x => x.is_active !== false)
+            .forEach(x => workers.push({ id: x.id, full_name: x.full_name, externo: true, empresa: x.empresa || '' }));
+        } catch (e) { console.error('listWorkers externos', e); }
         return Response.json({ success: true, workers });
       }
 

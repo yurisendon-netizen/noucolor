@@ -1,0 +1,67 @@
+{
+  "name": "TrabajadorExterno",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string"
+    },
+    "empresa": {
+      "type": "string",
+      "default": "ARMO",
+      "description": "Empresa a la que pertenece"
+    },
+    "base_salary": {
+      "type": "number",
+      "default": 0,
+      "description": "Salario bruto mensual (\u20ac)"
+    },
+    "net_salary": {
+      "type": "number",
+      "default": 0,
+      "description": "Salario neto mensual (\u20ac)"
+    },
+    "precioHora": {
+      "type": "number",
+      "default": 0,
+      "description": "Precio por hora neto (\u20ac)"
+    },
+    "precioHoraExtra": {
+      "type": "number",
+      "default": 0,
+      "description": "Precio hora extra neto (\u20ac)"
+    },
+    "coste_hora_fijo": {
+      "type": "number",
+      "description": "Opcional: si se rellena, coste/hora para Noucolor en lugar del calculado por salario"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "full_name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
