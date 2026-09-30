@@ -15,13 +15,12 @@ import SolicitudesPendientes from '@/components/clock/SolicitudesPendientes';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { ClipboardEdit } from 'lucide-react';
 import moment from 'moment';
+import { getFreshLocation, recordPosition } from '@/lib/locationWarmup';
 
 // Fichar exige la ubicación REAL del móvil: nunca se usan coordenadas de respaldo.
 // Se espera hasta GPS_MAX_WAIT_MS a que el GPS fije y se guarda la mejor lectura.
 const GPS_MAX_WAIT_MS = 25000;
 const GPS_GOOD_ACCURACY_M = 50;
-// Lecturas peores que esto son por red/IP (no GPS): no se aceptan para fichar.
-const GPS_MAX_ACCEPT_M = 200;
 
 export default function ControlHorario() {
   const { employee, user, isAdmin } = useEmployeeProfile();
@@ -166,12 +165,18 @@ export default function ControlHorario() {
   // Obtiene la ubicación real del móvil. Escucha el GPS hasta 25 s y se queda con
   // la lectura más precisa; si llega una de 50 m o menos, la acepta al momento.
   // Si no hay ninguna lectura, rechaza con el código de error (1 = permiso
-  // denegado, 2 = sin posición, 3 = tiempo agotado, 4 = solo ubicación
-  // aproximada peor de GPS_MAX_ACCEPT_M) y NO se ficha.
+  // denegado, 2 = sin posición, 3 = tiempo agotado) y NO se ficha.
   function getLocation() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject({ code: 2, message: 'Geolocalización no disponible' });
+        return;
+      }
+      // Si el GPS ya se calentó al abrir la app y hay una lectura exacta y
+      // reciente, se ficha al momento con ella.
+      const fresh = getFreshLocation();
+      if (fresh && fresh.accuracy <= GPS_GOOD_ACCURACY_M) {
+        resolve({ lat: fresh.lat, lng: fresh.lng, accuracy: fresh.accuracy });
         return;
       }
       let best = null;
@@ -185,11 +190,15 @@ export default function ControlHorario() {
         done = true;
         if (watchId !== null) navigator.geolocation.clearWatch(watchId);
         if (timer) clearTimeout(timer);
-        if (best && accOf(best) > GPS_MAX_ACCEPT_M) {
-          // Solo hay una posición aproximada (red/IP): no vale para fichar.
-          const acc = accOf(best);
-          reject({ code: 4, message: 'Ubicación imprecisa', accuracy: Number.isFinite(acc) ? Math.round(acc) : null });
-        } else if (best) {
+        // Si la lectura calentada es mejor que la de ahora, se usa esa.
+        const warm = getFreshLocation();
+        if (warm && (!best || warm.accuracy < accOf(best))) {
+          resolve({ lat: warm.lat, lng: warm.lng, accuracy: warm.accuracy });
+          return;
+        }
+        if (best) {
+          // Aunque sea aproximada es la ubicación real del móvil: se ficha igual
+          // y el servidor registra la incidencia si es peor de 200 m.
           resolve({
             lat: best.coords.latitude,
             lng: best.coords.longitude,
@@ -201,6 +210,7 @@ export default function ControlHorario() {
       };
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
+          recordPosition(pos);
           if (!best || accOf(pos) < accOf(best)) best = pos;
           if (accOf(pos) <= GPS_GOOD_ACCURACY_M) finish();
         },
@@ -209,7 +219,7 @@ export default function ControlHorario() {
           // Permiso denegado: no tiene sentido seguir esperando.
           if (err?.code === 1) finish();
         },
-        { enableHighAccuracy: true, timeout: GPS_MAX_WAIT_MS, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: GPS_MAX_WAIT_MS, maximumAge: 30000 }
       );
       timer = setTimeout(finish, GPS_MAX_WAIT_MS);
     });
@@ -224,6 +234,8 @@ export default function ControlHorario() {
         kind: e?.code === 1 ? 'denied' : e?.code === 4 ? 'imprecise' : 'unavailable',
         stage,
         userAgent: navigator.userAgent,
+        errorCode: e?.code ?? null,
+        errorMessage: String(e?.message || '').slice(0, 120),
       });
     } catch { /* no bloquea el aviso al trabajador */ }
   }
