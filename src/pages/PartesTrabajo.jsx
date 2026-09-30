@@ -55,7 +55,7 @@ export default function PartesTrabajo() {
       setFirmaDataUrl(null);
       loadOrders();
     } catch (e) {
-      toast({ title: 'Error al crear parte', description: e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
+      toast({ title: 'Error al crear parte', description: e?.response?.data?.error || e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
     } finally {
       setCreating(false);
     }
