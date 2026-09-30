@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { authInvoke } from '@/lib/authInvoke';
 import { Plus, Trash2, CheckCircle, X, Download, Loader2 } from 'lucide-react';
 import { generateWorkOrderPdf } from '@/components/parts/WorkOrderPdf';
 import { Button } from '@/components/ui/button';
@@ -41,26 +42,20 @@ export default function PartesTrabajo() {
   async function handleCreate() {
     setCreating(true);
     try {
-      let firmaUrl = null;
-      if (firmaDataUrl) {
-        const file = await dataUrlToFile(firmaDataUrl, 'firma_encargado.png');
-        const res = await base44.integrations.Core.UploadFile({ file });
-        firmaUrl = res.file_url;
-      }
-      await base44.entities.WorkOrder.create({
-        ...form,
-        encargado_firma: firmaUrl,
-        assigned_to: employee?.id || user?.id,
-        assigned_name: employee?.full_name || user?.full_name || '',
-        status: 'pendiente'
+      // Se crea en el servidor (los operarios no tienen permiso directo sobre la tabla).
+      const res = await authInvoke('trackTime', {
+        operation: 'createWorkOrder',
+        workOrder: form,
+        firmaDataUrl: firmaDataUrl || null,
       });
+      if (res?.data?.error) throw new Error(res.data.error);
       toast({ variant: 'success', title: 'Parte creado correctamente' });
       setDialogOpen(false);
       setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
       setFirmaDataUrl(null);
       loadOrders();
     } catch (e) {
-      toast({ title: 'Error al crear parte', variant: 'destructive' });
+      toast({ title: 'Error al crear parte', description: e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -79,7 +74,7 @@ export default function PartesTrabajo() {
     const prev = orders;
     setOrders(orders.map(o => o.id === id ? { ...o, status } : o));
     try {
-      await base44.entities.WorkOrder.update(id, { status });
+      await authInvoke('trackTime', { operation: 'updateWorkOrderStatus', workOrderId: id, status });
       toast({ variant: 'success', title: `Estado actualizado a ${status === 'completado' ? 'Completado' : 'Pendiente'}` });
     } catch (e) {
       setOrders(prev);
@@ -92,7 +87,7 @@ export default function PartesTrabajo() {
     const prev = orders;
     setOrders(orders.filter(o => o.id !== id));
     try {
-      await base44.entities.WorkOrder.delete(id);
+      await authInvoke('trackTime', { operation: 'deleteWorkOrder', workOrderId: id });
       toast({ variant: 'success', title: 'Parte eliminado' });
     } catch (e) {
       setOrders(prev);
