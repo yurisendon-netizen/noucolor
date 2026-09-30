@@ -1,88 +1,92 @@
 {
   "name": "Employee",
-  "type": "object",
   "properties": {
-    "full_name": {
+    "avatar_url": {
+      "type": "string"
+    },
+    "base_salary": {
+      "default": 0,
+      "type": "number"
+    },
+    "dni": {
       "type": "string"
     },
     "email": {
       "type": "string"
     },
-    "role": {
-      "type": "string",
-      "enum": [
-        "operario",
-        "administrador",
-        "jefe"
-      ],
-      "default": "operario"
-    },
-    "position": {
-      "type": "string"
-    },
-    "phone": {
-      "type": "string"
-    },
-    "nss": {
-      "type": "string"
-    },
-    "dni": {
-      "type": "string"
-    },
-    "hire_date": {
-      "type": "string",
-      "format": "date"
-    },
-    "base_salary": {
-      "type": "number",
-      "default": 0
-    },
-    "net_salary": {
-      "type": "number",
-      "default": 0,
-      "description": "Salario neto mensual (\u20ac)"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
-    },
-    "avatar_url": {
-      "type": "string"
-    },
     "employee_code": {
-      "type": "string",
-      "description": "Codi d'empleat"
-    },
-    "user": {
-      "type": "string",
-      "description": "Nom d'usuari per login"
-    },
-    "pass": {
-      "type": "string",
-      "description": "Contrasenya"
-    },
-    "pin_hash": {
-      "type": "string",
-      "description": "Hash del codi de seguretat (PIN de 4 d\u00edgits) \u2014 mai el codi en clar"
-    },
-    "precioHora": {
-      "type": "number",
-      "description": "Preu per hora (\u20ac)",
-      "default": 0
-    },
-    "session_token": {
-      "type": "string",
-      "description": "Hash del token de sessi\u00f3 (mai el token en clar)"
+      "description": "Codi d'empleat",
+      "type": "string"
     },
     "estado_laboral": {
-      "type": "string",
+      "default": "activo",
+      "description": "Estat laboral de l'empleat (admin el canvia manualment)",
       "enum": [
         "activo",
         "baja",
         "vacaciones"
       ],
-      "default": "activo",
-      "description": "Estat laboral de l'empleat (admin el canvia manualment)"
+      "type": "string"
+    },
+    "full_name": {
+      "type": "string"
+    },
+    "hire_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "is_active": {
+      "default": true,
+      "type": "boolean"
+    },
+    "net_salary": {
+      "default": 0,
+      "description": "Salario neto mensual (\u20ac)",
+      "type": "number"
+    },
+    "nss": {
+      "type": "string"
+    },
+    "pass": {
+      "description": "Contrasenya",
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "pin_hash": {
+      "description": "Hash del codi de seguretat (PIN de 4 d\u00edgits) \u2014 mai el codi en clar",
+      "type": "string"
+    },
+    "position": {
+      "type": "string"
+    },
+    "precioHora": {
+      "default": 0,
+      "description": "Preu per hora (\u20ac)",
+      "type": "number"
+    },
+    "precioHoraExtra": {
+      "default": 0,
+      "description": "Preu per hora extra (\u20ac), ja net",
+      "type": "number"
+    },
+    "role": {
+      "default": "operario",
+      "enum": [
+        "operario",
+        "administrador",
+        "jefe"
+      ],
+      "type": "string"
+    },
+    "session_token": {
+      "description": "Hash del token de sessi\u00f3 (mai el token en clar)",
+      "type": "string"
+    },
+    "user": {
+      "description": "Nom d'usuari per login",
+      "type": "string"
     }
   },
   "required": [
@@ -90,6 +94,7 @@
     "email",
     "role"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
