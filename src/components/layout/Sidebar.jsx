@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Clock, FileText, ShieldCheck, Users,
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, TrendingUp, User, Bell
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, TrendingUp, User, Bell, PiggyBank
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 
@@ -17,6 +17,7 @@ const navItems = [
   { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
   { path: '/informes', label: 'Informes', icon: BarChart3, adminOnly: true },
   { path: '/estadisticas', label: 'Estadísticas', icon: TrendingUp, adminOnly: true },
+  { path: '/balance-obras', label: 'Balance de Obras', icon: PiggyBank, adminOnly: true },
   { path: '/revision-jornadas', label: 'Revisión Jornadas', icon: CalendarCheck, adminOnly: true },
   { path: '/geolocalizacion', label: 'Geolocalización', icon: MapPin, adminOnly: true },
   { path: '/empleados', label: 'Empleados', icon: Users, adminOnly: true },
