@@ -476,6 +476,69 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
+      // ── Partes de trabajo. Los operarios entran con usuario+PIN propios (no son
+      // admins de Base44), así que crear/editar/borrar se hace aquí con el rol
+      // de servicio y validando quién es cada uno.
+      case 'createWorkOrder': {
+        const f = body.workOrder || {};
+        const str = (v, max = 5000) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+        const title = str(f.title, 200);
+        const client_name = str(f.client_name, 200);
+        const date = str(f.date, 10);
+        if (!title || !client_name || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          return Response.json({ error: 'Faltan datos: obra, cliente y fecha son obligatorios.' }, { status: 400 });
+        }
+        const priority = ['baja', 'media', 'alta'].includes(f.priority) ? f.priority : 'media';
+
+        // Firma: se sube como imagen; si la subida falla se guarda la propia
+        // imagen (data URL) para no perder nunca el parte.
+        let firma = null;
+        const dataUrl = typeof body.firmaDataUrl === 'string' ? body.firmaDataUrl : '';
+        if (dataUrl.startsWith('data:image/') && dataUrl.length < 1500000) {
+          firma = dataUrl;
+          try {
+            const b64 = dataUrl.split(',')[1];
+            const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            const file = new File([bin], 'firma_encargado.png', { type: 'image/png' });
+            const up = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+            if (up?.file_url) firma = up.file_url;
+          } catch (e) { console.error('upload firma', e); }
+        }
+
+        const created = await base44.asServiceRole.entities.WorkOrder.create({
+          title, client_name, date, priority,
+          description: str(f.description),
+          materials: str(f.materials),
+          notes: str(f.notes),
+          encargado_obra: str(f.encargado_obra, 200) || empName,
+          encargado_firma: firma,
+          assigned_to: empId,
+          assigned_name: empName,
+          status: 'pendiente',
+        });
+        return Response.json({ success: true, workOrder: created });
+      }
+
+      case 'updateWorkOrderStatus': {
+        const { workOrderId, status } = body;
+        if (!['pendiente', 'en_progreso', 'completado'].includes(status)) {
+          return Response.json({ error: 'Estado no válido' }, { status: 400 });
+        }
+        const found = await base44.asServiceRole.entities.WorkOrder.filter({ id: workOrderId });
+        if (found.length === 0) return Response.json({ error: 'Parte no encontrado' }, { status: 404 });
+        if (!isAdmin && found[0].assigned_to !== empId) return Response.json({ error: 'No autorizado' }, { status: 403 });
+        await base44.asServiceRole.entities.WorkOrder.update(workOrderId, { status });
+        return Response.json({ success: true });
+      }
+
+      case 'deleteWorkOrder': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { workOrderId } = body;
+        if (!workOrderId) return Response.json({ error: 'Falta workOrderId' }, { status: 400 });
+        await base44.asServiceRole.entities.WorkOrder.delete(workOrderId);
+        return Response.json({ success: true });
+      }
+
       case 'listActiveLocations': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         // Durante el descanso no se consulta la geolocalización de nadie, aunque
