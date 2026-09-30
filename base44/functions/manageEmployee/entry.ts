@@ -199,7 +199,18 @@ Deno.serve(async (req) => {
     }
 
     const precioHora = parseFloat(data.precioHora) || 0;
-    const baseSalary = Math.round(precioHora * 173.33 * 100) / 100;
+    // Salario bruto, neto y precio de hora extra vienen de la hoja de nóminas
+    // de la empresa: se guardan tal cual, NUNCA se recalculan (antes se pisaba
+    // el bruto con precioHora × 173,33 y la nómina dejaba de cuadrar).
+    const toMoney = (v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? Math.round(n * 100) / 100 : undefined;
+    };
+    const baseSalary = toMoney(data.base_salary);
+    const netSalary = toMoney(data.net_salary);
+    const precioHoraExtra = toMoney(data.precioHoraExtra);
+    const nssValue = (data.nss ?? data.cass)?.trim();
     const user = (data.user || '').trim().toLowerCase();
 
     // Hash password if provided and not already hashed
@@ -213,11 +224,13 @@ Deno.serve(async (req) => {
       email: data.email?.trim(),
       phone: data.phone?.trim(),
       dni: data.dni?.trim(),
-      nss: data.cass?.trim(),
+      nss: nssValue,
       hire_date: data.hire_date || null,
       position: data.position?.trim(),
       precioHora,
-      base_salary: baseSalary,
+      ...(baseSalary !== undefined ? { base_salary: baseSalary } : {}),
+      ...(netSalary !== undefined ? { net_salary: netSalary } : {}),
+      ...(precioHoraExtra !== undefined ? { precioHoraExtra } : {}),
       role: data.cargo || 'operario',
       ...(data.user ? { user } : {}),
       ...(data.pass ? { pass: hashedPass } : {}),
@@ -228,7 +241,7 @@ Deno.serve(async (req) => {
       email: data.email?.trim(),
       phone: data.phone?.trim(),
       dni: data.dni?.trim(),
-      cass: data.cass?.trim(),
+      cass: nssValue,
       position: data.position?.trim(),
       precioHora,
       cargo: data.cargo || 'operario',
