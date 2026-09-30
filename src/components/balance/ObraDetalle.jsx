@@ -3,7 +3,7 @@ import { ArrowLeft, Pencil, Trash2, Plus, Link2Off, Link2, AlertTriangle, Euro, 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import moment from 'moment';
-import { eur, num, pct, EstadoBadge, KpiCard, profitClass, catLabel, CATEGORIAS, COLOR_MAROON, COLOR_ORANGE, downloadCsv, csvNum } from './balanceUtils';
+import { eur, num, pct, EstadoBadge, KpiCard, profitClass, catLabel, CATEGORIAS, COLOR_MAROON, downloadCsv, csvNum } from './balanceUtils';
 
 function Row({ label, value, strong, cls = '' }) {
   return (
