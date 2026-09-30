@@ -1,0 +1,67 @@
+{
+  "name": "CosteObra",
+  "properties": {
+    "categoria": {
+      "default": "material",
+      "enum": [
+        "material",
+        "subcontrata",
+        "desplazamiento",
+        "maquinaria",
+        "mano_obra_externa",
+        "otros"
+      ],
+      "type": "string"
+    },
+    "concepto": {
+      "type": "string"
+    },
+    "factura_ref": {
+      "description": "N\u00ba de factura o albar\u00e1n",
+      "type": "string"
+    },
+    "fecha": {
+      "format": "date",
+      "type": "string"
+    },
+    "importe": {
+      "default": 0,
+      "description": "Importe sin IGI (\u20ac)",
+      "type": "number"
+    },
+    "obra_id": {
+      "type": "string"
+    },
+    "proveedor": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "obra_id",
+    "concepto",
+    "importe"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}

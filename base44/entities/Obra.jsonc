@@ -1,0 +1,73 @@
+{
+  "name": "Obra",
+  "properties": {
+    "cliente": {
+      "type": "string"
+    },
+    "direccion": {
+      "type": "string"
+    },
+    "estado": {
+      "default": "en_curso",
+      "enum": [
+        "presupuestada",
+        "en_curso",
+        "finalizada",
+        "facturada",
+        "cobrada"
+      ],
+      "type": "string"
+    },
+    "fecha_fin": {
+      "format": "date",
+      "type": "string"
+    },
+    "fecha_inicio": {
+      "format": "date",
+      "type": "string"
+    },
+    "importe_facturado": {
+      "default": 0,
+      "description": "Importe facturado sin IGI (\u20ac)",
+      "type": "number"
+    },
+    "importe_presupuesto": {
+      "default": 0,
+      "description": "Importe presupuestado sin IGI (\u20ac)",
+      "type": "number"
+    },
+    "nombre": {
+      "description": "Nombre de la obra",
+      "type": "string"
+    },
+    "notas": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "nombre"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}

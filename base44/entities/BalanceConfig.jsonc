@@ -1,0 +1,39 @@
+{
+  "name": "BalanceConfig",
+  "type": "object",
+  "properties": {
+    "horas_mes": {
+      "type": "number",
+      "default": 162,
+      "description": "Horas de trabajo al mes para calcular el coste por hora"
+    },
+    "cass_empresa_pct": {
+      "type": "number",
+      "default": 15.5,
+      "description": "Cotizaci\u00f3n CASS a cargo de la empresa (%)"
+    }
+  },
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "required": []
+}

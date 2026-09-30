@@ -1,5 +1,6 @@
 {
   "name": "WorkOrder",
+  "type": "object",
   "properties": {
     "address": {
       "type": "string"
@@ -52,6 +53,10 @@
     "notes": {
       "type": "string"
     },
+    "obra_id": {
+      "type": "string",
+      "description": "ID de la Obra a la que pertenece este parte (para el balance)"
+    },
     "priority": {
       "default": "media",
       "enum": [
@@ -84,7 +89,6 @@
     "client_name",
     "date"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
