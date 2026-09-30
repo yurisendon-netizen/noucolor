@@ -28,6 +28,21 @@ export async function generateWorkOrderPdf(order) {
   if (order.description) {
     y = addTextBlock(doc, { label: 'Descripció', content: order.description, startY: y, pageHeight, margin });
   }
+  const horas = Array.isArray(order.horas_trabajadas) ? order.horas_trabajadas : [];
+  if (horas.length > 0) {
+    y += 4;
+    y = addTable(doc, {
+      columns: [
+        { label: 'TREBALLADOR', key: 'name', width: 0.7 },
+        { label: 'HORES', key: 'horas', align: 'right', width: 0.3 },
+      ],
+      rows: [
+        ...horas.map(h => ({ name: h.employee_name, horas: `${Number(h.horas || 0).toFixed(2)} h` })),
+        { name: 'TOTAL', horas: `${Number(order.total_horas || horas.reduce((s, h) => s + (Number(h.horas) || 0), 0)).toFixed(2)} h` },
+      ],
+      startY: y, pageHeight, margin,
+    });
+  }
   if (order.materials) {
     y = addTextBlock(doc, { label: 'Materials', content: order.materials, startY: y, pageHeight, margin });
   }
