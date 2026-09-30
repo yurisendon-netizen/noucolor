@@ -27,7 +27,7 @@ export default function Empleados() {
   const [pinTarget, setPinTarget] = useState(null);
   const [pinValue, setPinValue] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, user: '', pass: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, precioHoraExtra: 0, base_salary: 0, net_salary: 0, user: '', pass: '' });
 
   useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
 
@@ -52,6 +52,9 @@ export default function Empleados() {
       nss: emp.nss || '', dni: emp.dni || '',
       iban: emp.iban || '',
       hire_date: emp.hire_date || '', precioHora: emp.precioHora || 0,
+      precioHoraExtra: emp.precioHoraExtra || 0,
+      base_salary: emp.base_salary || 0,
+      net_salary: emp.net_salary || 0,
       user: emp.user || '', pass: '',
     });
     setDialogOpen(true);
@@ -59,7 +62,7 @@ export default function Empleados() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, user: '', pass: '' });
+    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, precioHoraExtra: 0, base_salary: 0, net_salary: 0, user: '', pass: '' });
     setDialogOpen(true);
   }
 
@@ -81,6 +84,9 @@ export default function Empleados() {
           iban: form.iban,
           hire_date: form.hire_date,
           precioHora,
+          precioHoraExtra: parseFloat(form.precioHoraExtra) || 0,
+          base_salary: parseFloat(form.base_salary) || 0,
+          net_salary: parseFloat(form.net_salary) || 0,
           user: form.user,
           pass: form.pass,
         },
@@ -368,6 +374,20 @@ export default function Empleados() {
             <div className="grid grid-cols-2 gap-3">
               <Input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value })} className="bg-secondary border-border" />
               <Input type="number" step="0.01" placeholder="Precio/hora (€)" value={form.precioHora} onChange={e => setForm({ ...form, precioHora: e.target.value })} className="bg-secondary border-border" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground">Precio hora extra (€)</label>
+                <Input type="number" step="0.01" value={form.precioHoraExtra} onChange={e => setForm({ ...form, precioHoraExtra: e.target.value })} className="bg-secondary border-border" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Salario bruto (€)</label>
+                <Input type="number" step="0.01" value={form.base_salary} onChange={e => setForm({ ...form, base_salary: e.target.value })} className="bg-secondary border-border" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Salario neto (€)</label>
+                <Input type="number" step="0.01" value={form.net_salary} onChange={e => setForm({ ...form, net_salary: e.target.value })} className="bg-secondary border-border" />
+              </div>
             </div>
             <Button onClick={handleSave} disabled={!form.full_name || !form.email || (!editing && (!form.user || !form.pass))} className="w-full h-11">
               {editing ? 'Guardar Cambios' : 'Crear Empleado'}
