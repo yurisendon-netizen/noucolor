@@ -25,9 +25,32 @@ export default function PartesTrabajo() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
+  const [form, setForm] = useState({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '' });
   const [firmaDataUrl, setFirmaDataUrl] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [workers, setWorkers] = useState([]);
+  const emptyHoras = () => [{ employee_id: employee?.id || '', horas: '8' }];
+  const [horas, setHoras] = useState(emptyHoras);
+
+  useEffect(() => {
+    authInvoke('trackTime', { operation: 'listWorkers' })
+      .then(res => setWorkers(res.data?.workers || []))
+      .catch(() => setWorkers([]));
+  }, []);
+
+  // Al abrir el formulario, el propio trabajador aparece ya en la primera fila.
+  useEffect(() => {
+    if (dialogOpen) setHoras(h => (h.length === 1 && !h[0].employee_id ? emptyHoras() : h));
+  }, [dialogOpen, employee?.id]);
+
+  const parseHoras = (v) => {
+    const n = parseFloat(String(v ?? '').replace(',', '.'));
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+  };
+  const validHoras = horas
+    .map(h => ({ ...h, employee_name: workers.find(w => w.id === h.employee_id)?.full_name || '', horas: parseHoras(h.horas) }))
+    .filter(h => h.employee_name && h.horas > 0 && h.horas <= 24);
+  const totalHoras = Math.round(validHoras.reduce((s, h) => s + h.horas, 0) * 100) / 100;
 
   useEffect(() => { loadOrders(); }, []);
 
@@ -45,13 +68,14 @@ export default function PartesTrabajo() {
       // Se crea en el servidor (los operarios no tienen permiso directo sobre la tabla).
       const res = await authInvoke('trackTime', {
         operation: 'createWorkOrder',
-        workOrder: form,
+        workOrder: { ...form, horas_trabajadas: validHoras },
         firmaDataUrl: firmaDataUrl || null,
       });
       if (res?.data?.error) throw new Error(res.data.error);
       toast({ variant: 'success', title: 'Parte creado correctamente' });
       setDialogOpen(false);
-      setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: employee?.full_name || user?.full_name || '' });
+      setForm({ title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '' });
+      setHoras(emptyHoras());
       setFirmaDataUrl(null);
       loadOrders();
     } catch (e) {
@@ -129,6 +153,7 @@ export default function PartesTrabajo() {
     { key: 'client_name', label: 'Cliente' },
     { key: 'assigned_name', label: 'Empleado' },
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
+    { key: 'total_horas', label: 'Horas', render: r => (r.total_horas ? `${r.total_horas} h` : '—') },
     { key: 'priority', label: 'Prioridad', render: r => <StatusBadge status={r.priority} /> },
     { key: 'status', label: 'Estado', render: r => <StatusBadge status={r.status} /> },
   ];
@@ -212,9 +237,43 @@ export default function PartesTrabajo() {
               <SignaturePadInput onChange={setFirmaDataUrl} />
             </div>
             <Textarea placeholder="Descripción" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-secondary border-border" />
+
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Horas trabajadas *</label>
+                <span className="text-xs text-muted-foreground">Total: {totalHoras} h</span>
+              </div>
+              {horas.map((h, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <select
+                    value={h.employee_id}
+                    onChange={e => setHoras(horas.map((x, j) => (j === i ? { ...x, employee_id: e.target.value } : x)))}
+                    className="flex-1 min-w-0 h-10 rounded-md bg-secondary border border-border px-2 text-sm"
+                  >
+                    <option value="">Trabajador…</option>
+                    {workers.map(w => <option key={w.id} value={w.id}>{w.full_name}</option>)}
+                  </select>
+                  <Input
+                    type="number" inputMode="decimal" step="0.25" min="0" max="24"
+                    value={h.horas}
+                    onChange={e => setHoras(horas.map((x, j) => (j === i ? { ...x, horas: e.target.value } : x)))}
+                    className="w-20 bg-secondary border-border"
+                    placeholder="h"
+                  />
+                  {horas.length > 1 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setHoras(horas.filter((_, j) => j !== i))} className="text-red-400 px-2">
+                      <X size={16} />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => setHoras([...horas, { employee_id: '', horas: '8' }])} className="w-full gap-1 border-border">
+                <Plus size={14} /> Añadir trabajador
+              </Button>
+            </div>
             <Input placeholder="Materiales" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
             <Textarea placeholder="Notas" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />
-            <Button onClick={handleCreate} disabled={!form.title || !form.client_name || !form.date || creating} className="w-full h-11">
+            <Button onClick={handleCreate} disabled={!form.title || !form.client_name || !form.date || validHoras.length === 0 || creating} className="w-full h-11">
               {creating ? <><Loader2 size={16} className="animate-spin" /> Creando...</> : 'Crear Parte'}
             </Button>
           </div>
