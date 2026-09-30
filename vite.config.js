@@ -17,7 +17,10 @@ export default defineConfig({
     }),
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': la versión nueva se aplica desde src/main.jsx (sola al abrir la
+      // app o con el botón "Actualizar"), nunca a mitad de un formulario.
+      registerType: 'prompt',
+      injectRegister: false,
       // Solo activo en el build de producción: en dev interferiría con el HMR de base44.
       devOptions: { enabled: false },
       includeAssets: ['icons/apple-touch-icon.png'],
