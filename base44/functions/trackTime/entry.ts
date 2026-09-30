@@ -438,8 +438,12 @@ Deno.serve(async (req) => {
 
       case 'listAllEntries': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
-        const { limit } = body;
-        const data = await base44.asServiceRole.entities.TimeEntry.list('-date', limit || 200);
+        const { limit, employeeId: filterEmployeeId } = body;
+        // Con employeeId se devuelven SOLO los fichajes de ese trabajador (para
+        // nóminas): así nunca se pierden días por el límite de registros.
+        const data = filterEmployeeId
+          ? await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: filterEmployeeId }, '-date', limit || 1000)
+          : await base44.asServiceRole.entities.TimeEntry.list('-date', limit || 200);
         return Response.json({ success: true, entries: data });
       }
 
