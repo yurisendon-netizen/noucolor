@@ -388,6 +388,7 @@ Deno.serve(async (req) => {
         let targetEmpId = empId;
         let targetEmpName = empName;
         let targetPrecioHora = caller.precioHora || 0;
+        let targetPrecioExtra = caller.precioHoraExtra || 0;
 
         if (isAdmin && body.targetEmployeeId && body.targetEmployeeId !== empId) {
           const targets = await base44.asServiceRole.entities.Employee.filter({ id: body.targetEmployeeId });
@@ -395,13 +396,19 @@ Deno.serve(async (req) => {
             targetEmpId = targets[0].id;
             targetEmpName = targets[0].full_name;
             targetPrecioHora = targets[0].precioHora || 0;
+            targetPrecioExtra = targets[0].precioHoraExtra || 0;
           }
         }
 
         // Non-admins cannot approve their own overtime or inflate the multiplier.
         const effectiveMultiplier = isAdmin ? multiplier : 1.4;
         const effectiveStatus = isAdmin ? (status || 'pendiente') : 'pendiente';
-        const total = parseFloat((duration * targetPrecioHora * effectiveMultiplier).toFixed(2));
+        // El importe usa el precio de hora extra de la ficha del trabajador (hoja de
+        // nóminas, ya neto). Solo si no lo tiene se usa precio/hora × multiplicador.
+        const extraPrice = targetPrecioExtra > 0
+          ? targetPrecioExtra
+          : Math.round(targetPrecioHora * effectiveMultiplier * 100) / 100;
+        const total = Math.round(Math.round(duration * 100) / 100 * extraPrice * 100) / 100;
         const payload = {
           employee_id: targetEmpId, employee_name: targetEmpName,
           date, start_time: startTime, end_time: endTime,
