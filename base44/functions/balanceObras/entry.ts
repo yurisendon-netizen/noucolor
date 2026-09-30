@@ -49,7 +49,11 @@ function buildRates(employees, config) {
     const netoHora = Number(e.precioHora) || 0;
     let centsHora = 0;
     let origen = 'sin_datos';
-    if (bruto > 0) {
+    const fijo = Number(e.coste_hora_fijo) || 0;
+    if (fijo > 0) {
+      centsHora = Math.round(fijo * 100);
+      origen = 'coste_fijo';
+    } else if (bruto > 0) {
       centsHora = Math.round((bruto * 100 * (1 + config.cass_empresa_pct / 100)) / config.horas_mes);
       origen = 'salario_bruto';
     } else if (netoHora > 0) {
@@ -57,7 +61,7 @@ function buildRates(employees, config) {
       centsHora = Math.round(((netoHora * 100) / 0.935) * (1 + config.cass_empresa_pct / 100));
       origen = 'precio_hora';
     }
-    rates[e.id] = { id: e.id, nombre: e.full_name, cents_hora: centsHora, origen };
+    rates[e.id] = { id: e.id, nombre: e.full_name, cents_hora: centsHora, origen, empresa: e.empresa || null };
   }
   return rates;
 }
@@ -149,14 +153,15 @@ Deno.serve(async (req) => {
 
     switch (operation) {
       case 'getAll': {
-        const [config, obras, costes, partes, employees] = await Promise.all([
+        const [config, obras, costes, partes, employees, externos] = await Promise.all([
           getConfig(base44),
           db.Obra.list('-created_date', 1000),
           db.CosteObra.list('-fecha', 5000),
           db.WorkOrder.list('-date', 5000),
           db.Employee.list('full_name', 500),
+          db.TrabajadorExterno.list('full_name', 200).catch(() => []),
         ]);
-        const rates = buildRates(employees, config);
+        const rates = buildRates([...employees, ...externos], config);
         const result = obras.map(o => computeObra(o, partes, costes, rates));
         return Response.json({
           success: true,
@@ -170,7 +175,7 @@ Deno.serve(async (req) => {
           })),
           tarifas: Object.values(rates)
             .filter(r => !/tester/i.test(r.nombre || ''))
-            .map(r => ({ id: r.id, nombre: r.nombre, coste_hora: euros(r.cents_hora), origen: r.origen })),
+            .map(r => ({ id: r.id, nombre: r.empresa ? `${r.nombre} (${r.empresa})` : r.nombre, coste_hora: euros(r.cents_hora), origen: r.origen })),
         });
       }
 
