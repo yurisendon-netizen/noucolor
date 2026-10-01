@@ -21,6 +21,8 @@ import { getFreshLocation, recordPosition } from '@/lib/locationWarmup';
 // Se espera hasta GPS_MAX_WAIT_MS a que el GPS fije y se guarda la mejor lectura.
 const GPS_MAX_WAIT_MS = 25000;
 const GPS_GOOD_ACCURACY_M = 50;
+// Más error que esto = ubicación aproximada (red/wifi): NO se ficha.
+const GPS_MAX_ACCEPT_M = 200;
 
 export default function ControlHorario() {
   const { employee, user, isAdmin } = useEmployeeProfile();
@@ -143,12 +145,24 @@ export default function ControlHorario() {
   function geoErrorMessage(e) {
     if (!e) return null;
     if (typeof e.code === 'number' && e.code >= 1 && e.code <= 4) {
+      const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
       if (e.code === 4) {
         const acc = Number.isFinite(e.accuracy) ? e.accuracy : null;
+        const accTxt = acc !== null ? ` (±${acc} m)` : '';
+        if (acc !== null && acc < 1000) {
+          return `Tu ubicación no es precisa${accTxt}. No se ha fichado. Sal al exterior o acércate a una ventana, espera unos segundos y vuelve a fichar.`;
+        }
+        return ios
+          ? `Tu móvil da una ubicación aproximada${accTxt}. No se ha fichado. Ajustes → Privacidad y seguridad → Localización → Safari (o Noucolor) → activa "Ubicación exacta". Después vuelve a fichar.`
+          : `Tu móvil da una ubicación aproximada${accTxt}. No se ha fichado. Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → activa "Usar ubicación precisa". Después vuelve a fichar.`;
+      }
+      if (e.code === 4) {
         return `Tu móvil solo da una ubicación aproximada${acc !== null ? ` (±${acc} m)` : ''}, no la del GPS. En iPhone: Ajustes → Privacidad → Localización → Safari (o Noucolor) → activa "Ubicación exacta". En Android: activa "Ubicación precisa". Sal al exterior y vuelve a fichar.`;
       }
       if (e.code === 1) {
-        return 'No hemos podido obtener tu ubicación porque el permiso está denegado. Ve a Ajustes de tu móvil → Apps → Noucolor → Permisos → Ubicación → Permitir, y vuelve a intentar fichar.';
+        return ios
+          ? 'No se ha fichado: el permiso de ubicación está bloqueado. Ajustes → Privacidad y seguridad → Localización → Safari (o Noucolor) → "Al usar la app" y "Ubicación exacta". Después vuelve a fichar.'
+          : 'No se ha fichado: el permiso de ubicación está bloqueado. En Chrome toca el icono a la izquierda de la dirección → Permisos → Ubicación → Permitir. Si no sale: Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → Permitir. Después vuelve a fichar.';
       }
       if (e.code === 3) {
         return 'No hemos podido obtener tu ubicación (tiempo agotado). Asegúrate de tener el GPS activado y buena señal, e inténtalo de nuevo.';
@@ -190,20 +204,25 @@ export default function ControlHorario() {
         done = true;
         if (watchId !== null) navigator.geolocation.clearWatch(watchId);
         if (timer) clearTimeout(timer);
-        // Si la lectura calentada es mejor que la de ahora, se usa esa.
+        // Se elige la mejor lectura (la calentada al abrir la app o la de ahora).
         const warm = getFreshLocation();
+        let chosen = null;
         if (warm && (!best || warm.accuracy < accOf(best))) {
-          resolve({ lat: warm.lat, lng: warm.lng, accuracy: warm.accuracy });
-          return;
-        }
-        if (best) {
-          // Aunque sea aproximada es la ubicación real del móvil: se ficha igual
-          // y el servidor registra la incidencia si es peor de 200 m.
-          resolve({
+          chosen = { lat: warm.lat, lng: warm.lng, accuracy: warm.accuracy };
+        } else if (best) {
+          chosen = {
             lat: best.coords.latitude,
             lng: best.coords.longitude,
             accuracy: Number.isFinite(accOf(best)) ? Math.round(accOf(best)) : null,
-          });
+          };
+        }
+        if (chosen) {
+          // Fichaje PRECISO obligatorio: más de 200 m de error no vale.
+          if (chosen.accuracy === null || chosen.accuracy > GPS_MAX_ACCEPT_M) {
+            reject({ code: 4, message: 'Ubicación imprecisa', accuracy: chosen.accuracy });
+          } else {
+            resolve(chosen);
+          }
         } else {
           reject(lastError || { code: 3, message: 'Tiempo agotado' });
         }
@@ -235,6 +254,7 @@ export default function ControlHorario() {
         stage,
         userAgent: navigator.userAgent,
         errorCode: e?.code ?? null,
+        accuracy: Number.isFinite(e?.accuracy) ? e.accuracy : null,
         errorMessage: String(e?.message || '').slice(0, 120),
       });
     } catch { /* no bloquea el aviso al trabajador */ }
@@ -270,7 +290,7 @@ export default function ControlHorario() {
       }
       loadEntries();
     } catch (e) {
-      toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
+      toast({ title: 'No se ha fichado', description: e?.response?.data?.error || e.message, variant: 'destructive', duration: 15000 });
     } finally {
       setClockingIn(false);
     }
@@ -307,7 +327,7 @@ export default function ControlHorario() {
       }
       loadEntries();
     } catch (e) {
-      toast({ title: 'Error al fichar', description: e.message, variant: 'destructive' });
+      toast({ title: 'No se ha fichado', description: e?.response?.data?.error || e.message, variant: 'destructive', duration: 15000 });
     } finally {
       setClockingOut(false);
     }
