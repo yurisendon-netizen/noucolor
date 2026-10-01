@@ -8,10 +8,15 @@ import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 const LOCAL_UTC_OFFSET = '+02:00';
 const LOCAL_UTC_OFFSET_HOURS = 2;
 
-// Una lectura con más margen de error que esto es por red/IP, no GPS: se deja
-// fichar igualmente (es la ubicación real del móvil), pero se registra una
-// incidencia para que un admin la revise.
+// Fichaje PRECISO obligatorio: una lectura con más margen de error que esto es
+// por red/IP (p. ej. Chrome en Android con "ubicación aproximada" da ±2000 m),
+// no GPS. No se ficha y queda una incidencia para que un admin la revise.
 const GPS_MAX_ACCEPT_M = 200;
+function impreciseMsg(acc) {
+  return acc >= 1000
+    ? `Tu móvil da una ubicación aproximada (±${acc} m), no la exacta. No se ha fichado. Activa la ubicación precisa: Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → activa "Usar ubicación precisa". Después vuelve a fichar.`
+    : `Tu ubicación no es precisa (±${acc} m). No se ha fichado. Sal al exterior o acércate a una ventana, espera unos segundos y vuelve a fichar.`;
+}
 // Coordenadas fijas que ponía la versión antigua de la app cuando fallaba el GPS
 // (respaldo del "taller"). Nunca son una lectura real: se rechazan siempre.
 const LEGACY_BACKUP = { lat: 42.46768, lng: 1.49327 };
@@ -25,12 +30,17 @@ function isLegacyBackup(lat, lng) {
 async function logImpreciseLocation(base44, empId, empName, stage, acc) {
   try {
     const { dateStr: date, hour, minutes } = getLocalParts(new Date());
-    const existing = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: empId, date, type: 'gps_sin_senal' });
-    if (existing.length > 0) return;
     const hhmm = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    const description = `Intentó fichar ${stage === 'out' ? 'la salida' : 'la entrada'} a las ${hhmm} con ubicación aproximada (±${acc} m). NO se ha fichado.`;
+    // Una sola incidencia por trabajador/día/tramo: se actualiza con el último intento.
+    const existing = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: empId, date, type: 'gps_sin_senal' });
+    const same = existing.find(i => (i.description || '').includes(stage === 'out' ? 'la salida' : 'la entrada'));
+    if (same) {
+      await base44.asServiceRole.entities.Incumplimiento.update(same.id, { description, status: 'pendiente' });
+      return;
+    }
     await base44.asServiceRole.entities.Incumplimiento.create({
-      employee_id: empId, employee_name: empName, date, type: 'gps_sin_senal', status: 'pendiente',
-      description: `Fichó ${stage === 'out' ? 'la salida' : 'la entrada'} a las ${hhmm} con ubicación aproximada (±${acc} m), sin GPS preciso. El fichaje SÍ se ha registrado.`
+      employee_id: empId, employee_name: empName, date, type: 'gps_sin_senal', status: 'pendiente', description
     });
   } catch (e) { console.error('logImpreciseLocation', e); }
 }
@@ -198,7 +208,10 @@ Deno.serve(async (req) => {
         if (acc === null || isLegacyBackup(lat, lng)) {
           return Response.json({ error: OUTDATED_MSG }, { status: 400 });
         }
-        const imprecise = acc > GPS_MAX_ACCEPT_M;
+        if (acc > GPS_MAX_ACCEPT_M) {
+          await logImpreciseLocation(base44, empId, empName, 'in', acc);
+          return Response.json({ error: impreciseMsg(acc) }, { status: 400 });
+        }
         // Un empleado marcado como de baja o de vacaciones no puede fichar la
         // entrada — se valida en el servidor, no solo en el frontend.
         if (caller.estado_laboral === 'baja' || caller.estado_laboral === 'vacaciones') {
@@ -255,13 +268,17 @@ Deno.serve(async (req) => {
             date, type: 'entrada_tardia', description: lateDescription
           });
         }
-        if (imprecise) await logImpreciseLocation(base44, empId, empName, 'in', acc);
         return Response.json({ success: true, clockIn, isLate });
       }
 
       case 'reportLocationFailure': {
         // El movil no pudo dar la ubicacion al fichar: no se ficha y se registra
         // una incidencia para que la revise un admin (no es falta automatica).
+        // Ubicación aproximada detectada ya en el móvil: misma incidencia que la del servidor.
+        if (body.kind === 'imprecise' && Number.isFinite(Number(body.accuracy))) {
+          await logImpreciseLocation(base44, empId, empName, body.stage === 'out' ? 'out' : 'in', Math.round(Number(body.accuracy)));
+          return Response.json({ success: true });
+        }
         const kind = body.kind === 'denied' ? 'ubicacion_denegada' : 'gps_sin_senal';
         const stage = body.stage === 'out' ? 'la salida' : 'la entrada';
         const ua = String(body.userAgent || '').slice(0, 200);
@@ -297,7 +314,10 @@ Deno.serve(async (req) => {
         if (acc === null || isLegacyBackup(lat, lng)) {
           return Response.json({ error: OUTDATED_MSG }, { status: 400 });
         }
-        const imprecise = acc > GPS_MAX_ACCEPT_M;
+        if (acc > GPS_MAX_ACCEPT_M) {
+          await logImpreciseLocation(base44, empId, empName, 'out', acc);
+          return Response.json({ error: impreciseMsg(acc) }, { status: 400 });
+        }
         // Verify the entry belongs to the caller
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ id: entryId });
         if (entries.length === 0 || entries[0].employee_id !== empId) {
@@ -331,7 +351,6 @@ Deno.serve(async (req) => {
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
         });
         await upsertLocation(base44, empId, empName, false, lat, lng, acc);
-        if (imprecise) await logImpreciseLocation(base44, empId, empName, 'out', acc);
         return Response.json({ success: true, clockOut, totalHours: regularHours, overtimeHours });
       }
 
