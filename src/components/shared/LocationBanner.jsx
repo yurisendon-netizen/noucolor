@@ -19,15 +19,15 @@ export default function LocationBanner() {
   let text = null;
 
   if (loc.status === 'denied') {
-    title = 'Ubicación bloqueada';
+    title = 'Ubicación bloqueada: así no podrás fichar';
     text = ios
       ? 'Ajustes → Privacidad → Localización → Safari (o Noucolor) → "Al usar la app" y activa "Ubicación exacta".'
       : 'Toca el candado junto a la dirección (o Ajustes → Apps → Chrome/Noucolor → Permisos) → Ubicación → Permitir, y marca "Usar ubicación precisa".';
   } else if (loc.status === 'imprecise') {
-    title = `Tu ubicación es aproximada (±${loc.best?.accuracy ?? '?'} m)`;
+    title = `Ubicación aproximada (±${loc.best?.accuracy ?? '?'} m): así no podrás fichar`;
     text = ios
-      ? 'Ajustes → Privacidad → Localización → Safari (o Noucolor) → activa "Ubicación exacta".'
-      : 'Ajustes → Ubicación → activa "Precisión de la ubicación de Google" / "Ubicación precisa", y en los permisos de Chrome/Noucolor marca "Precisa".';
+      ? 'Ajustes → Privacidad y seguridad → Localización → Safari (o Noucolor) → activa "Ubicación exacta".'
+      : 'Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → activa "Usar ubicación precisa". Si estás dentro, sal al exterior y pulsa Reintentar.';
   } else if (loc.status === 'unavailable') {
     title = 'No se detecta tu ubicación';
     text = 'Activa la ubicación (GPS) del móvil y pulsa Reintentar.';
