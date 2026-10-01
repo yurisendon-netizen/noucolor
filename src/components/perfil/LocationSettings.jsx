@@ -111,8 +111,8 @@ export default function LocationSettings() {
               <Info size={18} className="shrink-0 mt-0.5 text-primary" />
               <p className="text-foreground/90">
                 {ios
-                  ? 'Tu ubicación es aproximada. Ajustes → Privacidad y seguridad → Localización → Safari (o Noucolor) → activa "Ubicación exacta".'
-                  : 'Tu ubicación es aproximada. Ajustes → Ubicación → activa "Ubicación precisa" (o "Precisión de la ubicación de Google"), y en los permisos de Chrome/Noucolor marca "Precisa".'}
+                  ? 'Tu ubicación es aproximada y así no podrás fichar. Ajustes → Privacidad y seguridad → Localización → Safari (o Noucolor) → activa "Ubicación exacta".'
+                  : 'Tu ubicación es aproximada y así no podrás fichar. Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → activa "Usar ubicación precisa". Si estás dentro, sal al exterior y pulsa "Comprobar ubicación ahora".'}
               </p>
             </div>
           )}
