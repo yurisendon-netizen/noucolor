@@ -156,9 +156,6 @@ export default function ControlHorario() {
           ? `Tu móvil da una ubicación aproximada${accTxt}. No se ha fichado. Ajustes → Privacidad y seguridad → Localización → Safari (o Noucolor) → activa "Ubicación exacta". Después vuelve a fichar.`
           : `Tu móvil da una ubicación aproximada${accTxt}. No se ha fichado. Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → activa "Usar ubicación precisa". Después vuelve a fichar.`;
       }
-      if (e.code === 4) {
-        return `Tu móvil solo da una ubicación aproximada${acc !== null ? ` (±${acc} m)` : ''}, no la del GPS. En iPhone: Ajustes → Privacidad → Localización → Safari (o Noucolor) → activa "Ubicación exacta". En Android: activa "Ubicación precisa". Sal al exterior y vuelve a fichar.`;
-      }
       if (e.code === 1) {
         return ios
           ? 'No se ha fichado: el permiso de ubicación está bloqueado. Ajustes → Privacidad y seguridad → Localización → Safari (o Noucolor) → "Al usar la app" y "Ubicación exacta". Después vuelve a fichar.'
