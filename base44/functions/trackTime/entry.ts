@@ -462,6 +462,44 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, entries: data });
       }
 
+      // Registro mensual de días fichados: todo lo del mes en una sola llamada
+      // (trabajadores, fichajes, justificantes aprobados e incumplimientos).
+      case 'registroMensual': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const month = String(body.month || '');
+        if (!/^\d{4}-\d{2}$/.test(month)) return Response.json({ error: 'Mes no válido' }, { status: 400 });
+        const [y, m] = month.split('-').map(Number);
+        const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        const from = `${month}-01`;
+        const to = `${month}-${String(lastDay).padStart(2, '0')}`;
+        const db = base44.asServiceRole.entities;
+        const [emps, entries, justs, incs] = await Promise.all([
+          db.Employee.list('full_name', 500),
+          db.TimeEntry.filter({ date: { $gte: from, $lte: to } }, 'date', 5000),
+          db.Justificante.list('-date_from', 2000),
+          db.Incumplimiento.filter({ date: { $gte: from, $lte: to } }, 'date', 2000),
+        ]);
+        const employees = emps
+          .filter(e => e.role !== 'jefe' && !/tester/i.test(e.full_name || ''))
+          .filter(e => e.is_active !== false || entries.some(t => t.employee_id === e.id))
+          .map(e => ({ id: e.id, full_name: e.full_name, role: e.role, position: e.position || '', is_active: e.is_active !== false, estado_laboral: e.estado_laboral || 'activo' }));
+        return Response.json({
+          success: true,
+          month, from, to,
+          employees,
+          entries: entries.map(t => ({
+            id: t.id, employee_id: t.employee_id, date: t.date, clock_in: t.clock_in, clock_out: t.clock_out,
+            total_hours: t.total_hours || 0, overtime_hours: t.overtime_hours || 0, status: t.status,
+            auto_closed: !!t.auto_closed, opened_by_admin: !!t.opened_by_admin,
+            clock_in_accuracy: t.clock_in_accuracy ?? null, has_location: t.clock_in_lat != null,
+          })),
+          justificantes: justs
+            .filter(j => j.status === 'aprobado' && j.date_from && String(j.date_from) <= to && String(j.date_to || j.date_from) >= from)
+            .map(j => ({ employee_id: j.employee_id, type: j.type, date_from: j.date_from, date_to: j.date_to || j.date_from, reason: j.reason || '' })),
+          incumplimientos: incs.map(i => ({ employee_id: i.employee_id, date: i.date, type: i.type, status: i.status, description: i.description || '' })),
+        });
+      }
+
       case 'listAllEntries': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { limit, employeeId: filterEmployeeId } = body;
