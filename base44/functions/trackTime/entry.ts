@@ -473,12 +473,15 @@ Deno.serve(async (req) => {
         const from = `${month}-01`;
         const to = `${month}-${String(lastDay).padStart(2, '0')}`;
         const db = base44.asServiceRole.entities;
-        const [emps, entries, justs, incs] = await Promise.all([
+        const inMonth = (d) => typeof d === 'string' && d.slice(0, 7) === month;
+        const [emps, allEntries, justs, allIncs] = await Promise.all([
           db.Employee.list('full_name', 500),
-          db.TimeEntry.filter({ date: { $gte: from, $lte: to } }, 'date', 5000),
+          db.TimeEntry.list('-date', 5000),
           db.Justificante.list('-date_from', 2000),
-          db.Incumplimiento.filter({ date: { $gte: from, $lte: to } }, 'date', 2000),
+          db.Incumplimiento.list('-date', 3000),
         ]);
+        const entries = allEntries.filter(t => inMonth(t.date));
+        const incs = allIncs.filter(i => inMonth(i.date));
         const employees = emps
           .filter(e => e.role !== 'jefe' && !/tester/i.test(e.full_name || ''))
           .filter(e => e.is_active !== false || entries.some(t => t.employee_id === e.id))
