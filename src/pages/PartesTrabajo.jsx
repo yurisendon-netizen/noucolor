@@ -83,12 +83,22 @@ export default function PartesTrabajo() {
   }
 
   async function handleCreate() {
+    // Antes el botón se quedaba bloqueado sin decir por qué: ahora se avisa de lo que falta.
+    const falta = [];
+    if (!form.client_name.trim()) falta.push('el cliente');
+    if (!form.date) falta.push('la fecha');
+    if (validHoras.length === 0) falta.push('al menos un trabajador con sus horas (más de 0)');
+    if (falta.length > 0) {
+      toast({ title: 'Faltan datos', description: `Rellena ${falta.join(', ')}.`, variant: 'destructive' });
+      return;
+    }
     setCreating(true);
     try {
       // Se crea en el servidor (los operarios no tienen permiso directo sobre la tabla).
+      // Si no se pone título, se usa el nombre del cliente / obra.
       const res = await authInvoke('trackTime', {
         operation: 'createWorkOrder',
-        workOrder: { ...form, horas_trabajadas: validHoras },
+        workOrder: { ...form, title: form.title.trim() || form.client_name.trim(), horas_trabajadas: validHoras },
         firmaDataUrl: firmaDataUrl || null,
       });
       if (res?.data?.error) throw new Error(res.data.error);
@@ -248,7 +258,7 @@ export default function PartesTrabajo() {
                 </select>
               </div>
             )}
-            <Input placeholder="Título *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-secondary border-border" />
+            <Input placeholder="Título (opcional)" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-secondary border-border" />
             <Input placeholder="Cliente *" value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} className="bg-secondary border-border" />
             <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
             <ResponsiveSelect
@@ -306,7 +316,7 @@ export default function PartesTrabajo() {
             </div>
             <Input placeholder="Materiales" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
             <Textarea placeholder="Notas" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />
-            <Button onClick={handleCreate} disabled={!form.title || !form.client_name || !form.date || validHoras.length === 0 || creating} className="w-full h-11">
+            <Button onClick={handleCreate} disabled={creating} className="w-full h-11">
               {creating ? <><Loader2 size={16} className="animate-spin" /> Creando...</> : 'Crear Parte'}
             </Button>
           </div>
