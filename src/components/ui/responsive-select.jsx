@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Check, ChevronDown } from 'lucide-react';
@@ -7,6 +7,19 @@ import { cn } from '@/lib/utils';
 export default function ResponsiveSelect({ value, onValueChange, options = [], placeholder, className }) {
   const [open, setOpen] = useState(false);
   const selected = options.find(o => o.value === value);
+
+  // Al cerrarse el cajón dentro de un formulario emergente, a veces el <body> se queda
+  // bloqueado (sin scroll ni toques). Si no queda ningún cuadro abierto, se desbloquea.
+  useEffect(() => {
+    if (open) return;
+    const t = setTimeout(() => {
+      if (document.querySelector('[role="dialog"][data-state="open"]')) return;
+      const b = document.body;
+      ['pointerEvents', 'overflow', 'position', 'top', 'left', 'right', 'width', 'height'].forEach(p => { b.style[p] = ''; });
+      b.removeAttribute('data-scroll-locked');
+    }, 500);
+    return () => clearTimeout(t);
+  }, [open]);
 
   return (
     <>
