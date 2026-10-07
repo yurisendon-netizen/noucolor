@@ -74,6 +74,20 @@ export default function PartesTrabajo() {
 
   useEffect(() => { loadOrders(); }, []);
 
+  // Arreglo del bloqueo de pantalla: el selector de prioridad (cajón inferior) dentro del
+  // formulario puede dejar el <body> sin scroll ni toques al cerrarse. Al cerrar el
+  // formulario se limpia ese estado.
+  useEffect(() => {
+    if (dialogOpen) return;
+    const t = setTimeout(() => {
+      const b = document.body;
+      ['pointerEvents', 'overflow', 'position', 'top', 'left', 'right', 'width', 'height', 'paddingRight', 'marginRight'].forEach(p => { b.style[p] = ''; });
+      b.removeAttribute('data-scroll-locked');
+      document.documentElement.style.overflow = '';
+    }, 450);
+    return () => clearTimeout(t);
+  }, [dialogOpen]);
+
   async function loadOrders() {
     try {
       const data = await base44.entities.WorkOrder.list('-created_date', 100);
