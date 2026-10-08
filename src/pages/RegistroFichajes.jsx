@@ -10,6 +10,7 @@ import useEmployeeProfile from '@/hooks/useEmployeeProfile';
 import SignaturePadInput from '@/components/parts/SignaturePadInput';
 import { buildRegistro, CODES, DOW, monthLabel, fH, fDate, todayAndorra } from '@/components/registro/registroUtils';
 import { downloadRegistroPdf } from '@/components/registro/RegistroPdf';
+import Amonestaciones, { contarSanciones, SANCION_LIMITE } from '@/components/registro/Amonestaciones';
 
 // Registro mensual de días fichados por trabajador (solo admin)
 export default function RegistroFichajes() {
@@ -22,6 +23,19 @@ export default function RegistroFichajes() {
   const [busy, setBusy] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   const [signature, setSignature] = useState(null);
+  const [sanciones, setSanciones] = useState([]);
+  const sancionCounts = useMemo(() => contarSanciones(sanciones), [sanciones]);
+
+  const loadSanciones = useCallback(async () => {
+    try {
+      const res = await authInvoke('trackTime', { operation: 'listSanciones' });
+      setSanciones(res?.data?.sanciones || []);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => { if (isAdmin) loadSanciones(); }, [isAdmin, loadSanciones]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -153,7 +167,10 @@ export default function RegistroFichajes() {
                         <td className="sticky left-0 z-10 bg-card px-3 py-2 font-medium whitespace-nowrap">
                           <span className="inline-flex items-center gap-1">
                             {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                            {r.emp.full_name}
+                            <span className={(sancionCounts[r.emp.id] || 0) >= SANCION_LIMITE ? 'text-red-500 font-bold' : ''}>{r.emp.full_name}</span>
+                            {(sancionCounts[r.emp.id] || 0) > 0 && (
+                              <span className={`ml-1 rounded-full px-1.5 text-[10px] font-semibold ${(sancionCounts[r.emp.id] || 0) >= SANCION_LIMITE ? 'bg-red-500 text-white' : 'bg-amber-500/20 text-amber-500'}`} title="Sanciones">{sancionCounts[r.emp.id]}</span>
+                            )}
                           </span>
                         </td>
                         {reg.days.map(d => {
@@ -218,6 +235,8 @@ export default function RegistroFichajes() {
       <p className="text-xs text-muted-foreground mt-3">
         {reg ? `${monthLabel(reg.month)} · ${reg.laborables} días laborables (lunes a viernes). ` : ''}Toca un trabajador para ver el detalle de cada día. Los festivos no se marcan aparte.
       </p>
+
+      <Amonestaciones employees={data?.employees || []} sanciones={sanciones} onChanged={loadSanciones} />
 
       <Dialog open={signOpen} onOpenChange={(o) => { setSignOpen(o); if (!o) setSignature(null); }}>
         <DialogContent className="bg-card border-border max-w-md">
