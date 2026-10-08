@@ -78,8 +78,11 @@ export function buildRegistro(data) {
       let cell = null;
 
       if (ok.length > 0) {
-        const horas = ok.reduce((s, e) => s + (Number(e.total_hours) || 0), 0);
-        const extras = ok.reduce((s, e) => s + (Number(e.overtime_hours) || 0), 0);
+        // Sábado o domingo: todo lo trabajado cuenta como hora extra.
+        const rawHoras = ok.reduce((s, e) => s + (Number(e.total_hours) || 0), 0);
+        const rawExtras = ok.reduce((s, e) => s + (Number(e.overtime_hours) || 0), 0);
+        const horas = day.weekend ? 0 : rawHoras;
+        const extras = day.weekend ? rawHoras + rawExtras : rawExtras;
         const first = ok[0];
         const notas = [];
         if (ok.some(e => e.status === 'abierto')) notas.push('Jornada abierta');
