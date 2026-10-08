@@ -220,6 +220,40 @@ export default function PartesTrabajo() {
 
       <WorkOrderFilters filters={filters} onChange={setFilters} />
 
+      {/* Móvil: tarjetas (la tabla de 8 columnas obligaba a desplazar en horizontal) */}
+      <div className="md:hidden mt-4 space-y-3">
+        {filteredOrders.length === 0 ? (
+          <div className="rounded-xl border border-border px-4 py-10 text-center text-muted-foreground text-sm">No hay partes de trabajo</div>
+        ) : filteredOrders.map(row => (
+          <div key={row.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-medium break-words">{row.title}</p>
+                <p className="text-sm text-muted-foreground break-words">{row.client_name}</p>
+              </div>
+              <StatusBadge status={row.status} />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span>{row.date ? moment(row.date).format('DD/MM/YYYY') : '—'}</span>
+              <span>{row.total_horas ? `${row.total_horas} h` : '—'}</span>
+              {row.assigned_name && <span className="break-words">{row.assigned_name}</span>}
+            </div>
+            <div className="flex items-center justify-end gap-1 pt-1">
+              {row.status !== 'completado' ? (
+                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(row.id, 'completado')} className="text-emerald-400"><CheckCircle size={18} /></Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(row.id, 'pendiente')} className="text-yellow-400"><X size={18} /></Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => handleDownloadPdf(row)} disabled={downloadingId === row.id} className="text-blue-400">
+                {downloadingId === row.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => handleDelete(row.id)} className="text-red-400"><Trash2 size={18} /></Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block">
       <DataTable
         data={filteredOrders}
         onRefresh={loadOrders}
@@ -252,9 +286,10 @@ export default function PartesTrabajo() {
           </>
         )}
       />
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-card border-border max-w-lg">
+        <DialogContent className="bg-card border-border max-w-lg w-[calc(100vw-1.5rem)] max-h-[90dvh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Nuevo Parte de Trabajo</DialogTitle>
           </DialogHeader>
