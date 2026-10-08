@@ -536,6 +536,39 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
+      // ── Sanciones (Registro de fichajes → Amonestaciones). Solo admins.
+      case 'listSanciones': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const data = await base44.asServiceRole.entities.Sancion.list('-date', 2000);
+        return Response.json({ success: true, sanciones: data });
+      }
+
+      case 'createSancion': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const employeeId = typeof body.employeeId === 'string' ? body.employeeId : '';
+        const motivo = typeof body.motivo === 'string' ? body.motivo.trim().slice(0, 1000) : '';
+        const date = typeof body.date === 'string' ? body.date : '';
+        if (!employeeId || !motivo || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          return Response.json({ error: 'Indica trabajador, fecha y motivo.' }, { status: 400 });
+        }
+        const targets = await base44.asServiceRole.entities.Employee.filter({ id: employeeId });
+        if (targets.length === 0) return Response.json({ error: 'Trabajador no encontrado' }, { status: 404 });
+        const created = await base44.asServiceRole.entities.Sancion.create({
+          employee_id: employeeId, employee_name: targets[0].full_name,
+          date, motivo, impuesta_por: empName,
+        });
+        const all = await base44.asServiceRole.entities.Sancion.filter({ employee_id: employeeId });
+        return Response.json({ success: true, sancion: created, total: all.length });
+      }
+
+      case 'deleteSancion': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { sancionId } = body;
+        if (!sancionId) return Response.json({ error: 'Falta sancionId' }, { status: 400 });
+        await base44.asServiceRole.entities.Sancion.delete(sancionId);
+        return Response.json({ success: true });
+      }
+
       // ── Partes de trabajo. Los operarios entran con usuario+PIN propios (no son
       // admins de Base44), así que crear/editar/borrar se hace aquí con el rol
       // de servicio y validando quién es cada uno.

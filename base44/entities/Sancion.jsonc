@@ -1,0 +1,53 @@
+{
+  "name": "Sancion",
+  "properties": {
+    "date": {
+      "description": "Fecha de la sanci\u00f3n",
+      "format": "date",
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "impuesta_por": {
+      "description": "Nombre del admin que la puso",
+      "type": "string"
+    },
+    "motivo": {
+      "description": "Motivo de la sanci\u00f3n",
+      "type": "string"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "date",
+    "motivo"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
