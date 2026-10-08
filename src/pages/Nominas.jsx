@@ -15,6 +15,14 @@ import { generateNominaPdf } from '@/components/nominas/NominaPdf';
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+// Regla: todo lo trabajado en sábado o domingo cuenta como hora extra.
+const isWeekendDate = (d) => {
+  if (typeof d !== 'string') return false;
+  const [y, m, dd] = d.split('-').map(Number);
+  if (!y || !m || !dd) return false;
+  const dow = new Date(Date.UTC(y, m - 1, dd)).getUTCDay();
+  return dow === 0 || dow === 6;
+};
 
 // Regla de nómina de Noucolor:
 //   NETO = salario neto de la hoja de la empresa
@@ -82,15 +90,26 @@ export default function Nominas() {
       const allOvertime = overtimeRes.data?.overtime || [];
       const monthOvertime = allOvertime.filter(o => inPeriod(o.date) && o.status === 'aprobado');
 
-      const overtimeFromEntries = monthEntries.reduce((sum, e) => sum + (e.overtime_hours || 0), 0);
+      const workedEntries = monthEntries.filter(e => e.status !== 'ausencia_injustificada');
+      const weekendEntries = workedEntries.filter(e => isWeekendDate(e.date));
+      const weekendHours = weekendEntries.reduce((sum, e) => sum + (e.total_hours || 0) + (e.overtime_hours || 0), 0);
+      // Las horas de fin de semana ya van enteras como extra: no se suman dos veces las extras de esos días.
+      const overtimeFromEntries = workedEntries
+        .filter(e => !isWeekendDate(e.date))
+        .reduce((sum, e) => sum + (e.overtime_hours || 0), 0) + weekendHours;
       const hasOvertimeRecords = monthOvertime.length > 0;
+      // Si hay extras aprobadas a mano, se usan esas más los fines de semana fichados que no tengan ya una extra aprobada ese día.
+      const approvedDates = new Set(monthOvertime.map(o => o.date));
+      const weekendNotCovered = weekendEntries
+        .filter(e => !approvedDates.has(e.date))
+        .reduce((sum, e) => sum + (e.total_hours || 0) + (e.overtime_hours || 0), 0);
       const overtimeHours = hasOvertimeRecords
-        ? monthOvertime.reduce((sum, o) => sum + (o.duration || 0), 0)
+        ? monthOvertime.reduce((sum, o) => sum + (o.duration || 0), 0) + weekendNotCovered
         : overtimeFromEntries;
       const overtimePay = r2(r2(overtimeHours) * r2(emp.precioHoraExtra));
 
       const absences = monthEntries.filter(e => e.status === 'ausencia_injustificada').length;
-      const regularHours = monthEntries.reduce((sum, e) => sum + (e.total_hours || 0), 0);
+      const regularHours = monthEntries.filter(e => !isWeekendDate(e.date)).reduce((sum, e) => sum + (e.total_hours || 0), 0);
       setCalcSummary({ overtimeHours: parseFloat(overtimeHours.toFixed(2)), overtimePay: parseFloat(overtimePay.toFixed(2)), absences, regularHours: parseFloat(regularHours.toFixed(2)), totalEntries: monthEntries.length });
       setForm(f => ({ ...f, overtime_hours: parseFloat(overtimeHours.toFixed(2)) }));
     } catch (e) { console.error(e); }
