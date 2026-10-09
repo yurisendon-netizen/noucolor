@@ -179,6 +179,16 @@ function toAccuracy(accuracy) {
   return accuracy !== null && accuracy !== undefined && Number.isFinite(n) ? Math.round(n) : null;
 }
 
+// Distancia en metros entre dos coordenadas (fórmula de Haversine).
+function distMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (x) => (Number(x) * Math.PI) / 180;
+  const dLat = toRad(lat2) - toRad(lat1);
+  const dLng = toRad(lng2) - toRad(lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.min(1, Math.sqrt(a))));
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -261,6 +271,24 @@ Deno.serve(async (req) => {
         }
 
         await upsertLocation(base44, empId, empName, true, lat, lng, acc);
+
+        // Control de obra: si el admin le asignó una obra hoy y ficha lejos, avisa por push.
+        try {
+          const asig = await base44.asServiceRole.entities.Asignacion.filter({ employee_id: empId, date });
+          if (asig.length > 0) {
+            const a = asig[0];
+            const d = distMeters(lat, lng, a.lat, a.lng);
+            const radio = Number(a.radio_m) || 300;
+            if (d > radio) {
+              await notifyAdminsPush(
+                base44,
+                `📍 ${empName} ha fichado fuera de la obra`,
+                `Ha fichado a ${d} m de «${a.obra_nombre}» (máx. ${radio} m).`,
+                { target_url: '/registro-fichajes' }
+              );
+            }
+          }
+        } catch (e) { console.error('control obra', e); }
 
         if (isLate) {
           await base44.asServiceRole.entities.Incumplimiento.create({
@@ -566,6 +594,78 @@ Deno.serve(async (req) => {
         const { sancionId } = body;
         if (!sancionId) return Response.json({ error: 'Falta sancionId' }, { status: 400 });
         await base44.asServiceRole.entities.Sancion.delete(sancionId);
+        return Response.json({ success: true });
+      }
+
+      // ── Control de obra del día (Registro de fichajes). Solo admins.
+      case 'listControlDia': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : getLocalParts(new Date()).dateStr;
+        const db = base44.asServiceRole.entities;
+        const [emps, entries, asigs, recent] = await Promise.all([
+          db.Employee.list('full_name', 500),
+          db.TimeEntry.filter({ date }),
+          db.Asignacion.filter({ date }),
+          db.Asignacion.list('-date', 300),
+        ]);
+        const rows = emps
+          .filter(e => e.is_active !== false && e.role !== 'jefe' && !/tester/i.test(e.full_name || ''))
+          .map(e => {
+            const t = entries.find(x => x.employee_id === e.id && x.status !== 'ausencia_injustificada');
+            const a = asigs.find(x => x.employee_id === e.id) || null;
+            let distancia = null, fuera = false;
+            if (t && t.clock_in_lat != null && a) {
+              distancia = distMeters(t.clock_in_lat, t.clock_in_lng, a.lat, a.lng);
+              fuera = distancia > (Number(a.radio_m) || 300);
+            }
+            return {
+              id: e.id, full_name: e.full_name, estado_laboral: e.estado_laboral || 'activo',
+              clock_in: t ? t.clock_in : null, clock_out: t ? t.clock_out : null,
+              lat: t ? t.clock_in_lat ?? null : null, lng: t ? t.clock_in_lng ?? null : null,
+              accuracy: t ? t.clock_in_accuracy ?? null : null,
+              asignacion: a ? { id: a.id, obra_nombre: a.obra_nombre, lat: a.lat, lng: a.lng, radio_m: Number(a.radio_m) || 300 } : null,
+              distancia, fuera,
+            };
+          });
+        const seen = new Map();
+        for (const r of recent) {
+          if (r.obra_nombre && !seen.has(r.obra_nombre)) seen.set(r.obra_nombre, { obra_nombre: r.obra_nombre, lat: r.lat, lng: r.lng, radio_m: Number(r.radio_m) || 300 });
+        }
+        return Response.json({ success: true, date, rows, lugares: Array.from(seen.values()).slice(0, 20) });
+      }
+
+      case 'saveAsignaciones': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const employeeIds = Array.isArray(body.employeeIds) ? body.employeeIds.filter(x => typeof x === 'string') : [];
+        const dates = Array.isArray(body.dates) ? body.dates.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) : [];
+        const obra = typeof body.obra_nombre === 'string' ? body.obra_nombre.trim().slice(0, 200) : '';
+        const lat = Number(body.lat), lng = Number(body.lng);
+        const radio = Math.min(2000, Math.max(50, Number(body.radio_m) || 300));
+        if (employeeIds.length === 0 || dates.length === 0 || dates.length > 31 || !obra || !isValidCoord(lat, lng)) {
+          return Response.json({ error: 'Indica trabajadores, fecha, nombre de la obra y su ubicación.' }, { status: 400 });
+        }
+        const db = base44.asServiceRole.entities;
+        const emps = await db.Employee.list('full_name', 500);
+        let saved = 0;
+        for (const eid of employeeIds) {
+          const emp = emps.find(e => e.id === eid);
+          if (!emp) continue;
+          for (const d of dates) {
+            const existing = await db.Asignacion.filter({ employee_id: eid, date: d });
+            const payload = { employee_id: eid, employee_name: emp.full_name, date: d, obra_nombre: obra, lat, lng, radio_m: radio };
+            if (existing.length > 0) await db.Asignacion.update(existing[0].id, payload);
+            else await db.Asignacion.create(payload);
+            saved++;
+          }
+        }
+        return Response.json({ success: true, saved });
+      }
+
+      case 'deleteAsignacion': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { asignacionId } = body;
+        if (!asignacionId) return Response.json({ error: 'Falta asignacionId' }, { status: 400 });
+        await base44.asServiceRole.entities.Asignacion.delete(asignacionId);
         return Response.json({ success: true });
       }
 

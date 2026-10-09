@@ -1,0 +1,62 @@
+{
+  "name": "Asignacion",
+  "properties": {
+    "date": {
+      "description": "D\u00eda de la asignaci\u00f3n",
+      "format": "date",
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "lat": {
+      "type": "number"
+    },
+    "lng": {
+      "type": "number"
+    },
+    "obra_nombre": {
+      "description": "Nombre de la obra / lugar de trabajo",
+      "type": "string"
+    },
+    "radio_m": {
+      "default": 300,
+      "description": "Distancia m\u00e1xima permitida al fichar (metros)",
+      "type": "number"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_name",
+    "date",
+    "obra_nombre",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
