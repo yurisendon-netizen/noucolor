@@ -415,6 +415,36 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
+      // Horas extras vía service role (el RLS {{user.id}} de Employee/OvertimeHour no
+      // coincide con el login propio de la app, así que el cliente las ve vacías).
+      case 'listEmployeesAdmin': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const all = await base44.asServiceRole.entities.Employee.list('full_name', 200);
+        const employees = all
+          .filter(e => e.is_active !== false && e.role !== 'jefe' && e.estado_laboral !== 'baja' && !/tester/i.test(e.full_name || ''))
+          .map(e => ({ id: e.id, full_name: e.full_name, precioHora: e.precioHora || 0, precioHoraExtra: e.precioHoraExtra || 0, is_active: e.is_active !== false }));
+        return Response.json({ success: true, employees });
+      }
+
+      case 'listOvertime': {
+        const data = isAdmin
+          ? await base44.asServiceRole.entities.OvertimeHour.list('-created_date', 500)
+          : await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: empId }, '-created_date', 200);
+        return Response.json({ success: true, overtime: data });
+      }
+
+      case 'deleteOvertime': {
+        const { overtimeId } = body;
+        if (!overtimeId) return Response.json({ error: 'Falta overtimeId' }, { status: 400 });
+        const rec = await base44.asServiceRole.entities.OvertimeHour.filter({ id: overtimeId });
+        if (rec.length === 0) return Response.json({ error: 'Registro no encontrado' }, { status: 404 });
+        if (!isAdmin && (rec[0].employee_id !== empId || rec[0].status !== 'pendiente')) {
+          return Response.json({ error: 'No autorizado' }, { status: 403 });
+        }
+        await base44.asServiceRole.entities.OvertimeHour.delete(overtimeId);
+        return Response.json({ success: true });
+      }
+
       case 'approveOvertime': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { overtimeId, status } = body;
