@@ -54,18 +54,16 @@ export default function HorasExtras() {
 
   async function loadItems() {
     try {
-      const data = isAdmin
-        ? await base44.entities.OvertimeHour.list('-created_date', 200)
-        : await base44.entities.OvertimeHour.filter({ employee_id: employee?.id || user?.id }, '-created_date', 100);
-      setItems(data);
+      const res = await authInvoke('trackTime', { operation: 'listOvertime' });
+      setItems(res?.data?.overtime || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
 
   async function loadEmployees() {
     try {
-      const data = await base44.entities.Employee.list('-full_name', 200);
-      setEmployees(data.filter(e => e.is_active !== false));
+      const res = await authInvoke('trackTime', { operation: 'listEmployeesAdmin' });
+      setEmployees(res?.data?.employees || []);
     } catch (e) { console.error(e); }
   }
 
@@ -177,7 +175,8 @@ export default function HorasExtras() {
     const prev = items;
     setItems(items.filter(i => i.id !== id));
     try {
-      await base44.entities.OvertimeHour.delete(id);
+      const res = await authInvoke('trackTime', { operation: 'deleteOvertime', overtimeId: id });
+      if (res?.data?.error) throw new Error(res.data.error);
       toast({ variant: 'success', title: 'Hora extra eliminada' });
     } catch (e) {
       setItems(prev);
