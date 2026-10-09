@@ -268,7 +268,7 @@ export default function HorasExtras() {
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-card border-border max-w-lg">
+        <DialogContent className="bg-card border-border max-w-lg w-[calc(100vw-1.5rem)] max-h-[90dvh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
           <DialogHeader><DialogTitle>{editing ? 'Editar Hora Extra' : 'Registrar Hora Extra'}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             {isAdmin && (
@@ -284,16 +284,16 @@ export default function HorasExtras() {
             )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Fecha</label>
-              <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
+              <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border w-full min-w-0 max-w-full" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3 min-w-0">
+              <div className="space-y-2 min-w-0">
                 <label className="text-sm font-medium">Hora inicio</label>
-                <Input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} className="bg-secondary border-border" />
+                <Input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} className="bg-secondary border-border w-full min-w-0 max-w-full" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Hora fin</label>
-                <Input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} className="bg-secondary border-border" />
+                <Input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} className="bg-secondary border-border w-full min-w-0 max-w-full" />
               </div>
             </div>
             <Textarea placeholder="Obra / Motivo" value={form.obra_motivo} onChange={e => setForm({ ...form, obra_motivo: e.target.value })} className="bg-secondary border-border" />
