@@ -11,6 +11,7 @@ import SignaturePadInput from '@/components/parts/SignaturePadInput';
 import { buildRegistro, CODES, DOW, monthLabel, fH, fDate, todayAndorra } from '@/components/registro/registroUtils';
 import { downloadRegistroPdf } from '@/components/registro/RegistroPdf';
 import Amonestaciones, { contarSanciones, SANCION_LIMITE } from '@/components/registro/Amonestaciones';
+import ControlDia from '@/components/registro/ControlDia';
 
 // Registro mensual de días fichados por trabajador (solo admin)
 export default function RegistroFichajes() {
@@ -110,6 +111,8 @@ export default function RegistroFichajes() {
           </>
         }
       />
+
+      <ControlDia />
 
       <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-5">
         <div>
