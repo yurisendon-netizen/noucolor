@@ -73,7 +73,7 @@ export default function NominaSignDialog({ payroll, employeeId, employeeName, on
             <SignaturePadInput onChange={setSignatureDataUrl} />
           </div>
           <p className="text-xs text-muted-foreground">
-            En firmar, acceptes el contingut d'aquest butlletí de salari. La teva firma es descarregarà i s'inserirà al document PDF.
+            En firmar, declares que estàs conforme amb aquest butlletí de salari i amb el compte d'hores del mes (dies, hores, extres, vacances i absències). Revisa'l abans al PDF. Si alguna cosa no és correcta, no firmis: fes servir «Reclamar» (tens 7 dies). La teva firma s'inserirà al document PDF.
           </p>
           <Button onClick={handleSign} disabled={signing || !signatureDataUrl} className="w-full h-11 gap-2">
             {signing ? <><Loader2 size={16} className="animate-spin" /> Firmant...</> : <><FileText size={16} /> Firma i descarregar PDF</>}
