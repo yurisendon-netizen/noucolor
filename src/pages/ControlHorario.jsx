@@ -117,17 +117,20 @@ export default function ControlHorario() {
       const hour = now.getHours();
       const minutes = now.getMinutes();
 
-      // Auto-close at 16:30 (end of salida window) if still open — el servidor
-      // recalcula la hora de salida y las horas trabajadas, no las mandamos nosotros.
-      if (open && (hour > 16 || (hour === 16 && minutes >= 30))) {
-        await authInvoke('trackTime', {
+      // Cierre automático solo de jornadas de días anteriores o a partir de las
+      // 21:00: hasta entonces el trabajador puede fichar su salida REAL (horas
+      // extra incluidas). El servidor decide y calcula las horas, no el móvil.
+      if (open && (open.date < moment().format('YYYY-MM-DD') || hour >= 21)) {
+        const r = await authInvoke('trackTime', {
           operation: 'autoClose',
           entryId: open.id,
         });
-        toast({ title: '🔒 Jornada cerrada automáticamente', description: 'Salida a las 16:00 — Próximo fichaje mañana a las 7:45' });
-        res = await authInvoke('trackTime', { operation: 'listEntries', limit: 50 });
-        data = res.data?.entries || [];
-        open = null;
+        if (r.data?.success) {
+          toast({ title: '🔒 Jornada cerrada automáticamente', description: 'No fichaste la salida: se ha cerrado a las 16:00 sin horas extra. Si saliste más tarde, pide una corrección.' });
+          res = await authInvoke('trackTime', { operation: 'listEntries', limit: 50 });
+          data = res.data?.entries || [];
+          open = null;
+        }
       }
 
       setEntries(data);
@@ -479,7 +482,10 @@ export default function ControlHorario() {
           <ChevronDown size={16} className="text-muted-foreground transition-transform group-open:rotate-180 shrink-0" />
         </summary>
         <div className="px-4 text-sm text-muted-foreground leading-relaxed">
-          Entrada <strong className="text-foreground">7:45 - 8:15</strong> (falta si no fichas antes de las <strong className="text-foreground">8:30</strong>, no descuenta sueldo) · Salida <strong className="text-foreground">16:00 - 16:30</strong> · Cierre automático a las <strong className="text-foreground">16:00</strong> · <strong className="text-foreground">+2h extras</strong> si fichas salida después de las 16:00.
+          Horario: <strong className="text-foreground">8:00 - 16:00</strong>, de lunes a viernes, con <strong className="text-foreground">pausa de 12:30 a 13:00 pagada</strong>. Entrada <strong className="text-foreground">7:45 - 8:15</strong> (falta si no fichas antes de las <strong className="text-foreground">8:30</strong>, no descuenta sueldo).
+          Ficha siempre la salida a la hora real: si sales después de las 16:00, el tiempo de más cuenta como <strong className="text-foreground">horas extra</strong> (en tramos de 15 min) y queda pendiente de aprobar por la empresa.
+          Si no fichas la salida, a las 21:00 la jornada se cierra automáticamente a las <strong className="text-foreground">16:00 sin horas extra</strong>; si saliste más tarde, pide una corrección.
+          Cada mes recibirás tu compte d'hores con la nómina para revisarlo.
         </div>
       </details>
 
