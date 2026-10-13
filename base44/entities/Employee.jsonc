@@ -35,6 +35,11 @@
       "format": "date",
       "type": "string"
     },
+    "horario_flexible": {
+      "default": false,
+      "description": "Horario de entrada flexible (p. ej. pluriempleo): puede fichar la entrada entre 7:00 y 15:00 sin que cuente como retraso ni falta; jornada de 8 h desde que entra",
+      "type": "boolean"
+    },
     "is_active": {
       "default": true,
       "type": "boolean"
