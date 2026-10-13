@@ -488,7 +488,7 @@ export default function ControlHorario() {
         </summary>
         <div className="px-4 text-sm text-muted-foreground leading-relaxed">
           Horario: <strong className="text-foreground">8:00 - 16:00</strong>, de lunes a viernes, con <strong className="text-foreground">pausa de 12:30 a 13:00 pagada</strong>. Entrada <strong className="text-foreground">7:45 - 8:15</strong> (falta si no fichas antes de las <strong className="text-foreground">8:30</strong>, no descuenta sueldo).
-          Ficha siempre la salida a la hora real: si sales después de las 16:00, el tiempo de más cuenta como <strong className="text-foreground">horas extra</strong> (en tramos de 15 min) y queda pendiente de aprobar por la empresa.
+          Ficha siempre la salida a la hora real: si sales después de las 16:00, el tiempo de más cuenta como <strong className="text-foreground">horas extra</strong> (en tramos de 15 min) y queda pendiente de aprobar por la empresa. Solo se pagan las horas extra aprobadas.
           Si no fichas la salida, a las 21:00 la jornada se cierra automáticamente a las <strong className="text-foreground">16:00 sin horas extra</strong>; si saliste más tarde, pide una corrección.
           Cada mes recibirás tu compte d'hores con la nómina para revisarlo.
         </div>

@@ -101,12 +101,6 @@ const isoWeekKey = (dateStr) => {
   return `${dt.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 };
 
-const isWeekend = (dateStr) => {
-  const [y, m, d] = String(dateStr).split('-').map(Number);
-  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return dow === 0 || dow === 6;
-};
-
 // Horas extra por día: SOLO las aprobadas por un admin en Horas Extras
 // (laborables y fines de semana). Lo que no se aprueba no se paga.
 export function overtimeByDay(entries, approvedOvertime) {

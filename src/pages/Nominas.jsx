@@ -19,8 +19,8 @@ import { buildRegistro } from '@/components/registro/registroUtils';
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 // Nómina (Llei 31/2018):
-// - Horas extra = horas extra APROBADAS en Horas Extras (laborables) + todo lo
-//   trabajado en sábado o domingo.
+// - Horas extra = SOLO las APROBADAS en Horas Extras (laborables y fines de
+//   semana). Las pendientes o rechazadas no se pagan.
 // - Las extras van en bruto y cotizan a la CASS; el neto que cobra el trabajador
 //   es el mismo de siempre (ver payrollCalc.js).
 // - Con cada nómina se entrega el compte d'hores del mes (art. 59.2) y el
@@ -372,7 +372,7 @@ export default function Nominas() {
                 </div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Días fichados</span><span>{calcSummary.totalEntries}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Horas ordinarias</span><span>{calcSummary.regularHours.toFixed(1)}h</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Horas extra (aprobadas + fines de semana)</span><span className="text-primary">{calcSummary.overtimeHours.toFixed(2)}h</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Horas extra aprobadas (se pagan)</span><span className="text-primary">{calcSummary.overtimeHours.toFixed(2)}h</span></div>
                 {calcSummary.absences > 0 && (
                   <div className="flex justify-between"><span className="text-muted-foreground">Ausencias injustificadas</span><span className="text-red-400 font-medium">{calcSummary.absences}</span></div>
                 )}

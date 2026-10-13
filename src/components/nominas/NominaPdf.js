@@ -163,7 +163,7 @@ export async function generateNominaPdf(payroll) {
         { label: 'Dies treballats', value: String(t.fichados ?? 0) },
         { label: 'Hores ordinàries', value: `${fH(t.horas)} h` },
         { label: 'Hores extres fitxades (incl. caps de setmana)', value: `${fH(t.extras)} h` },
-        { label: 'Hores extres pagades en aquesta nòmina', value: `${fH(payroll.overtime_hours)} h` },
+        { label: 'Hores extres aprovades i pagades en aquesta nòmina', value: `${fH(payroll.overtime_hours)} h` },
         { label: 'Vacances (dies)', value: String(t.V ?? 0) },
         { label: 'Baixa mèdica (dies)', value: String(t.B ?? 0) },
         { label: 'Permisos / absències justificades (dies)', value: String(t.P ?? 0) },
@@ -191,7 +191,7 @@ export async function generateNominaPdf(payroll) {
     }
     y = addTextBlock(doc, {
       label: 'Important',
-      content: "Aquest compte d'hores es lliura juntament amb el butlletí de salari (Llei 31/2018, art. 59.2). Si no hi estàs d'acord, comunica-ho a l'empresa en un termini màxim de 7 dies naturals amb el botó «Reclamar» de l'apartat Nòmines de l'app. Les hores extres fitxades en dia laborable es paguen un cop aprovades per l'empresa.",
+      content: "Aquest compte d'hores es lliura juntament amb el butlletí de salari (Llei 31/2018, art. 59.2). Si no hi estàs d'acord, comunica-ho a l'empresa en un termini màxim de 7 dies naturals amb el botó «Reclamar» de l'apartat Nòmines de l'app. Les hores extres (també les de dissabte i diumenge) només es paguen si l'empresa les ha demanat i aprovat.",
       startY: y, pageHeight, margin,
     });
   }
