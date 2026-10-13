@@ -298,7 +298,7 @@ export default function ControlHorario() {
 
   async function handleClockOut() {
     if (!openEntry) return;
-    if (new Date().getHours() < 16 && !confirm('Son antes de las 16:00. ¿Seguro que te vas ya? Se registrará la salida a esta hora.')) return;
+    if (!employee?.horario_flexible && new Date().getHours() < 16 && !confirm('Son antes de las 16:00. ¿Seguro que te vas ya? Se registrará la salida a esta hora.')) return;
     setClockingOut(true);
     let loc;
     try {
@@ -343,8 +343,12 @@ export default function ControlHorario() {
   const hasAbsenceToday = todayEntry && todayEntry.status === 'ausencia_injustificada';
   // El botón verde de entrada solo aparece dentro de la ventana de fichaje
   // (7:45 - 8:30); fuera de ese tramo se muestra en gris "Próximo fichaje".
-  const inClockInWindow = (hour === 7 && minutes >= 45) || (hour === 8 && minutes <= 30);
-  const showBanner = hour === 8 && minutes < 30 && !openEntry && !hasAbsenceToday;
+  // Horario flexible (p. ej. pluriempleo): entrada de 7:00 a 15:00, sin retraso.
+  const flexible = !!employee?.horario_flexible;
+  const inClockInWindow = flexible
+    ? (hour >= 7 && hour < 15 && !(hour === 12 && minutes >= 30))
+    : ((hour === 7 && minutes >= 45) || (hour === 8 && minutes <= 30));
+  const showBanner = !flexible && hour === 8 && minutes < 30 && !openEntry && !hasAbsenceToday;
   const canClockIn = !openEntry && !hasClosedToday && inClockInWindow;
   // Salida: se puede fichar a la hora REAL (compte d'hores, art. 59) desde las
   // 16:00 hasta las 21:00, y también antes si alguien se va antes de hora
@@ -352,7 +356,8 @@ export default function ControlHorario() {
   const inBreak = (hour === 12 && minutes >= 30);
   const inExitWindow = hour >= 16 && hour < 21;
   const canClockOut = !!openEntry && !inBreak && hour < 21;
-  const earlyExit = hour < 16;
+  // Con horario flexible no hay "antes de hora": su jornada empieza cuando entra.
+  const earlyExit = !flexible && hour < 16;
   const showProximo = !openEntry && !canClockIn;
 
   const columns = [
@@ -461,7 +466,7 @@ export default function ControlHorario() {
           ) : showProximo ? (
             <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-secondary text-muted-foreground text-base font-medium">
               <Clock size={20} />
-              <span>Próximo fichaje a las 7:45</span>
+              <span>{flexible ? 'Entrada de 7:00 a 15:00' : 'Próximo fichaje a las 7:45'}</span>
             </div>
           ) : (
             <Button
