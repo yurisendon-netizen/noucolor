@@ -5,11 +5,11 @@
     {
       "type": "scheduled",
       "name": "cierre_automatico_fichajes_1635",
-      "description": "Cierra los fichajes que sigan abiertos a las 16:35 hora de Andorra (UTC+2 verano) y desactiva su geolocalización, para que no se queden colgados si nadie abrió la app pasada la ventana de salida",
+      "description": "Cierra a las 21:05 hora de Andorra (19:05/20:05 UTC según verano/invierno; el código ignora la ejecución que cae antes de las 21:00) los fichajes que sigan abiertos",
       "is_active": true,
       "schedule_mode": "recurring",
       "schedule_type": "cron",
-      "cron_expression": "35 14 * * *"
+      "cron_expression": "5 19,20 * * *"
     }
   ]
 }

@@ -4,7 +4,7 @@ import { requireCronSecret } from '../../shared/cronAuth.ts';
 // Cron de las 15:45 (hora de Madrid / Andorra, UTC+2 verano): revisa qué
 // empleados siguen con la jornada abierta (fichaje de entrada sin salida) y
 // deja un aviso en el centro de notificaciones para los admins, antes del
-// cierre automático de las 16:35.
+// cierre automático de las 21:05.
 
 Deno.serve(async (req) => {
   const unauthorized = await requireCronSecret(req);

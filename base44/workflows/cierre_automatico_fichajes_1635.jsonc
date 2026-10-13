@@ -1,15 +1,15 @@
 {
   "name": "cierre_automatico_fichajes_1635",
-  "description": "Cierra los fichajes que sigan abiertos a las 16:35 hora de Andorra (UTC+2 verano) y desactiva su geolocalizaci\u00f3n, para que no se queden colgados si nadie abri\u00f3 la app pasada la ventana de salida",
+  "description": "Cierra a las 21:05 (hora de Andorra) los fichajes que sigan abiertos: salida a las 16:00 sin extras, marcados como salida no fichada y registrados en el historial. M\u00e1s tarde que antes para no borrar las horas extra de quien sigue trabajando",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "35 14 * * *",
+      "cron_expression": "5 21 * * *",
       "one_time_date": null,
-      "timezone": "UTC",
+      "timezone": "Europe/Andorra",
       "interval_value": null,
       "interval_unit": null,
       "interval_anchor": null,

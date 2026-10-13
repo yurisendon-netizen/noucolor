@@ -9,8 +9,9 @@ export const EXPECTED_CRON_TASKS = [
   'onesignalClockInReminder',
   'notifyMissingClockIn',
   'registerClockInAbsence',
-  'autoCloseTimeEntries',
 ];
+// autoCloseTimeEntries ya no se vigila aquí: corre a las 21:05, después del
+// vigilante (17:00), así que siempre saldría como "no ejecutada".
 
 // Fecha "de pared" en Andorra (YYYY-MM-DD) calculada con la zona horaria real,
 // no con un offset fijo: así funciona en invierno (+01:00) y verano (+02:00).

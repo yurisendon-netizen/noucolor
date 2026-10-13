@@ -8,7 +8,7 @@ const TASK_LABELS = {
   onesignalClockInReminder: 'Recordatorio push (8:00)',
   notifyMissingClockIn: 'Email recordatorio (8:00)',
   registerClockInAbsence: 'Registro de faltas (8:30)',
-  autoCloseTimeEntries: 'Cierre automático (16:35)',
+  autoCloseTimeEntries: 'Cierre automático (21:05)',
 };
 
 const STATUS = {
