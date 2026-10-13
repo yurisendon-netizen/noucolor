@@ -1,0 +1,4 @@
+{
+  "name": "purgeOldLocations",
+  "entry": "entry.ts"
+}
