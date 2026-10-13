@@ -17,9 +17,17 @@ async function logHistorial(base44, data) {
 }
 
 // Recalcula horas ordinarias (hasta las 16:00, máx. 8) y extra reales de un fichaje cerrado.
-function computeEntryHours(dateStr, clockInIso, clockOutIso) {
+// Horario flexible (p. ej. Andrea, pluriempleo): la jornada son 8 h desde que
+// entra; ordinarias = hasta 8 h trabajadas, extra = lo que pase de 8 h.
+function computeEntryHours(dateStr, clockInIso, clockOutIso, flexible = false) {
   const inD = new Date(clockInIso);
   const outD = new Date(clockOutIso);
+  if (flexible) {
+    const worked = Math.max(0, (outD.getTime() - inD.getTime()) / 3600000);
+    const regularF = parseFloat(Math.min(worked, 8).toFixed(2));
+    const extraF = Math.floor(Math.max(0, worked - 8) / OVERTIME_STEP_H + 1e-9) * OVERTIME_STEP_H;
+    return { regular: regularF, overtime: parseFloat(extraF.toFixed(2)) };
+  }
   const sixteen = andorraLocalToUtc(dateStr, '16:00');
   const endRegular = outD < sixteen ? outD : sixteen;
   let regular = (endRegular.getTime() - inD.getTime()) / 3600000;
@@ -183,7 +191,8 @@ async function applyCorreccion(base44, sol, adminId, adminName = '') {
     const after = (await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: sol.employee_id, date: sol.fecha }))[0];
     let afterData = after ? { clock_in: after.clock_in, clock_out: after.clock_out, status: after.status } : null;
     if (after && after.status === 'cerrado' && after.clock_in && after.clock_out) {
-      const { regular, overtime } = computeEntryHours(after.date, after.clock_in, after.clock_out);
+      const empRec = (await base44.asServiceRole.entities.Employee.filter({ id: sol.employee_id }))[0];
+      const { regular, overtime } = computeEntryHours(after.date, after.clock_in, after.clock_out, !!empRec?.horario_flexible);
       await base44.asServiceRole.entities.TimeEntry.update(after.id, { total_hours: regular, overtime_hours: overtime, auto_closed: false });
       afterData = { ...afterData, total_hours: regular, overtime_hours: overtime };
     }
@@ -275,15 +284,19 @@ Deno.serve(async (req) => {
         const clockIn = now.toISOString();
         const { hour, minutes, dateStr: date } = getLocalParts(now);
         const totalMinutes = hour * 60 + minutes;
+        const flexible = !!caller.horario_flexible;
         // Ventana de fichaje de entrada: 7:45 (465) – 8:30 (510). Fuera de este
-        // tramo no se puede fichar la entrada.
-        if (totalMinutes < 465) {
-          return Response.json({ error: 'El fichaje de entrada abre a las 7:45' }, { status: 400 });
+        // tramo no se puede fichar la entrada. Con horario flexible: 7:00 – 15:00
+        // y nunca cuenta como retraso.
+        const openMin = flexible ? 420 : 465;
+        const closeMin = flexible ? 900 : 510;
+        if (totalMinutes < openMin) {
+          return Response.json({ error: `El fichaje de entrada abre a las ${flexible ? '7:00' : '7:45'}` }, { status: 400 });
         }
-        if (totalMinutes > 510) {
-          return Response.json({ error: 'El fichaje de entrada se cerró a las 8:30. Contacta con tu encargado.' }, { status: 400 });
+        if (totalMinutes > closeMin) {
+          return Response.json({ error: `El fichaje de entrada se cerró a las ${flexible ? '15:00' : '8:30'}. Contacta con tu encargado.` }, { status: 400 });
         }
-        const isLate = hour > 8 || (hour === 8 && minutes > 15);
+        const isLate = !flexible && (hour > 8 || (hour === 8 && minutes > 15));
         const localTime = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         const lateDescription = `Fichó entrada a las ${localTime} (límite 8:15)`;
 
@@ -403,7 +416,8 @@ Deno.serve(async (req) => {
         const clockOut = now.toISOString();
         // Horas REALES (Llei 31/2018, art. 59): ordinarias hasta las 16:00 y extra
         // = tiempo real después de las 16:00 en tramos de 15 min completos.
-        const { regular: regularHours, overtime: overtimeHours } = computeEntryHours(entry.date, entry.clock_in, clockOut);
+        const flexibleOut = !!caller.horario_flexible;
+        const { regular: regularHours, overtime: overtimeHours } = computeEntryHours(entry.date, entry.clock_in, clockOut, flexibleOut);
 
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
           clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: false, clock_out_accuracy: acc,
@@ -424,7 +438,11 @@ Deno.serve(async (req) => {
             const { hour: oh, minutes: om } = getLocalParts(now);
             const endTime = `${String(oh).padStart(2, '0')}:${String(om).padStart(2, '0')}`;
             const { hour: ih, minutes: im } = getLocalParts(new Date(entry.clock_in));
-            const startTime = isWeekendDay ? `${String(ih).padStart(2, '0')}:${String(im).padStart(2, '0')}` : '16:00';
+            let startTime = isWeekendDay ? `${String(ih).padStart(2, '0')}:${String(im).padStart(2, '0')}` : '16:00';
+            if (!isWeekendDay && flexibleOut) {
+              const { hour: sh, minutes: sm } = getLocalParts(new Date(new Date(entry.clock_in).getTime() + 8 * 3600000));
+              startTime = `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
+            }
             const precioHora = caller.precioHora || 0;
             const precioExtra = caller.precioHoraExtra > 0 ? caller.precioHoraExtra : Math.round(precioHora * 1.4 * 100) / 100;
             const payload = {
