@@ -96,11 +96,24 @@ export default function ControlHorario() {
           loadEntries();
         }
 
-        if (hour === 16 && hasOpen && !notifiedRef.current.notified16) {
+        // Aviso de fin de jornada: a las 16:00, o con horario flexible a las
+        // 8 h de haber entrado.
+        const openToday = todayEntries.find(e => e.status === 'abierto');
+        const endReached = isFlex
+          ? (openToday && now.getTime() >= new Date(openToday.clock_in).getTime() + 8 * 3600000)
+          : hour === 16;
+        if (isFlex && endReached && !notifiedRef.current.notified16) {
           notifiedRef.current.notified16 = true;
-          toast({ title: '🔒 Hora de salida', description: 'Ventana de fichaje de salida: 16:00 - 16:30' });
+          toast({ title: '🔒 Fin de jornada', description: 'Ya llevas 8 horas. Recuerda fichar la salida.' });
           if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('🔒 Hora de salida', { body: 'Ventana de fichaje de salida: 16:00 - 16:30' });
+            new Notification('🔒 Fin de jornada', { body: 'Ya llevas 8 horas. Recuerda fichar la salida.' });
+          }
+        }
+        if (!isFlex && endReached && hasOpen && !notifiedRef.current.notified16) {
+          notifiedRef.current.notified16 = true;
+          toast({ title: '🔒 Hora de salida', description: 'Son las 16:00. Recuerda fichar la salida.' });
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('🔒 Hora de salida', { body: 'Son las 16:00. Recuerda fichar la salida.' });
           }
         }
       } catch (e) { /* silent */ }
