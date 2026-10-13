@@ -379,23 +379,43 @@ Deno.serve(async (req) => {
           return Response.json({ error: 'No se puede fichar salida durante el descanso (12:30 - 13:00). Es una pausa, no un fichaje de salida.' }, { status: 400 });
         }
         const clockOut = now.toISOString();
-        const clockInDate = new Date(entry.clock_in);
-        const sixteenLocal = new Date(`${entry.date}T16:00:00${LOCAL_UTC_OFFSET}`);
-        const isAfter16 = now > sixteenLocal;
-        let regularHours, overtimeHours;
-        if (isAfter16) {
-          regularHours = (sixteenLocal.getTime() - clockInDate.getTime()) / 3600000;
-          overtimeHours = 2;
-        } else {
-          regularHours = (now.getTime() - clockInDate.getTime()) / 3600000;
-          overtimeHours = 0;
-        }
-        regularHours = parseFloat(Math.min(Math.max(regularHours, 0), 8).toFixed(2));
+        // Horas REALES (Llei 31/2018, art. 59): ordinarias hasta las 16:00 y extra
+        // = tiempo real después de las 16:00 en tramos de 15 min completos.
+        const { regular: regularHours, overtime: overtimeHours } = computeEntryHours(entry.date, entry.clock_in, clockOut);
 
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
           clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: false, clock_out_accuracy: acc,
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
         });
+
+        // Las horas extra fichadas en día laborable quedan como "pendiente" en
+        // Horas Extras para que un admin las apruebe o rechace (art. 57.4: la
+        // iniciativa de hacer extras es de la empresa). Fines de semana no: allí
+        // todo lo trabajado ya cuenta como extra en la nómina.
+        const dow = new Date(`${entry.date}T12:00:00Z`).getUTCDay();
+        if (overtimeHours > 0 && dow !== 0 && dow !== 6) {
+          try {
+            const { hour: oh, minutes: om } = getLocalParts(now);
+            const endTime = `${String(oh).padStart(2, '0')}:${String(om).padStart(2, '0')}`;
+            const precioHora = caller.precioHora || 0;
+            const precioExtra = caller.precioHoraExtra > 0 ? caller.precioHoraExtra : Math.round(precioHora * 1.4 * 100) / 100;
+            const payload = {
+              employee_id: empId, employee_name: empName, date: entry.date,
+              start_time: '16:00', end_time: endTime, duration: overtimeHours,
+              obra_motivo: `Fichaje: salida a las ${endTime}`,
+              precio_hora: precioHora, multiplier: 1.4,
+              total: Math.round(overtimeHours * precioExtra * 100) / 100,
+              status: 'pendiente'
+            };
+            const existing = (await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: empId, date: entry.date }))
+              .find(o => (o.obra_motivo || '').startsWith('Fichaje:'));
+            if (existing) await base44.asServiceRole.entities.OvertimeHour.update(existing.id, payload);
+            else await base44.asServiceRole.entities.OvertimeHour.create(payload);
+            await notifyAdminsPush(base44, '⏱️ Horas extra por aprobar',
+              `${empName} ha fichado la salida a las ${endTime} (${overtimeHours} h extra).`, { target_url: '/horas-extras' });
+          } catch (e) { console.error('overtime pendiente', e?.message); }
+        }
+
         await upsertLocation(base44, empId, empName, false, lat, lng, acc);
         return Response.json({ success: true, clockOut, totalHours: regularHours, overtimeHours });
       }
@@ -407,7 +427,11 @@ Deno.serve(async (req) => {
           return Response.json({ error: 'No autorizado' }, { status: 403 });
         }
         // Misma lógica que el cierre automático por cron (autoCloseEntry): salida
-        // fija a las 16:00 hora de Andorra, horas calculadas por el servidor.
+        // a las 16:00 hora de Andorra, horas calculadas por el servidor. Solo a
+        // partir de las 21:00 (o días anteriores): antes se puede fichar la salida real.
+        if (!canAutoClose(entries[0])) {
+          return Response.json({ success: false, skipped: true, reason: 'Todavía se puede fichar la salida real' });
+        }
         await autoCloseEntry(base44, entries[0]);
         return Response.json({ success: true });
       }
