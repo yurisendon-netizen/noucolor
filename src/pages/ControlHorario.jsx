@@ -345,9 +345,13 @@ export default function ControlHorario() {
   const inClockInWindow = (hour === 7 && minutes >= 45) || (hour === 8 && minutes <= 30);
   const showBanner = hour === 8 && minutes < 30 && !openEntry && !hasAbsenceToday;
   const canClockIn = !openEntry && !hasClosedToday && inClockInWindow;
-  // Exit window: 16:00 - 16:30
-  const inExitWindow = hour === 16 && minutes <= 30;
-  const canClockOut = !!openEntry && inExitWindow;
+  // Salida: se puede fichar a la hora REAL (compte d'hores, art. 59) desde las
+  // 16:00 hasta las 21:00, y también antes si alguien se va antes de hora
+  // (con confirmación). Nunca durante la pausa de 12:30-13:00.
+  const inBreak = (hour === 12 && minutes >= 30);
+  const inExitWindow = hour >= 16 && hour < 21;
+  const canClockOut = !!openEntry && !inBreak && hour < 21;
+  const earlyExit = hour < 16;
   const showProximo = !openEntry && !canClockIn;
 
   const columns = [
@@ -445,12 +449,12 @@ export default function ControlHorario() {
                 className="w-full sm:w-auto h-16 px-10 text-lg gap-3 rounded-xl shadow-lg"
               >
                 {isOnline ? <LogOut size={24} /> : <WifiOff size={24} />}
-                {!isOnline ? 'Sin conexión' : clockingOut ? 'Fichando...' : 'Fichar Salida'}
+                {!isOnline ? 'Sin conexión' : clockingOut ? 'Fichando...' : earlyExit ? 'Fichar salida (antes de hora)' : 'Fichar Salida'}
               </Button>
             ) : (
               <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-secondary text-muted-foreground text-base font-medium">
                 <Clock size={20} />
-                <span>Salida: 16:00 - 16:30</span>
+                <span>{inBreak ? 'Pausa 12:30 - 13:00' : 'Salida a partir de las 16:00'}</span>
               </div>
             )
           ) : showProximo ? (
