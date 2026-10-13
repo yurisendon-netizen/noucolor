@@ -107,17 +107,12 @@ const isWeekend = (dateStr) => {
   return dow === 0 || dow === 6;
 };
 
-// Horas extra por día: aprobadas en laborable + todo lo trabajado en fin de semana.
+// Horas extra por día: SOLO las aprobadas por un admin en Horas Extras
+// (laborables y fines de semana). Lo que no se aprueba no se paga.
 export function overtimeByDay(entries, approvedOvertime) {
   const map = {};
-  const weekendDays = new Set();
-  for (const e of entries) {
-    if (e.status === 'ausencia_injustificada' || !isWeekend(e.date)) continue;
-    weekendDays.add(e.date);
-    map[e.date] = (map[e.date] || 0) + (Number(e.total_hours) || 0) + (Number(e.overtime_hours) || 0);
-  }
   for (const o of approvedOvertime) {
-    if (weekendDays.has(o.date)) continue; // ya contado entero arriba
+    if (o.status && o.status !== 'aprobado') continue;
     map[o.date] = (map[o.date] || 0) + (Number(o.duration) || 0);
   }
   return map;
