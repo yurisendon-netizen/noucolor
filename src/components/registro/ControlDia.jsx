@@ -175,6 +175,20 @@ export default function ControlDia() {
     }
   }
 
+  async function probarAviso() {
+    try {
+      const res = await authInvoke('trackTime', { operation: 'testPushAdmins' });
+      const r = res?.data?.result || {};
+      if (r.sent) {
+        toast({ variant: 'success', title: 'Aviso de prueba enviado', description: `Destinatarios: ${r.recipients ?? '?'}. Debe llegarte al móvil en unos segundos.${r.errors ? ' Aviso: ' + JSON.stringify(r.errors) : ''}` });
+      } else {
+        toast({ title: 'No se pudo enviar el aviso', description: r.error || r.reason || 'Sin detalle', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error al probar el aviso', description: e?.response?.data?.error || e.message, variant: 'destructive' });
+    }
+  }
+
   function toggle(id) {
     setSel(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
   }
@@ -191,6 +205,7 @@ export default function ControlDia() {
           <Button variant="outline" size="icon" onClick={() => load()} className="border-border h-9 w-9" aria-label="Actualizar">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           </Button>
+          <Button variant="outline" onClick={probarAviso} className="h-9 border-border text-xs">Probar aviso</Button>
           <Button onClick={() => openDialog()} className="gap-2 h-9"><Plus size={16} /> Asignar obra</Button>
         </div>
       </div>
