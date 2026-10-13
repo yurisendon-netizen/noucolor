@@ -274,7 +274,9 @@ Deno.serve(async (req) => {
 
         // Control de obra: si el admin le asignó una obra hoy y ficha lejos, avisa por push.
         try {
-          const asig = await base44.asServiceRole.entities.Asignacion.filter({ employee_id: empId, date });
+          // La obra asignada se mantiene día tras día: vale la más reciente de hoy o anterior.
+          const asig = (await base44.asServiceRole.entities.Asignacion.filter({ employee_id: empId }, '-date', 50))
+            .filter(x => x.date <= date);
           if (asig.length > 0) {
             const a = asig[0];
             const d = distMeters(lat, lng, a.lat, a.lng);
@@ -632,12 +634,18 @@ Deno.serve(async (req) => {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : getLocalParts(new Date()).dateStr;
         const db = base44.asServiceRole.entities;
-        const [emps, entries, asigs, recent] = await Promise.all([
+        const [emps, entries, recent] = await Promise.all([
           db.Employee.list('full_name', 500),
           db.TimeEntry.filter({ date }),
-          db.Asignacion.filter({ date }),
-          db.Asignacion.list('-date', 300),
+          db.Asignacion.list('-date', 500),
         ]);
+        // La obra asignada se mantiene día tras día hasta que se cambie: por trabajador
+        // vale la asignación más reciente con fecha <= la del día consultado.
+        const asigs = [];
+        const seenEmp = new Set();
+        for (const r of recent) {
+          if (r.date <= date && !seenEmp.has(r.employee_id)) { seenEmp.add(r.employee_id); asigs.push(r); }
+        }
         const rows = emps
           .filter(e => e.is_active !== false && e.role !== 'jefe' && !/tester/i.test(e.full_name || ''))
           .map(e => {
@@ -653,7 +661,7 @@ Deno.serve(async (req) => {
               clock_in: t ? t.clock_in : null, clock_out: t ? t.clock_out : null,
               lat: t ? t.clock_in_lat ?? null : null, lng: t ? t.clock_in_lng ?? null : null,
               accuracy: t ? t.clock_in_accuracy ?? null : null,
-              asignacion: a ? { id: a.id, obra_nombre: a.obra_nombre, lat: a.lat, lng: a.lng, radio_m: Number(a.radio_m) || 300 } : null,
+              asignacion: a ? { id: a.id, obra_nombre: a.obra_nombre, lat: a.lat, lng: a.lng, radio_m: Number(a.radio_m) || 300, desde: a.date, heredada: a.date !== date } : null,
               distancia, fuera,
             };
           });
