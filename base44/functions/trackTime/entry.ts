@@ -1,12 +1,33 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { verifySession } from '../../shared/employeeAuth.ts';
-import { autoCloseAllOpenEntries, autoCloseEntry } from '../../shared/timeEntryAutoClose.ts';
+import { autoCloseAllOpenEntries, autoCloseEntry, canAutoClose, andorraNowParts, andorraLocalToUtc } from '../../shared/timeEntryAutoClose.ts';
 import { notifyAdminsPush } from '../../shared/cronMonitor.ts';
 import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 
-// Ajusta este offset si Andorra está en horario de invierno (+01:00) vs verano (+02:00)
-const LOCAL_UTC_OFFSET = '+02:00';
-const LOCAL_UTC_OFFSET_HOURS = 2;
+// Hora de Andorra: siempre con la zona horaria real (verano +02:00 / invierno
+// +01:00), nunca con un offset fijo.
+
+// Horas extra: se cuentan en tramos de 15 minutos completos a partir de las 16:00.
+const OVERTIME_STEP_H = 0.25;
+
+async function logHistorial(base44, data) {
+  try {
+    await base44.asServiceRole.entities.FichajeHistorial.create(data);
+  } catch (e) { console.error('FichajeHistorial', e?.message); }
+}
+
+// Recalcula horas ordinarias (hasta las 16:00, máx. 8) y extra reales de un fichaje cerrado.
+function computeEntryHours(dateStr, clockInIso, clockOutIso) {
+  const inD = new Date(clockInIso);
+  const outD = new Date(clockOutIso);
+  const sixteen = andorraLocalToUtc(dateStr, '16:00');
+  const endRegular = outD < sixteen ? outD : sixteen;
+  let regular = (endRegular.getTime() - inD.getTime()) / 3600000;
+  regular = parseFloat(Math.min(Math.max(regular, 0), 8).toFixed(2));
+  const after = Math.max(0, (outD.getTime() - Math.max(sixteen.getTime(), inD.getTime())) / 3600000);
+  const overtime = Math.floor(after / OVERTIME_STEP_H + 1e-9) * OVERTIME_STEP_H;
+  return { regular, overtime: parseFloat(overtime.toFixed(2)) };
+}
 
 // Fichaje PRECISO obligatorio: una lectura con más margen de error que esto es
 // por red/IP (p. ej. Chrome en Android con "ubicación aproximada" da ±2000 m),
@@ -48,12 +69,7 @@ async function logImpreciseLocation(base44, empId, empName, stage, acc) {
 // Hora/fecha "de pared" en Andorra a partir de un instante UTC — calculado en el
 // servidor para que ningún cliente pueda fichar con la hora de su propio móvil.
 function getLocalParts(utcDate) {
-  const shifted = new Date(utcDate.getTime() + LOCAL_UTC_OFFSET_HOURS * 3600000);
-  return {
-    hour: shifted.getUTCHours(),
-    minutes: shifted.getUTCMinutes(),
-    dateStr: shifted.toISOString().split('T')[0],
-  };
+  return andorraNowParts(utcDate);
 }
 
 // Pausa de descanso 12:30-13:00 hora de Andorra: no se ficha salida/entrada
