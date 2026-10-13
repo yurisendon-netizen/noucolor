@@ -1,27 +1,97 @@
 {
   "name": "Payroll",
-  "type": "object",
   "properties": {
+    "base_net_salary": {
+      "description": "Salari net mensual pactat (\u20ac)",
+      "type": "number"
+    },
+    "base_salary": {
+      "type": "number"
+    },
+    "bonus": {
+      "default": 0,
+      "type": "number"
+    },
+    "bonus_gross": {
+      "default": 0,
+      "description": "Bonificacions en brut",
+      "type": "number"
+    },
+    "calc_version": {
+      "default": 1,
+      "description": "2 = extres en brut amb CASS (Llei 31/2018 art. 71 i 77)",
+      "type": "number"
+    },
+    "cass_base": {
+      "default": 0,
+      "description": "Base de cotitzaci\u00f3 CASS (salari brut total)",
+      "type": "number"
+    },
+    "cass_employee": {
+      "description": "Cotitzaci\u00f3 CASS treballador (6.5%)",
+      "type": "number"
+    },
+    "cass_employer": {
+      "default": 0,
+      "description": "Cotitzaci\u00f3 CASS part empresa (15,5%)",
+      "type": "number"
+    },
+    "compte_hores": {
+      "description": "Compte d'hores del mes (JSON) lliurat amb el butllet\u00ed (art. 59.2)",
+      "type": "string"
+    },
+    "employee_dni": {
+      "type": "string"
+    },
+    "employee_hire_date": {
+      "type": "string"
+    },
+    "employee_iban": {
+      "type": "string"
+    },
     "employee_id": {
       "type": "string"
     },
     "employee_name": {
       "type": "string"
     },
-    "employee_dni": {
-      "type": "string"
-    },
     "employee_nss": {
-      "type": "string"
-    },
-    "employee_iban": {
       "type": "string"
     },
     "employee_position": {
       "type": "string"
     },
-    "employee_hire_date": {
-      "type": "string"
+    "gross_salary": {
+      "type": "number"
+    },
+    "irpf": {
+      "description": "Retenci\u00f3 IRPF",
+      "type": "number"
+    },
+    "net_salary": {
+      "type": "number"
+    },
+    "other_deductions": {
+      "default": 0,
+      "type": "number"
+    },
+    "overtime_gross": {
+      "default": 0,
+      "description": "Import brut de les hores extres (net / 0,935), cotitza a la CASS",
+      "type": "number"
+    },
+    "overtime_hours": {
+      "default": 0,
+      "type": "number"
+    },
+    "overtime_net": {
+      "default": 0,
+      "description": "Import net de les hores extres (hores \u00d7 preu net)",
+      "type": "number"
+    },
+    "overtime_pay": {
+      "default": 0,
+      "type": "number"
     },
     "period_month": {
       "type": "number"
@@ -30,137 +100,66 @@
       "type": "number"
     },
     "precio_hora": {
-      "type": "number",
-      "description": "Preu per hora del treballador (€)",
-      "default": 0
+      "default": 0,
+      "description": "Preu per hora del treballador (\u20ac)",
+      "type": "number"
     },
     "precio_hora_extra": {
-      "type": "number",
-      "description": "Preu per hora extra pactat, en net (€)",
-      "default": 0
-    },
-    "total_hours": {
-      "type": "number",
-      "description": "Hores treballades totals del període",
-      "default": 0
-    },
-    "base_salary": {
+      "default": 0,
+      "description": "Preu per hora extra pactat, en net (\u20ac)",
       "type": "number"
-    },
-    "base_net_salary": {
-      "type": "number",
-      "description": "Salari net mensual pactat (€)"
-    },
-    "overtime_hours": {
-      "type": "number",
-      "default": 0
-    },
-    "overtime_pay": {
-      "type": "number",
-      "default": 0
-    },
-    "bonus": {
-      "type": "number",
-      "default": 0
-    },
-    "gross_salary": {
-      "type": "number"
-    },
-    "cass_employee": {
-      "type": "number",
-      "description": "Cotització CASS treballador (6.5%)"
-    },
-    "irpf": {
-      "type": "number",
-      "description": "Retenció IRPF"
-    },
-    "other_deductions": {
-      "type": "number",
-      "default": 0
-    },
-    "net_salary": {
-      "type": "number"
-    },
-    "status": {
-      "type": "string",
-      "enum": [
-        "borrador",
-        "emitida",
-        "pagada"
-      ],
-      "default": "borrador"
-    },
-    "worker_signature_name": {
-      "type": "string",
-      "description": "Nom del treballador que ha firmat la nòmina"
-    },
-    "worker_signature_date": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Data de la firma digital del treballador"
-    },
-    "worker_signature_url": {
-      "type": "string",
-      "description": "URL de la imatge de la firma digital del treballador"
-    },
-    "overtime_net": {
-      "type": "number",
-      "default": 0,
-      "description": "Import net de les hores extres (hores × preu net)"
-    },
-    "overtime_gross": {
-      "type": "number",
-      "default": 0,
-      "description": "Import brut de les hores extres (net / 0,935), cotitza a la CASS"
-    },
-    "bonus_gross": {
-      "type": "number",
-      "default": 0,
-      "description": "Bonificacions en brut"
-    },
-    "cass_base": {
-      "type": "number",
-      "default": 0,
-      "description": "Base de cotització CASS (salari brut total)"
-    },
-    "cass_employer": {
-      "type": "number",
-      "default": 0,
-      "description": "Cotització CASS part empresa (15,5%)"
-    },
-    "calc_version": {
-      "type": "number",
-      "default": 1,
-      "description": "2 = extres en brut amb CASS (Llei 31/2018 art. 71 i 77)"
-    },
-    "compte_hores": {
-      "type": "string",
-      "description": "Compte d'hores del mes (JSON) lliurat amb el butlletí (art. 59.2)"
-    },
-    "reclamacion_texto": {
-      "type": "string",
-      "description": "Reclamació del treballador (art. 59.2, 7 dies)"
-    },
-    "reclamacion_fecha": {
-      "type": "string",
-      "format": "date-time"
     },
     "reclamacion_estado": {
-      "type": "string",
       "enum": [
         "pendiente",
         "resuelta"
-      ]
+      ],
+      "type": "string"
+    },
+    "reclamacion_fecha": {
+      "format": "date-time",
+      "type": "string"
     },
     "reclamacion_respuesta": {
+      "type": "string"
+    },
+    "reclamacion_resuelta_fecha": {
+      "format": "date-time",
       "type": "string"
     },
     "reclamacion_resuelta_por": {
       "type": "string"
     },
-    "reclamacion_resuelta_fecha": {
-      "type": "string",
-      "format": "date-time"
+    "reclamacion_texto": {
+      "description": "Reclamaci\u00f3 del treballador (art. 59.2, 7 dies)",
+      "type": "string"
+    },
+    "status": {
+      "default": "borrador",
+      "enum": [
+        "borrador",
+        "emitida",
+        "pagada"
+      ],
+      "type": "string"
+    },
+    "total_hours": {
+      "default": 0,
+      "description": "Hores treballades totals del per\u00edode",
+      "type": "number"
+    },
+    "worker_signature_date": {
+      "description": "Data de la firma digital del treballador",
+      "format": "date-time",
+      "type": "string"
+    },
+    "worker_signature_name": {
+      "description": "Nom del treballador que ha firmat la n\u00f2mina",
+      "type": "string"
+    },
+    "worker_signature_url": {
+      "description": "URL de la imatge de la firma digital del treballador",
+      "type": "string"
     }
   },
   "required": [
@@ -170,6 +169,7 @@
     "period_year",
     "base_salary"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
