@@ -6,12 +6,11 @@ import { runCronTracked } from '../../shared/cronMonitor.ts';
 // las 8:00 hora de Andorra en días laborables, sin usuario detrás (igual que
 // autoCloseAll en trackTime). No requiere callerEmployeeId.
 //
-// Ajusta este offset si Andorra está en horario de invierno (+01:00) vs verano (+02:00)
-const LOCAL_UTC_OFFSET_HOURS = 2;
-
+// Fecha "de pared" en Andorra con la zona horaria real (verano/invierno).
 function todayLocalDate() {
-  const shifted = new Date(Date.now() + LOCAL_UTC_OFFSET_HOURS * 3600000);
-  return shifted.toISOString().split('T')[0];
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Andorra', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
 }
 
 Deno.serve(async (req) => {
