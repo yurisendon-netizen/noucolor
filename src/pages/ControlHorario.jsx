@@ -71,14 +71,16 @@ export default function ControlHorario() {
         const hasOpen = todayEntries.some(e => e.status === 'abierto');
         const hasAbsence = todayEntries.some(e => e.status === 'ausencia_injustificada');
 
-        if (hour === 8 && !hasOpen && !hasAbsence && !notifiedRef.current.reminded8) {
+        // Horario flexible: sin recordatorio de las 8:00 ni falta a las 8:30.
+        const isFlex = !!employee?.horario_flexible;
+        if (!isFlex && hour === 8 && !hasOpen && !hasAbsence && !notifiedRef.current.reminded8) {
           notifiedRef.current.reminded8 = true;
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('⏰ Fichar entrada', { body: 'Fichar entrada antes de las 8:30' });
           }
         }
 
-        if (hour === 8 && minutes >= 30 && !hasOpen && !hasAbsence && !notifiedRef.current.absent830) {
+        if (!isFlex && hour === 8 && minutes >= 30 && !hasOpen && !hasAbsence && !notifiedRef.current.absent830) {
           notifiedRef.current.absent830 = true;
           await authInvoke('trackTime', {
             operation: 'registerAbsence',
