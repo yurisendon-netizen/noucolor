@@ -491,6 +491,8 @@ Deno.serve(async (req) => {
       }
 
       case 'registerAbsence': {
+        // Con horario flexible no hay falta por no fichar a las 8:30.
+        if (caller.horario_flexible) return Response.json({ success: true, skipped: true });
         const { clockIn, date, description } = body;
         await base44.asServiceRole.entities.TimeEntry.create({
           employee_id: empId, employee_name: empName,
