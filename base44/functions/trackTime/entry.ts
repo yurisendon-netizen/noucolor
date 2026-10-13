@@ -410,23 +410,29 @@ Deno.serve(async (req) => {
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
         });
 
-        // Las horas extra fichadas en día laborable quedan como "pendiente" en
-        // Horas Extras para que un admin las apruebe o rechace (art. 57.4: la
-        // iniciativa de hacer extras es de la empresa). Fines de semana no: allí
-        // todo lo trabajado ya cuenta como extra en la nómina.
+        // Las horas extra fichadas quedan como "pendiente" en Horas Extras y SOLO
+        // se pagan si un admin las aprueba (art. 57.4: la iniciativa de hacer
+        // extras es de la empresa). Laborable: lo fichado después de las 16:00.
+        // Sábado/domingo: todo lo trabajado ese día.
         const dow = new Date(`${entry.date}T12:00:00Z`).getUTCDay();
-        if (overtimeHours > 0 && dow !== 0 && dow !== 6) {
+        const isWeekendDay = dow === 0 || dow === 6;
+        const pendingHours = isWeekendDay
+          ? Math.floor(((now.getTime() - new Date(entry.clock_in).getTime()) / 3600000) / OVERTIME_STEP_H + 1e-9) * OVERTIME_STEP_H
+          : overtimeHours;
+        if (pendingHours > 0) {
           try {
             const { hour: oh, minutes: om } = getLocalParts(now);
             const endTime = `${String(oh).padStart(2, '0')}:${String(om).padStart(2, '0')}`;
+            const { hour: ih, minutes: im } = getLocalParts(new Date(entry.clock_in));
+            const startTime = isWeekendDay ? `${String(ih).padStart(2, '0')}:${String(im).padStart(2, '0')}` : '16:00';
             const precioHora = caller.precioHora || 0;
             const precioExtra = caller.precioHoraExtra > 0 ? caller.precioHoraExtra : Math.round(precioHora * 1.4 * 100) / 100;
             const payload = {
               employee_id: empId, employee_name: empName, date: entry.date,
-              start_time: '16:00', end_time: endTime, duration: overtimeHours,
-              obra_motivo: `Fichaje: salida a las ${endTime}`,
+              start_time: startTime, end_time: endTime, duration: parseFloat(pendingHours.toFixed(2)),
+              obra_motivo: isWeekendDay ? `Fichaje: trabajo en fin de semana ${startTime}-${endTime}` : `Fichaje: salida a las ${endTime}`,
               precio_hora: precioHora, multiplier: 1.4,
-              total: Math.round(overtimeHours * precioExtra * 100) / 100,
+              total: Math.round(pendingHours * precioExtra * 100) / 100,
               status: 'pendiente'
             };
             const existing = (await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: empId, date: entry.date }))
@@ -434,7 +440,7 @@ Deno.serve(async (req) => {
             if (existing) await base44.asServiceRole.entities.OvertimeHour.update(existing.id, payload);
             else await base44.asServiceRole.entities.OvertimeHour.create(payload);
             await notifyAdminsPush(base44, '⏱️ Horas extra por aprobar',
-              `${empName} ha fichado la salida a las ${endTime} (${overtimeHours} h extra).`, { target_url: '/horas-extras' });
+              `${empName} ha fichado la salida a las ${endTime} (${parseFloat(pendingHours.toFixed(2))} h extra${isWeekendDay ? ', fin de semana' : ''}).`, { target_url: '/horas-extras' });
           } catch (e) { console.error('overtime pendiente', e?.message); }
         }
 
