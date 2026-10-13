@@ -14,7 +14,7 @@ const navItems = [
   { path: '/justificantes', label: 'Justificantes', icon: ShieldCheck, adminOnly: false },
 
   // Solo para Administradores
-  { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: true },
+  { path: '/nominas', label: 'Nóminas', icon: Receipt, adminOnly: false },
   { path: '/informes', label: 'Informes', icon: BarChart3, adminOnly: true },
   { path: '/registro-fichajes', label: 'Registro de fichajes', icon: CalendarDays, adminOnly: true },
   { path: '/estadisticas', label: 'Estadísticas', icon: TrendingUp, adminOnly: true },
