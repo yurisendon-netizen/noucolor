@@ -1,0 +1,74 @@
+{
+  "name": "FichajeHistorial",
+  "properties": {
+    "action": {
+      "description": "Tipo de cambio sobre el fichaje",
+      "enum": [
+        "cierre_automatico",
+        "apertura_admin",
+        "correccion_aprobada",
+        "salida_fichada",
+        "horas_extra_detectadas"
+      ],
+      "type": "string"
+    },
+    "after": {
+      "description": "Valores nuevos (JSON)",
+      "type": "string"
+    },
+    "before": {
+      "description": "Valores anteriores (JSON)",
+      "type": "string"
+    },
+    "changed_by_id": {
+      "description": "ID del empleado que hizo el cambio (vac\u00edo = sistema)",
+      "type": "string"
+    },
+    "changed_by_name": {
+      "type": "string"
+    },
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "entry_id": {
+      "type": "string"
+    },
+    "motivo": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "employee_id",
+    "action"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
