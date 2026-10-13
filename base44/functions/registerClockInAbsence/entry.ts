@@ -22,6 +22,13 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   return await runCronTracked(base44, 'registerClockInAbsence', async () => {
     const today = todayLocalDate();
+    // Nunca registrar faltas antes de las 08:30 hora de Andorra (en invierno un
+    // cron en UTC caería a las 07:30 y marcaría faltas a gente que aún no ha llegado).
+    const [lh, lm] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Andorra', hour: '2-digit', minute: '2-digit', hour12: false })
+      .format(new Date()).split(':').map(Number);
+    if (lh * 60 + lm < 8 * 60 + 30) {
+      return Response.json({ success: true, date: today, registered: 0, message: 'Antes de las 08:30 hora de Andorra: no se registra nada' });
+    }
 
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
     // Los empleados de baja o de vacaciones no generan incidencia por no fichar.
