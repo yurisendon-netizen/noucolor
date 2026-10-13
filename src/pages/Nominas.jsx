@@ -439,7 +439,7 @@ export default function Nominas() {
           <DialogHeader>
             <DialogTitle>Reclamación de {resolvePayroll?.employee_name}</DialogTitle>
             <DialogDescription>
-              {resolvePayroll && `${MONTHS[resolvePayroll.period_month - 1]} ${resolvePayroll.period_year}`} · Revísala y responde. Si hay un error, corrige el fichaje o las horas extra, elimina esta respuesta en blanco no: genera una nómina nueva y explícalo aquí.
+              {resolvePayroll && `${MONTHS[resolvePayroll.period_month - 1]} ${resolvePayroll.period_year}`} · Revísala y responde por escrito. Si tiene razón, corrige el fichaje o las horas extra, genera una nómina nueva y explícalo aquí. Esta nómina se conserva.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md bg-secondary/50 border border-border p-3 text-sm whitespace-pre-wrap">{resolvePayroll?.reclamacion_texto}</div>
