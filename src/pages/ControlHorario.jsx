@@ -298,6 +298,7 @@ export default function ControlHorario() {
 
   async function handleClockOut() {
     if (!openEntry) return;
+    if (new Date().getHours() < 16 && !confirm('Son antes de las 16:00. ¿Seguro que te vas ya? Se registrará la salida a esta hora.')) return;
     setClockingOut(true);
     let loc;
     try {
@@ -445,8 +446,8 @@ export default function ControlHorario() {
               <Button
                 onClick={handleClockOut}
                 disabled={clockingOut || !isOnline}
-                variant="destructive"
-                className="w-full sm:w-auto h-16 px-10 text-lg gap-3 rounded-xl shadow-lg"
+                variant={earlyExit ? 'outline' : 'destructive'}
+                className={earlyExit ? 'w-full sm:w-auto h-12 px-6 text-base gap-2 rounded-xl' : 'w-full sm:w-auto h-16 px-10 text-lg gap-3 rounded-xl shadow-lg'}
               >
                 {isOnline ? <LogOut size={24} /> : <WifiOff size={24} />}
                 {!isOnline ? 'Sin conexión' : clockingOut ? 'Fichando...' : earlyExit ? 'Fichar salida (antes de hora)' : 'Fichar Salida'}
