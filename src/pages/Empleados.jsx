@@ -27,7 +27,7 @@ export default function Empleados() {
   const [pinTarget, setPinTarget] = useState(null);
   const [pinValue, setPinValue] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, precioHoraExtra: 0, base_salary: 0, net_salary: 0, user: '', pass: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, precioHoraExtra: 0, base_salary: 0, net_salary: 0, user: '', pass: '', horario_flexible: false });
 
   useEffect(() => { if (employee?.id) loadEmployees(); }, [employee?.id]);
 
@@ -56,13 +56,14 @@ export default function Empleados() {
       base_salary: emp.base_salary || 0,
       net_salary: emp.net_salary || 0,
       user: emp.user || '', pass: '',
+      horario_flexible: !!emp.horario_flexible,
     });
     setDialogOpen(true);
   }
 
   function openCreate() {
     setEditing(null);
-    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, precioHoraExtra: 0, base_salary: 0, net_salary: 0, user: '', pass: '' });
+    setForm({ full_name: '', email: '', role: 'operario', position: '', phone: '', nss: '', dni: '', iban: '', hire_date: '', precioHora: 0, precioHoraExtra: 0, base_salary: 0, net_salary: 0, user: '', pass: '', horario_flexible: false });
     setDialogOpen(true);
   }
 
@@ -89,6 +90,7 @@ export default function Empleados() {
           net_salary: parseFloat(form.net_salary) || 0,
           user: form.user,
           pass: form.pass,
+          horario_flexible: !!form.horario_flexible,
         },
       });
       if (result.data?.success) {
@@ -389,6 +391,13 @@ export default function Empleados() {
                 <Input type="number" step="0.01" value={form.net_salary} onChange={e => setForm({ ...form, net_salary: e.target.value })} className="bg-secondary border-border" />
               </div>
             </div>
+            <label className="flex items-start gap-3 rounded-lg border border-border bg-secondary/40 p-3 cursor-pointer">
+              <input type="checkbox" className="mt-1 h-4 w-4 accent-[#e6671a]" checked={!!form.horario_flexible} onChange={e => setForm({ ...form, horario_flexible: e.target.checked })} />
+              <span className="text-sm">
+                <span className="font-medium">Horario de entrada flexible</span>
+                <span className="block text-xs text-muted-foreground">Para quien tiene otro trabajo: puede fichar la entrada de 7:00 a 15:00 sin que cuente como retraso ni falta. Su jornada son 8 h desde que entra; lo que pase de 8 h es hora extra (pendiente de aprobar).</span>
+              </span>
+            </label>
             <Button onClick={handleSave} disabled={!form.full_name || !form.email || (!editing && (!form.user || !form.pass))} className="w-full h-11">
               {editing ? 'Guardar Cambios' : 'Crear Empleado'}
             </Button>

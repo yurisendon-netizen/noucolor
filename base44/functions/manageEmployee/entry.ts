@@ -232,6 +232,7 @@ Deno.serve(async (req) => {
       ...(netSalary !== undefined ? { net_salary: netSalary } : {}),
       ...(precioHoraExtra !== undefined ? { precioHoraExtra } : {}),
       role: data.cargo || 'operario',
+      ...(typeof data.horario_flexible === 'boolean' ? { horario_flexible: data.horario_flexible } : {}),
       ...(data.user ? { user } : {}),
       ...(data.pass ? { pass: hashedPass } : {}),
     };
