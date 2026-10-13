@@ -74,6 +74,14 @@ const reglamento = [
     n: 15, title: 'Régimen disciplinario', category: 'general',
     content: 'Las infracciones podrán clasificarse en:\n\nFaltas leves, graves y muy graves con sanciones proporcionales según la legislación andorrana.'
   },
+  {
+    n: 16, title: 'Pla horari (plan de trabajo)', category: 'horarios',
+    content: 'Plan de trabajo de todo el personal de obra (Llei 31/2018, art. 59.1):\n\n• Jornada: lunes a viernes de 8:00 a 16:00 (40 h semanales).\n• Pausa: de 12:30 a 13:00, retribuida (cuenta como tiempo de trabajo).\n• Descanso semanal: sábado y domingo.\n• Descanso mínimo entre jornadas: 12 horas.\n• Horas extra: solo cuando la empresa las pida; son voluntarias para el trabajador (salvo fuerza mayor). Máximo legal 12 h/semana, 48 h/mes y 426 h/año. Se pagan como mínimo un 40 % más que la hora normal y cotizan a la CASS.\n• Trabajo en sábado o domingo: todo cuenta como horas extra.\n• Vacaciones: 30 días naturales al año. Se fijan en el plan con un mínimo de 45 días de antelación.\n• Cualquier cambio de horario se comunica con un mínimo de 7 días naturales de antelación (salvo fuerza mayor).\n• Cada mes se entrega, junto con la nómina, el compte d\'hores (horas trabajadas, extras, festivos trabajados, vacaciones y ausencias). El trabajador tiene 7 días naturales para comunicar cualquier error desde la app (Nóminas → Reclamar).\n\nEste plan está también expuesto en el taller.'
+  },
+  {
+    n: 17, title: 'Fichaje y geolocalización', category: 'general',
+    content: 'Información sobre el tratamiento de datos de ubicación (Llei 29/2021 qualificada de protecció de dades personals):\n\n• Responsable: PINTURES I DECORACIÓ NOU COLOR, S.L.\n• Para qué: únicamente para el registro de jornada (saber dónde se ficha la entrada y la salida, en obra o en el taller). Es una obligación legal de la empresa llevar el registro de horas.\n• Cuándo: la ubicación se toma SOLO en el momento de fichar la entrada y la salida. La app no sigue al trabajador durante la jornada ni fuera de ella.\n• Quién la ve: solo la dirección y los administradores de la empresa.\n• Cuánto tiempo: las coordenadas se borran automáticamente a los 2 meses. Las horas de entrada y salida se conservan el tiempo que exige la ley.\n• Derechos: puedes pedir acceso, rectificación o supresión de tus datos a la dirección de la empresa, y reclamar ante la Agència Andorrana de Protecció de Dades (APDA).\n• Para fichar es necesario activar la ubicación precisa del móvil. Si no puedes, avisa al responsable y te abrirá el fichaje manualmente.'
+  },
 ];
 
 export default function ReglamentoInterno() {
