@@ -923,8 +923,62 @@ Deno.serve(async (req) => {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { payrollId } = body;
         if (!payrollId) return Response.json({ error: 'Falta payrollId' }, { status: 400 });
+        // Art. 77.3: las nóminas se conservan mínimo 3 años. Una nómina firmada o
+        // reclamada por el trabajador ya no se puede borrar.
+        const recs = await base44.asServiceRole.entities.Payroll.filter({ id: payrollId });
+        if (recs.length === 0) return Response.json({ error: 'Nómina no encontrada' }, { status: 404 });
+        if (recs[0].worker_signature_name || recs[0].reclamacion_texto) {
+          return Response.json({ error: 'Esta nómina ya está firmada o reclamada por el trabajador y hay que conservarla (mínimo 3 años). No se puede eliminar.' }, { status: 409 });
+        }
         await base44.asServiceRole.entities.Payroll.delete(payrollId);
         return Response.json({ success: true });
+      }
+
+      // El trabajador no está de acuerdo con su nómina o su compte d'hores (art. 59.2:
+      // tiene 7 días naturales para comunicarlo y la empresa debe revisarlo).
+      case 'disputePayroll': {
+        const { payrollId, texto } = body;
+        if (!payrollId || !texto || !String(texto).trim()) return Response.json({ error: 'Explica qué no es correcto' }, { status: 400 });
+        const recs = await base44.asServiceRole.entities.Payroll.filter({ id: payrollId });
+        if (recs.length === 0) return Response.json({ error: 'Nómina no encontrada' }, { status: 404 });
+        if (recs[0].employee_id !== empId) return Response.json({ error: 'No autorizado' }, { status: 403 });
+        const updated = await base44.asServiceRole.entities.Payroll.update(payrollId, {
+          reclamacion_texto: String(texto).trim().slice(0, 2000),
+          reclamacion_fecha: new Date().toISOString(),
+          reclamacion_estado: 'pendiente',
+        });
+        await notifyAdminsPush(base44, '⚠️ Reclamación de nómina',
+          `${empName} no está conforme con su nómina ${recs[0].period_month}/${recs[0].period_year}. Revísala.`, { target_url: '/nominas' });
+        return Response.json({ success: true, payroll: updated });
+      }
+
+      case 'resolveDisputePayroll': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { payrollId, respuesta } = body;
+        if (!payrollId || !respuesta) return Response.json({ error: 'Escribe la respuesta' }, { status: 400 });
+        const recs = await base44.asServiceRole.entities.Payroll.filter({ id: payrollId });
+        if (recs.length === 0) return Response.json({ error: 'Nómina no encontrada' }, { status: 404 });
+        const updated = await base44.asServiceRole.entities.Payroll.update(payrollId, {
+          reclamacion_estado: 'resuelta',
+          reclamacion_respuesta: String(respuesta).trim().slice(0, 2000),
+          reclamacion_resuelta_por: empName,
+          reclamacion_resuelta_fecha: new Date().toISOString(),
+        });
+        await sendOneSignalPush({
+          externalUserIds: recs[0].employee_id,
+          heading: 'Reclamación de nómina revisada',
+          content: `Tu reclamación de la nómina ${recs[0].period_month}/${recs[0].period_year} ha sido revisada.`,
+          data: { target_url: '/nominas' }
+        });
+        return Response.json({ success: true, payroll: updated });
+      }
+
+      // Historial de cambios de fichajes (quién cambió qué y cuándo). Solo admins.
+      case 'listHistorialFichajes': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { limit } = body;
+        const data = await base44.asServiceRole.entities.FichajeHistorial.list('-created_date', limit || 300);
+        return Response.json({ success: true, historial: data });
       }
 
       case 'signPayroll': {
