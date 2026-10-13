@@ -32,7 +32,8 @@ Deno.serve(async (req) => {
 
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
     // Los empleados de baja o de vacaciones no generan incidencia por no fichar.
-    const recipients = employees.filter(e => e.role !== 'jefe' && e.estado_laboral !== 'baja' && e.estado_laboral !== 'vacaciones');
+    // Con horario flexible (entrada 7:00-15:00) no se registra falta a las 8:30.
+    const recipients = employees.filter(e => e.role !== 'jefe' && !e.horario_flexible && e.estado_laboral !== 'baja' && e.estado_laboral !== 'vacaciones');
 
     const todayEntries = await base44.asServiceRole.entities.TimeEntry.filter({ date: today });
     const clockedInIds = new Set(todayEntries.map(e => e.employee_id));

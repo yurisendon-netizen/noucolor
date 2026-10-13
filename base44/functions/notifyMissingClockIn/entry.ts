@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
 
     // Empleados activos con email — los jefes están exentos de fichar (ver ControlHorario)
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
-    const recipients = employees.filter(e => e.role !== 'jefe' && e.email);
+    const recipients = employees.filter(e => e.role !== 'jefe' && !e.horario_flexible && e.email);
 
     if (recipients.length === 0) {
       return Response.json({ success: true, date: today, sent: 0, message: 'No hay destinatarios con email' });

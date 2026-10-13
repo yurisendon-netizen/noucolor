@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
 
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
     // Los jefes están exentos de fichar (ver ControlHorario / notifyMissingClockIn).
-    const recipients = employees.filter(e => e.role !== 'jefe');
+    const recipients = employees.filter(e => e.role !== 'jefe' && !e.horario_flexible);
 
     if (recipients.length === 0) {
       return Response.json({ success: true, date: today, sent: 0, message: 'Sin destinatarios' });
