@@ -123,7 +123,7 @@ async function upsertLocation(base44, empId, empName, isActive, lat, lng, accura
 // Misma lógica que admin_open_entry para olvido_entrada (reabre/crea entrada,
 // resuelve la falta de ese día). Para el resto de tipos ajusta clock_in/out.
 // Marca el TimeEntry con corregido_por_solicitud + el id de la solicitud.
-async function applyCorreccion(base44, sol, adminId) {
+async function applyCorreccion(base44, sol, adminId, adminName = '') {
   const proposedIso = sol.hora_propuesta ? andorraLocalToUtcIso(sol.fecha, sol.hora_propuesta) : null;
   const lat = sol.lat ?? null;
   const lng = sol.lng ?? null;
@@ -131,6 +131,9 @@ async function applyCorreccion(base44, sol, adminId) {
 
   const dayEntries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: sol.employee_id, date: sol.fecha });
   const entry = dayEntries[0];
+  const before = entry
+    ? { clock_in: entry.clock_in, clock_out: entry.clock_out, total_hours: entry.total_hours, overtime_hours: entry.overtime_hours, status: entry.status }
+    : null;
 
   if (sol.tipo === 'olvido_entrada') {
     if (entry && entry.status === 'ausencia_injustificada') {
@@ -172,6 +175,25 @@ async function applyCorreccion(base44, sol, adminId) {
     }
   }
   // 'otro' → no modifica el fichaje, solo queda registrada como aprobada.
+
+  // Recalcular horas si el fichaje queda cerrado (antes se cambiaba la hora
+  // pero las horas trabajadas se quedaban con el valor antiguo) y dejar
+  // constancia del cambio en el historial.
+  if (sol.tipo !== 'otro') {
+    const after = (await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: sol.employee_id, date: sol.fecha }))[0];
+    let afterData = after ? { clock_in: after.clock_in, clock_out: after.clock_out, status: after.status } : null;
+    if (after && after.status === 'cerrado' && after.clock_in && after.clock_out) {
+      const { regular, overtime } = computeEntryHours(after.date, after.clock_in, after.clock_out);
+      await base44.asServiceRole.entities.TimeEntry.update(after.id, { total_hours: regular, overtime_hours: overtime, auto_closed: false });
+      afterData = { ...afterData, total_hours: regular, overtime_hours: overtime };
+    }
+    await logHistorial(base44, {
+      entry_id: after?.id || entry?.id || '', employee_id: sol.employee_id, employee_name: sol.employee_name,
+      date: sol.fecha, action: 'correccion_aprobada', changed_by_id: adminId, changed_by_name: adminName,
+      before: JSON.stringify(before), after: JSON.stringify(afterData),
+      motivo: `Solicitud del trabajador (${sol.tipo}${sol.hora_propuesta ? ', hora ' + sol.hora_propuesta : ''}): ${sol.motivo || ''}`
+    });
+  }
 
   // Resolver la incidencia de falta (sin_fichar) de ese día, igual que admin_open_entry.
   const incs = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: sol.employee_id, date: sol.fecha });
@@ -974,6 +996,13 @@ Deno.serve(async (req) => {
           }
 
           const absenceEntry = dayEntries.find(e => e.status === 'ausencia_injustificada');
+          await logHistorial(base44, {
+            entry_id: absenceEntry?.id || '', employee_id: id, employee_name: emp.full_name, date,
+            action: 'apertura_admin', changed_by_id: empId, changed_by_name: empName,
+            before: JSON.stringify(absenceEntry ? { status: absenceEntry.status, clock_in: absenceEntry.clock_in } : null),
+            after: JSON.stringify({ clock_in: clockInIso, status: 'abierto' }),
+            motivo: absenceEntry ? 'Entrada abierta por un admin sobre una falta registrada' : 'Entrada abierta por un admin (olvido de fichar)'
+          });
           if (absenceEntry) {
             // Si había una falta registrada ese día, la convertimos en entrada
             // abierta en vez de crear un duplicado.
@@ -1076,7 +1105,7 @@ Deno.serve(async (req) => {
         if (sol.estado !== 'pendiente') return Response.json({ error: 'La solicitud ya fue resuelta' }, { status: 400 });
 
         if (accion === 'aprobar') {
-          await applyCorreccion(base44, sol, empId);
+          await applyCorreccion(base44, sol, empId, empName);
         }
 
         await base44.asServiceRole.entities.SolicitudCorreccion.update(solicitudId, {
