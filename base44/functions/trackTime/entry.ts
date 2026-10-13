@@ -672,6 +672,18 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, date, rows, lugares: Array.from(seen.values()).slice(0, 20) });
       }
 
+      // Aviso de prueba a los admins/jefes: comprueba que el push llega y a cuántos dispositivos.
+      case 'testPushAdmins': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const r = await notifyAdminsPush(
+          base44,
+          '✅ Aviso de prueba',
+          'Si ves esto, los avisos de fichaje fuera de obra te llegarán.',
+          { target_url: '/registro-fichajes' }
+        );
+        return Response.json({ success: true, result: r });
+      }
+
       case 'saveAsignaciones': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const employeeIds = Array.isArray(body.employeeIds) ? body.employeeIds.filter(x => typeof x === 'string') : [];
