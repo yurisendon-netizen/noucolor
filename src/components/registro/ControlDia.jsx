@@ -236,7 +236,7 @@ export default function ControlDia() {
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                 {r.asignacion ? (
                   <>
-                    <span className="text-muted-foreground">Obra: <span className="text-foreground">{r.asignacion.obra_nombre}</span></span>
+                    <span className="text-muted-foreground">Obra: <span className="text-foreground">{r.asignacion.obra_nombre}</span>{r.asignacion.heredada ? <span className="text-xs"> (fija desde {fDate(r.asignacion.desde)})</span> : null}</span>
                     <a href={mapsUrl(r.asignacion.lat, r.asignacion.lng)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
                       <ExternalLink size={12} /> Ver obra
                     </a>
@@ -256,7 +256,7 @@ export default function ControlDia() {
         })}
       </div>
       <p className="text-xs text-muted-foreground mt-2">
-        {fDate(date)} · Si asignas una obra y el trabajador ficha a más distancia de la permitida, sale en rojo y te llega un aviso al móvil.
+        {fDate(date)} · La obra asignada se mantiene cada día hasta que la cambies. Si asignas una obra y el trabajador ficha a más distancia de la permitida, sale en rojo y te llega un aviso al móvil.
       </p>
 
       <Dialog open={dlg} onOpenChange={setDlg}>
