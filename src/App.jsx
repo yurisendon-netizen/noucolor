@@ -12,6 +12,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import PushNavListener from '@/components/PushNavListener';
 
 import Login from '@/pages/Login';
+import TelefonoEmpresa from '@/pages/TelefonoEmpresa';
 import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import ControlHorario from '@/pages/ControlHorario';
@@ -44,6 +45,7 @@ function App() {
             <PushNavListener />
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/telefono" element={<TelefonoEmpresa />} />
               <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Dashboard />} />
