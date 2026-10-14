@@ -1,20 +1,23 @@
 {
   "name": "TimeEntry",
-  "type": "object",
   "properties": {
-    "employee_id": {
-      "type": "string"
-    },
-    "employee_name": {
-      "type": "string"
+    "auto_closed": {
+      "default": false,
+      "description": "Cerrado automaticamente a las 16:00",
+      "type": "boolean"
     },
     "clock_in": {
-      "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "type": "string"
     },
-    "clock_out": {
-      "type": "string",
-      "format": "date-time"
+    "clock_in_accuracy": {
+      "description": "Margen de error del GPS en metros al fichar la entrada",
+      "type": "number"
+    },
+    "clock_in_fallback": {
+      "default": false,
+      "description": "True si la ubicaci\u00f3n de entrada es de respaldo (taller), no GPS real",
+      "type": "boolean"
     },
     "clock_in_lat": {
       "type": "number"
@@ -22,73 +25,77 @@
     "clock_in_lng": {
       "type": "number"
     },
+    "clock_out": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "clock_out_accuracy": {
+      "description": "Margen de error del GPS en metros al fichar la salida",
+      "type": "number"
+    },
+    "clock_out_fallback": {
+      "default": false,
+      "description": "True si la ubicaci\u00f3n de salida es de respaldo (taller), no GPS real",
+      "type": "boolean"
+    },
     "clock_out_lat": {
       "type": "number"
     },
     "clock_out_lng": {
       "type": "number"
     },
-    "clock_in_fallback": {
-      "type": "boolean",
+    "corregido_por_solicitud": {
       "default": false,
-      "description": "True si la ubicaci\u00f3n de entrada es de respaldo (taller), no GPS real"
-    },
-    "clock_in_accuracy": {
-      "type": "number",
-      "description": "Margen de error del GPS en metros al fichar la entrada"
-    },
-    "clock_out_accuracy": {
-      "type": "number",
-      "description": "Margen de error del GPS en metros al fichar la salida"
-    },
-    "clock_out_fallback": {
-      "type": "boolean",
-      "default": false,
-      "description": "True si la ubicaci\u00f3n de salida es de respaldo (taller), no GPS real"
-    },
-    "total_hours": {
-      "type": "number"
-    },
-    "overtime_hours": {
-      "type": "number",
-      "default": 0,
-      "description": "Horas extras despues de las 16:00"
-    },
-    "auto_closed": {
-      "type": "boolean",
-      "default": false,
-      "description": "Cerrado automaticamente a las 16:00"
+      "description": "True si el fichaje fue modificado por una solicitud de correccion aprobada",
+      "type": "boolean"
     },
     "date": {
-      "type": "string",
-      "format": "date"
+      "format": "date",
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "fichado_desde_entrada": {
+      "description": "Tel\u00e9fono de empresa desde el que se fich\u00f3 la entrada (vac\u00edo = m\u00f3vil personal)",
+      "type": "string"
+    },
+    "fichado_desde_salida": {
+      "description": "Tel\u00e9fono de empresa desde el que se fich\u00f3 la salida (vac\u00edo = m\u00f3vil personal)",
+      "type": "string"
+    },
+    "opened_by": {
+      "description": "ID del empleado admin/jefe que abrio el fichaje manualmente",
+      "type": "string"
+    },
+    "opened_by_admin": {
+      "default": false,
+      "description": "True si el fichaje lo abrio un admin/jefe manualmente (no el propio operario)",
+      "type": "boolean"
+    },
+    "overtime_hours": {
+      "default": 0,
+      "description": "Horas extras despues de las 16:00",
+      "type": "number"
+    },
+    "solicitud_correccion_id": {
+      "description": "ID de la SolicitudCorreccion que origino la correccion",
+      "type": "string"
     },
     "status": {
-      "type": "string",
+      "default": "abierto",
       "enum": [
         "abierto",
         "cerrado",
         "ausencia_injustificada"
       ],
-      "default": "abierto"
+      "type": "string"
     },
-    "opened_by_admin": {
-      "type": "boolean",
-      "default": false,
-      "description": "True si el fichaje lo abrio un admin/jefe manualmente (no el propio operario)"
-    },
-    "opened_by": {
-      "type": "string",
-      "description": "ID del empleado admin/jefe que abrio el fichaje manualmente"
-    },
-    "corregido_por_solicitud": {
-      "type": "boolean",
-      "default": false,
-      "description": "True si el fichaje fue modificado por una solicitud de correccion aprobada"
-    },
-    "solicitud_correccion_id": {
-      "type": "string",
-      "description": "ID de la SolicitudCorreccion que origino la correccion"
+    "total_hours": {
+      "type": "number"
     }
   },
   "required": [
@@ -109,6 +116,11 @@
           }
         }
       ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {
       "$or": [
@@ -133,11 +145,7 @@
           }
         }
       ]
-    },
-    "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
     }
-  }
+  },
+  "type": "object"
 }

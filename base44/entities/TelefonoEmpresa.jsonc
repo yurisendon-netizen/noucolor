@@ -1,0 +1,54 @@
+{
+  "name": "TelefonoEmpresa",
+  "properties": {
+    "activo": {
+      "default": false,
+      "description": "Se activa cuando el tel\u00e9fono ya est\u00e1 en uso",
+      "type": "boolean"
+    },
+    "nombre": {
+      "description": "Nombre del tel\u00e9fono de empresa",
+      "type": "string"
+    },
+    "pass": {
+      "description": "Hash de la contrase\u00f1a (nunca en claro)",
+      "type": "string"
+    },
+    "session_token": {
+      "description": "Hash del token de sesi\u00f3n",
+      "type": "string"
+    },
+    "user": {
+      "description": "Usuario de login del tel\u00e9fono",
+      "type": "string"
+    }
+  },
+  "required": [
+    "nombre",
+    "user",
+    "pass"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
