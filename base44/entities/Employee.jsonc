@@ -59,8 +59,17 @@
     "phone": {
       "type": "string"
     },
+    "pin_fails": {
+      "default": 0,
+      "description": "Intentos fallidos seguidos de PIN en el tel\u00e9fono de empresa",
+      "type": "number"
+    },
     "pin_hash": {
-      "description": "Hash del codi de seguretat (PIN de 4 d\u00edgits) \u2014 mai el codi en clar",
+      "description": "Hash del codi de seguretat (PIN de 4 d\u00edgitos) \u2014 mai el codi en clar",
+      "type": "string"
+    },
+    "pin_lock_until": {
+      "description": "Bloqueo temporal del PIN en tel\u00e9fono de empresa (ISO)",
       "type": "string"
     },
     "position": {
@@ -99,9 +108,13 @@
     "email",
     "role"
   ],
-  "type": "object",
   "rls": {
     "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
       "user_condition": {
         "role": "admin"
       }
@@ -115,11 +128,7 @@
       "user_condition": {
         "role": "admin"
       }
-    },
-    "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
     }
-  }
+  },
+  "type": "object"
 }
