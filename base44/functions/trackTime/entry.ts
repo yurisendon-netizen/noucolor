@@ -255,7 +255,7 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
   const parte = (await base44.asServiceRole.entities.ParteSemanal.filter({ employee_id: employeeId, week_start: weekStart }))[0] || null;
   const saved = {};
   for (const d of (parte?.dias || [])) saved[d.date] = d;
-  const entries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: employeeId });
+  const entries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: employeeId, date: { $gte: weekStart, $lte: ymdAdd(weekStart, 6) } }, 'date', 20);
   const asig = (await base44.asServiceRole.entities.Asignacion.filter({ employee_id: employeeId }, '-date', 60));
   const days = [];
   for (let i = 0; i < 7; i++) {
