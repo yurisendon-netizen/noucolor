@@ -30,6 +30,17 @@ export async function hashPin(pin, salt) {
   return `${useSalt}:${hash}`;
 }
 
+// Teléfono de empresa: verifica su token de sesión. Devuelve el registro TelefonoEmpresa o null.
+export async function verifyPhoneSession(base44, sessionToken) {
+  if (!sessionToken || typeof sessionToken !== 'string') return null;
+  const tokenHash = await sha256Hex(sessionToken);
+  const phones = await base44.asServiceRole.entities.TelefonoEmpresa.filter({ session_token: tokenHash });
+  if (phones.length === 0) return null;
+  const phone = phones[0];
+  if (phone.activo !== true) return null;
+  return phone;
+}
+
 // Verifies a session token against the stored hash. Returns { employee, isAdmin } or null.
 export async function verifySession(base44, sessionToken) {
   if (!sessionToken || typeof sessionToken !== 'string') return null;
