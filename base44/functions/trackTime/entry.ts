@@ -236,6 +236,51 @@ function distMeters(lat1, lng1, lat2, lng2) {
   return Math.round(2 * R * Math.asin(Math.min(1, Math.sqrt(a))));
 }
 
+// ── Partes diarios semanales ──────────────────────────────────────────────
+// Un ParteSemanal por trabajador y semana (lunes); dentro, una línea por día.
+function ymdAdd(ymd, days) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+function mondayOf(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=domingo
+  return ymdAdd(ymd, -((dow + 6) % 7));
+}
+function isYmd(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
+
+// Construye la vista de la semana de un trabajador: lunes a viernes siempre;
+// sábado y domingo solo si ficharon ese día.
+async function buildParteSemana(base44, employeeId, weekStart, today) {
+  const parte = (await base44.asServiceRole.entities.ParteSemanal.filter({ employee_id: employeeId, week_start: weekStart }))[0] || null;
+  const saved = {};
+  for (const d of (parte?.dias || [])) saved[d.date] = d;
+  const entries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: employeeId });
+  const asig = (await base44.asServiceRole.entities.Asignacion.filter({ employee_id: employeeId }, '-date', 60));
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const date = ymdAdd(weekStart, i);
+    const dow = (i + 1) % 7; // 1=lunes ... 0=domingo
+    const es = entries.filter(e => e.date === date && e.status !== 'ausencia_injustificada');
+    const fichado = es.length > 0;
+    if (i >= 5 && !fichado && !saved[date]) continue;
+    const horasFichaje = es.reduce((s, e) => s + (Number(e.total_hours) || 0) + (Number(e.overtime_hours) || 0), 0);
+    const abierto = es.some(e => e.status === 'abierto');
+    const a = asig.find(x => x.date <= date);
+    const s = saved[date];
+    days.push({
+      date, dow, future: date > today, fichado, abierto,
+      obra_nombre: s ? (s.obra_nombre || '') : (a?.obra_nombre || ''),
+      horas: s ? (s.horas ?? 0) : (fichado && !abierto ? Math.round(horasFichaje * 100) / 100 : null),
+      descripcion: s?.descripcion || '',
+      materiales: s?.materiales || '',
+      done: !!s,
+      saved_at: s?.saved_at || null,
+    });
+  }
+  return { parte, days };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -758,6 +803,62 @@ Deno.serve(async (req) => {
           if (r.obra_nombre && !seen.has(r.obra_nombre)) seen.set(r.obra_nombre, { obra_nombre: r.obra_nombre, lat: r.lat, lng: r.lng, radio_m: Number(r.radio_m) || 300 });
         }
         return Response.json({ success: true, date, rows, lugares: Array.from(seen.values()).slice(0, 20) });
+      }
+
+      // Parte semanal de un trabajador (el propio; un admin puede pedir el de otro).
+      case 'getParteSemana': {
+        const target = isAdmin && body.employeeId ? String(body.employeeId) : empId;
+        const today = getLocalParts(new Date()).dateStr;
+        const ref = isYmd(body.date) ? body.date : today;
+        const weekStart = mondayOf(ref);
+        const view = await buildParteSemana(base44, target, weekStart, today);
+        return Response.json({ success: true, week_start: weekStart, week_end: ymdAdd(weekStart, 6), today, days: view.days });
+      }
+
+      // Guarda la línea de un día del parte semanal. Solo el propio trabajador
+      // (o un admin en nombre de otro) y nunca días futuros.
+      case 'saveParteDia': {
+        const target = isAdmin && body.employeeId ? String(body.employeeId) : empId;
+        const today = getLocalParts(new Date()).dateStr;
+        const date = body.date;
+        if (!isYmd(date)) return Response.json({ error: 'Fecha no válida' }, { status: 400 });
+        if (date > today) return Response.json({ error: 'No puedes rellenar el parte de un día futuro' }, { status: 400 });
+        if (!isAdmin && date < ymdAdd(today, -14)) return Response.json({ error: 'Ese día ya no se puede editar. Habla con administración.' }, { status: 400 });
+        const descripcion = String(body.descripcion || '').trim().slice(0, 2000);
+        const obra = String(body.obra_nombre || '').trim().slice(0, 200);
+        const materiales = String(body.materiales || '').trim().slice(0, 1000);
+        let horas = Number(body.horas);
+        if (!Number.isFinite(horas) || horas < 0 || horas > 24) return Response.json({ error: 'Horas no válidas (0 a 24)' }, { status: 400 });
+        horas = Math.round(horas * 100) / 100;
+        if (!obra) return Response.json({ error: 'Indica la obra o cliente' }, { status: 400 });
+        if (!descripcion) return Response.json({ error: 'Describe lo que has hecho' }, { status: 400 });
+        const emp = (await base44.asServiceRole.entities.Employee.filter({ id: target }))[0];
+        if (!emp) return Response.json({ error: 'Trabajador no encontrado' }, { status: 404 });
+        const weekStart = mondayOf(date);
+        const line = { date, obra_nombre: obra, horas, descripcion, materiales, saved_at: new Date().toISOString() };
+        const existing = (await base44.asServiceRole.entities.ParteSemanal.filter({ employee_id: target, week_start: weekStart }))[0];
+        if (existing) {
+          const dias = (existing.dias || []).filter(d => d.date !== date).concat([line]).sort((a, b) => a.date.localeCompare(b.date));
+          await base44.asServiceRole.entities.ParteSemanal.update(existing.id, { dias, employee_name: emp.full_name });
+        } else {
+          await base44.asServiceRole.entities.ParteSemanal.create({ employee_id: target, employee_name: emp.full_name, week_start: weekStart, dias: [line] });
+        }
+        return Response.json({ success: true });
+      }
+
+      // Admin: estado de los partes de toda la plantilla en una semana.
+      case 'listPartesSemana': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const today = getLocalParts(new Date()).dateStr;
+        const weekStart = mondayOf(isYmd(body.date) ? body.date : today);
+        const emps = (await base44.asServiceRole.entities.Employee.list('full_name', 200))
+          .filter(e => e.is_active !== false && e.role === 'operario' && e.estado_laboral !== 'baja' && !/tester/i.test(e.full_name || ''));
+        const rows = [];
+        for (const e of emps) {
+          const v = await buildParteSemana(base44, e.id, weekStart, today);
+          rows.push({ employee_id: e.id, employee_name: e.full_name, days: v.days });
+        }
+        return Response.json({ success: true, week_start: weekStart, week_end: ymdAdd(weekStart, 6), today, rows });
       }
 
       // Aviso de prueba a los admins/jefes: comprueba que el push llega y a cuántos dispositivos.

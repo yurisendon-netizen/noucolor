@@ -1,0 +1,70 @@
+{
+  "name": "ParteSemanal",
+  "properties": {
+    "dias": {
+      "description": "Una l\u00ednea por d\u00eda trabajado",
+      "items": {
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "horas": {
+            "type": "number"
+          },
+          "materiales": {
+            "type": "string"
+          },
+          "obra_nombre": {
+            "type": "string"
+          },
+          "saved_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "week_start": {
+      "description": "Lunes de la semana (YYYY-MM-DD)",
+      "format": "date",
+      "type": "string"
+    }
+  },
+  "required": [
+    "employee_id",
+    "week_start"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
