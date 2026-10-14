@@ -196,6 +196,7 @@ function AdminView() {
       <WeekNav weekStart={data.week_start} weekEnd={data.week_end} today={data.today} onChange={setDate} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-green-600" /> Parte hecho</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-amber-500" /> Hoy, aún sin parte (jornada abierta)</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-red-600" /> Fichó y no hizo parte</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-secondary" /> Sin fichaje / futuro</span>
       </div>
