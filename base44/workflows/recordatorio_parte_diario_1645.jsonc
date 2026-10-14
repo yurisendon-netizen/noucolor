@@ -1,0 +1,43 @@
+{
+  "name": "recordatorio_parte_diario_1645",
+  "description": "A las 16:45 (hora de Andorra), de lunes a viernes, avisa a quien ha fichado hoy y no ha rellenado su parte diario",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "45 16 * * 1-5",
+      "one_time_date": null,
+      "timezone": "Europe/Andorra",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "recordatorio_parte_diario_1645",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "partesDiariosRecordatorio",
+            "args": {
+              "cron_secret": "ncr_cron_9f3c7a1e8b2d4f6a0c5e9b7d3f1a8c6e4b7d2f0a"
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}
