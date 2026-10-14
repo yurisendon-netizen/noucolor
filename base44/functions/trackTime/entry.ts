@@ -316,7 +316,7 @@ Deno.serve(async (req) => {
         const emps = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ date: todayStr });
         const workers = emps
-          .filter(e => e.role === 'operario')
+          .filter(e => e.role === 'operario' && e.user !== 'googletester')
           .sort((a, b) => String(a.full_name).localeCompare(String(b.full_name), 'es'))
           .map(e => {
             const mine = entries.filter(x => x.employee_id === e.id);
