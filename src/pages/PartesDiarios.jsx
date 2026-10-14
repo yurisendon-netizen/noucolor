@@ -184,7 +184,7 @@ function AdminView() {
     const set = new Map();
     for (const r of data.rows) for (const d of r.days) set.set(d.date, d.dow);
     // lunes a viernes siempre
-    for (let i = 0; i < 5; i++) set.set(addDays(data.week_start, i), (i + 1) % 7);
+    for (let i = 0; i < 5; i++) { const dd = addDays(data.week_start, i); if (dd >= '2026-10-14') set.set(dd, (i + 1) % 7); }
     return Array.from(set.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([date, dow]) => ({ date, dow }));
   }, [data]);
 
