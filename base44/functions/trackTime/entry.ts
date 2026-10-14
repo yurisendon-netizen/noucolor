@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { verifySession } from '../../shared/employeeAuth.ts';
+import { verifySession, verifyPhoneSession, hashPin } from '../../shared/employeeAuth.ts';
 import { autoCloseAllOpenEntries, autoCloseEntry, canAutoClose, andorraNowParts, andorraLocalToUtc } from '../../shared/timeEntryAutoClose.ts';
 import { notifyAdminsPush } from '../../shared/cronMonitor.ts';
 import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
@@ -294,15 +294,95 @@ Deno.serve(async (req) => {
 
     // Verify caller identity via session token (not client-supplied employeeId)
     const session = await verifySession(base44, sessionToken);
-    if (!session) {
-      return Response.json({ error: 'No autorizado' }, { status: 401 });
+    let kiosk = null; // registro TelefonoEmpresa si se ficha desde un teléfono de empresa
+    let op = operation;
+    let caller, empId, empName, isAdmin;
+    if (session) {
+      caller = session.employee;
+      empId = caller.id;
+      empName = caller.full_name;
+      isAdmin = session.isAdmin;
+    } else {
+      // Teléfono de empresa: solo puede listar trabajadores y fichar por ellos con su PIN.
+      kiosk = await verifyPhoneSession(base44, sessionToken);
+      if (!kiosk) {
+        return Response.json({ error: 'No autorizado' }, { status: 401 });
+      }
+      if (!['kioskWorkers', 'kioskClockIn', 'kioskClockOut'].includes(operation)) {
+        return Response.json({ error: 'No autorizado' }, { status: 403 });
+      }
+      const todayStr = getLocalParts(new Date()).dateStr;
+      if (operation === 'kioskWorkers') {
+        const emps = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
+        const entries = await base44.asServiceRole.entities.TimeEntry.filter({ date: todayStr });
+        const workers = emps
+          .filter(e => e.role === 'operario')
+          .sort((a, b) => String(a.full_name).localeCompare(String(b.full_name), 'es'))
+          .map(e => {
+            const mine = entries.filter(x => x.employee_id === e.id);
+            const open = mine.find(x => x.status === 'abierto');
+            const closed = mine.find(x => x.status === 'cerrado');
+            return {
+              id: e.id, full_name: e.full_name, estado_laboral: e.estado_laboral || 'activo',
+              pin_set: !!e.pin_hash,
+              estado: open ? 'dentro' : (closed ? 'terminado' : 'sin_fichar'),
+              entrada: open ? open.clock_in : (closed ? closed.clock_in : null),
+            };
+          });
+        return Response.json({ success: true, phone: kiosk.nombre, date: todayStr, workers });
+      }
+      // kioskClockIn / kioskClockOut: el trabajador elige su nombre y mete su PIN.
+      const worker = (await base44.asServiceRole.entities.Employee.filter({ id: String(body.employeeId || '') }))[0];
+      if (!worker || worker.is_active === false || worker.role !== 'operario') {
+        return Response.json({ success: false, error: 'Trabajador no válido' }, { status: 400 });
+      }
+      if (!worker.pin_hash) {
+        return Response.json({ success: false, error: 'Aún no tienes código de seguridad. Créalo en tu usuario personal (Código de seguridad) o pídeselo a un administrador.' });
+      }
+      const nowMs = Date.now();
+      if (worker.pin_lock_until && new Date(worker.pin_lock_until).getTime() > nowMs) {
+        const mins = Math.ceil((new Date(worker.pin_lock_until).getTime() - nowMs) / 60000);
+        return Response.json({ success: false, locked: true, error: `Demasiados intentos. Vuelve a probar en ${mins} min.` });
+      }
+      const pinStr = String(body.pin || '');
+      const pinOk = /^\d{4}$/.test(pinStr) && (await hashPin(pinStr, String(worker.pin_hash).split(':')[0])) === worker.pin_hash;
+      if (!pinOk) {
+        const fails = (Number(worker.pin_fails) || 0) + 1;
+        if (fails >= 5) {
+          await base44.asServiceRole.entities.Employee.update(worker.id, { pin_fails: 0, pin_lock_until: new Date(nowMs + 5 * 60000).toISOString() });
+          return Response.json({ success: false, locked: true, error: 'Código incorrecto 5 veces. Bloqueado 5 minutos.' });
+        }
+        await base44.asServiceRole.entities.Employee.update(worker.id, { pin_fails: fails });
+        return Response.json({ success: false, error: `Código incorrecto (${5 - fails} intento${5 - fails === 1 ? '' : 's'} restante${5 - fails === 1 ? '' : 's'})` });
+      }
+      if (Number(worker.pin_fails) > 0 || worker.pin_lock_until) {
+        await base44.asServiceRole.entities.Employee.update(worker.id, { pin_fails: 0, pin_lock_until: '' });
+      }
+      caller = worker;
+      empId = worker.id;
+      empName = worker.full_name;
+      isAdmin = false;
+      if (operation === 'kioskClockOut') {
+        const open = (await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: worker.id, status: 'abierto' }, '-clock_in', 5))[0];
+        if (!open) {
+          return Response.json({ success: false, error: 'No tienes ninguna entrada abierta para cerrar.' });
+        }
+        body.entryId = open.id;
+        op = 'clockOut';
+      } else {
+        op = 'clockIn';
+      }
     }
-    const caller = session.employee;
-    const empId = caller.id;
-    const empName = caller.full_name;
-    const isAdmin = session.isAdmin;
 
-    switch (operation) {
+    // Con teléfonos de empresa activos, los operarios ya no fichan desde su usuario personal.
+    if (!kiosk && (op === 'clockIn' || op === 'clockOut') && caller.role === 'operario') {
+      const activePhones = await base44.asServiceRole.entities.TelefonoEmpresa.filter({ activo: true });
+      if (activePhones.length > 0) {
+        return Response.json({ error: 'El fichaje se hace desde el teléfono de empresa. Fichar desde tu usuario personal ya no está permitido.' }, { status: 403 });
+      }
+    }
+
+    switch (op) {
       case 'clockIn': {
         const { lat, lng, accuracy } = body;
         if (!isValidCoord(lat, lng)) {
@@ -360,12 +440,14 @@ Deno.serve(async (req) => {
 
         if (absenceEntry) {
           await base44.asServiceRole.entities.TimeEntry.update(absenceEntry.id, {
-            clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto'
+            clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto',
+            ...(kiosk ? { fichado_desde_entrada: kiosk.nombre } : {})
           });
         } else {
           await base44.asServiceRole.entities.TimeEntry.create({
             employee_id: empId, employee_name: empName,
-            clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto'
+            clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto',
+            ...(kiosk ? { fichado_desde_entrada: kiosk.nombre } : {})
           });
         }
 
@@ -469,7 +551,8 @@ Deno.serve(async (req) => {
 
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
           clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: false, clock_out_accuracy: acc,
-          total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado'
+          total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado',
+          ...(kiosk ? { fichado_desde_salida: kiosk.nombre } : {})
         });
 
         // Las horas extra fichadas quedan como "pendiente" en Horas Extras y SOLO
