@@ -18,6 +18,7 @@ import ControlHorario from '@/pages/ControlHorario';
 import HorasExtras from '@/pages/HorasExtras';
 import PartesTrabajo from '@/pages/PartesTrabajo';
 import Justificantes from '@/pages/Justificantes';
+import PartesDiarios from '@/pages/PartesDiarios';
 import Empleados from '@/pages/Empleados';
 import EstadoNotificaciones from '@/pages/EstadoNotificaciones';
 import RevisionJornadas from '@/pages/RevisionJornadas';
@@ -49,6 +50,7 @@ function App() {
                   <Route path="/control-horario" element={<ControlHorario />} />
                 <Route path="/horas-extras" element={<HorasExtras />} />
                   <Route path="/partes-trabajo" element={<PartesTrabajo />} />
+                  <Route path="/partes-diarios" element={<PartesDiarios />} />
                   <Route path="/justificantes" element={<Justificantes />} />
                   <Route path="/empleados" element={<Empleados />} />
                   <Route path="/estado-notificaciones" element={<EstadoNotificaciones />} />
