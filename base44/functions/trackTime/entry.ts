@@ -238,6 +238,8 @@ function distMeters(lat1, lng1, lat2, lng2) {
 
 // ── Partes diarios semanales ──────────────────────────────────────────────
 // Un ParteSemanal por trabajador y semana (lunes); dentro, una línea por día.
+// Los partes diarios empiezan a exigirse este día; los anteriores no cuentan.
+const PARTES_DESDE = '2026-10-14';
 function ymdAdd(ymd, days) {
   const [y, m, d] = ymd.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
@@ -261,6 +263,7 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
   for (let i = 0; i < 7; i++) {
     const date = ymdAdd(weekStart, i);
     const dow = (i + 1) % 7; // 1=lunes ... 0=domingo
+    if (date < PARTES_DESDE) continue;
     const es = entries.filter(e => e.date === date && e.status !== 'ausencia_injustificada');
     const fichado = es.length > 0;
     if (i >= 5 && !fichado && !saved[date]) continue;
