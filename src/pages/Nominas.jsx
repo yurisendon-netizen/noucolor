@@ -42,6 +42,9 @@ export default function Nominas() {
   const [resolvePayroll, setResolvePayroll] = useState(null);
   const [resolveText, setResolveText] = useState('');
   const [sending, setSending] = useState(false);
+  const [filterWorker, setFilterWorker] = useState('all');
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterYear, setFilterYear] = useState('all');
 
   useEffect(() => { loadData(); }, [isAdmin]);
 
@@ -185,10 +188,10 @@ export default function Nominas() {
   }
 
   async function downloadAll() {
-    for (const p of payrolls) {
+    for (const p of filteredPayrolls) {
       await generateNominaPdf(p);
     }
-    toast({ variant: 'success', title: `${payrolls.length} nóminas descargadas` });
+    toast({ variant: 'success', title: `${filteredPayrolls.length} nóminas descargadas` });
   }
 
   async function handleDelete(payroll) {
@@ -244,6 +247,18 @@ export default function Nominas() {
     } finally { setSending(false); }
   }
 
+  const workerOptions = Array.from(new Map(payrolls.map(p => [p.employee_id, p.employee_name])).entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
+  const yearOptions = [...new Set(payrolls.map(p => p.period_year))]
+    .sort((a, b) => b - a)
+    .map(y => ({ value: String(y), label: String(y) }));
+  const filteredPayrolls = payrolls.filter(p =>
+    (filterWorker === 'all' || p.employee_id === filterWorker) &&
+    (filterMonth === 'all' || String(p.period_month) === filterMonth) &&
+    (filterYear === 'all' || String(p.period_year) === filterYear)
+  );
+
   const columns = [
     { key: 'employee_name', label: 'Empleado', render: r => <span className="font-medium">{r.employee_name}</span> },
     { key: 'period', label: 'Período', render: r => `${MONTHS[r.period_month - 1]} ${r.period_year}` },
@@ -294,8 +309,32 @@ export default function Nominas() {
         </div>
       )}
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        {isAdmin && (
+          <ResponsiveSelect
+            value={filterWorker}
+            onValueChange={setFilterWorker}
+            options={[{ value: 'all', label: 'Todos los trabajadores' }, ...workerOptions]}
+            className="bg-secondary border-border"
+          />
+        )}
+        <ResponsiveSelect
+          value={filterMonth}
+          onValueChange={setFilterMonth}
+          options={[{ value: 'all', label: 'Todos los meses' }, ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))]}
+          className="bg-secondary border-border"
+        />
+        <ResponsiveSelect
+          value={filterYear}
+          onValueChange={setFilterYear}
+          options={[{ value: 'all', label: 'Todos los años' }, ...yearOptions]}
+          className="bg-secondary border-border"
+        />
+      </div>
+
       <DataTable
-        data={payrolls}
+        key={`${filterWorker}-${filterMonth}-${filterYear}`}
+        data={filteredPayrolls}
         onRefresh={loadData}
         columns={columns}
         searchField="employee_name"
