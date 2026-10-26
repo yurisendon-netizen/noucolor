@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
 import { Plus, Edit, Trash2, Check, X, Clock, Euro, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
