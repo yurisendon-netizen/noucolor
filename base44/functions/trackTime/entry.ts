@@ -303,12 +303,13 @@ Deno.serve(async (req) => {
       empName = caller.full_name;
       isAdmin = session.isAdmin;
     } else {
-      // Teléfono de empresa: solo puede listar trabajadores y fichar por ellos con su PIN.
+      // Terminal de fichaje (TelefonoEmpresa): solo puede listar los nombres de los
+      // operarios, comprobar un PIN y fichar por ellos. No lee ni toca nada más.
       kiosk = await verifyPhoneSession(base44, sessionToken);
       if (!kiosk) {
         return Response.json({ error: 'No autorizado' }, { status: 401 });
       }
-      if (!['kioskWorkers', 'kioskClockIn', 'kioskClockOut'].includes(operation)) {
+      if (!['kioskWorkers', 'kioskCheckPin', 'kioskClockIn', 'kioskClockOut'].includes(operation)) {
         return Response.json({ error: 'No autorizado' }, { status: 403 });
       }
       const todayStr = getLocalParts(new Date()).dateStr;
@@ -358,6 +359,19 @@ Deno.serve(async (req) => {
       if (Number(worker.pin_fails) > 0 || worker.pin_lock_until) {
         await base44.asServiceRole.entities.Employee.update(worker.id, { pin_fails: 0, pin_lock_until: '' });
       }
+      // PIN correcto: devolver solo el estado de HOY de ese trabajador.
+      if (operation === 'kioskCheckPin') {
+        const today = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: worker.id, date: todayStr });
+        const open = today.find(x => x.status === 'abierto');
+        const closed = today.filter(x => x.status === 'cerrado').sort((a, b) => String(b.clock_out).localeCompare(String(a.clock_out)))[0];
+        return Response.json({
+          success: true,
+          estado: open ? 'dentro' : (closed ? 'terminado' : 'fuera'),
+          entrada: open ? open.clock_in : (closed ? closed.clock_in : null),
+          salida: closed && !open ? closed.clock_out : null,
+          estado_laboral: worker.estado_laboral || 'activo',
+        });
+      }
       caller = worker;
       empId = worker.id;
       empName = worker.full_name;
@@ -374,12 +388,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Con teléfonos de empresa activos, los operarios ya no fichan desde su usuario personal.
-    if (!kiosk && (op === 'clockIn' || op === 'clockOut') && caller.role === 'operario') {
-      const activePhones = await base44.asServiceRole.entities.TelefonoEmpresa.filter({ activo: true });
-      if (activePhones.length > 0) {
-        return Response.json({ error: 'El fichaje se hace desde el teléfono de empresa. Fichar desde tu usuario personal ya no está permitido.' }, { status: 403 });
-      }
+    // Los operarios SOLO fichan en el terminal del taller, nunca desde su usuario personal.
+    // (googletester queda fuera: es la cuenta de revisión de Google Play, no un trabajador.)
+    if (!kiosk && (op === 'clockIn' || op === 'clockOut') && caller.role === 'operario' && caller.user !== 'googletester') {
+      return Response.json({ error: 'El fichaje se realiza en el terminal del taller.' }, { status: 403 });
     }
 
     switch (op) {
@@ -441,12 +453,14 @@ Deno.serve(async (req) => {
         if (absenceEntry) {
           await base44.asServiceRole.entities.TimeEntry.update(absenceEntry.id, {
             clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto',
+            origen: kiosk ? 'terminal' : 'personal',
             ...(kiosk ? { fichado_desde_entrada: kiosk.nombre } : {})
           });
         } else {
           await base44.asServiceRole.entities.TimeEntry.create({
             employee_id: empId, employee_name: empName,
             clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto',
+            origen: kiosk ? 'terminal' : 'personal',
             ...(kiosk ? { fichado_desde_entrada: kiosk.nombre } : {})
           });
         }
@@ -552,6 +566,7 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
           clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: false, clock_out_accuracy: acc,
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado',
+          origen_salida: kiosk ? 'terminal' : 'personal',
           ...(kiosk ? { fichado_desde_salida: kiosk.nombre } : {})
         });
 
