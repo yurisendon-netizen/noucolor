@@ -13,6 +13,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import * as XLSX from 'xlsx';
 import moment from 'moment';
+import TerminalAdminCard from '@/components/terminal/TerminalAdminCard';
 
 export default function Empleados() {
   const { toast } = useToast();
@@ -309,6 +310,8 @@ export default function Empleados() {
           </div>
         )}
       />
+
+      {isAdmin && <TerminalAdminCard />}
 
       <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
         <Users size={16} />
