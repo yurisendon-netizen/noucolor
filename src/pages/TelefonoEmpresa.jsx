@@ -339,6 +339,14 @@ export default function TelefonoEmpresa() {
         </div>
         {!loading && workers.length === 0 && !listErr && <p className="text-center text-white/80">No hay trabajadores activos.</p>}
       </main>
+      {/* Cerrar sesión del terminal (con confirmación para evitar toques sin querer) */}
+      <div className="px-4 pb-4 pt-2" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <button type="button"
+          onClick={() => { if (window.confirm('¿Cerrar la sesión de este terminal de fichaje?')) terminalLogout(); }}
+          className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-base font-semibold text-white/85 active:bg-white/20">
+          <LogOut size={18} /> Cerrar sesión
+        </button>
+      </div>
     </div>
   );
 }
