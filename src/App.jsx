@@ -2,11 +2,11 @@ import { Toaster } from "@/components/ui/toaster"
 import OfflineBanner from "@/components/shared/OfflineBanner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
-import { CustomAuthProvider } from '@/lib/CustomAuthContext';
+import { CustomAuthProvider, useCustomAuth } from '@/lib/CustomAuthContext';
 import { ThemeProvider } from 'next-themes';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PushNavListener from '@/components/PushNavListener';
@@ -33,6 +33,16 @@ import BalanceObras from '@/pages/BalanceObras';
 import Perfil from '@/pages/Perfil';
 import CodigoSeguridad from '@/pages/CodigoSeguridad';
 
+// Rol Terminal: con la sesión del terminal abierta, CUALQUIER URL lleva a /terminal
+// (sin menú ni acceso a otras páginas). Sin ella, /terminal lleva al login.
+function TerminalGate({ children }) {
+  const { terminal } = useCustomAuth();
+  const { pathname } = useLocation();
+  if (terminal && pathname !== '/terminal') return <Navigate to="/terminal" replace />;
+  if (!terminal && (pathname === '/terminal' || pathname === '/telefono')) return <Navigate to="/login" replace />;
+  return children;
+}
+
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
@@ -43,9 +53,10 @@ function App() {
           <Router>
             <ScrollToTop />
             <PushNavListener />
+            <TerminalGate>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/telefono" element={<TelefonoEmpresa />} />
+              <Route path="/terminal" element={<TelefonoEmpresa />} />
               <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Dashboard />} />
@@ -70,6 +81,7 @@ function App() {
               </Route>
               <Route path="*" element={<PageNotFound />} />
             </Routes>
+            </TerminalGate>
           </Router>
           <Toaster />
           </QueryClientProvider>
