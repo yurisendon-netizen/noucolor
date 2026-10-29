@@ -1,54 +1,104 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Loader2, LogOut, CheckCircle2, ArrowLeft, Smartphone, RefreshCw, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import PinPad from '@/components/pin/PinPad';
+import { Loader2, CheckCircle2, ArrowLeft, AlertTriangle, LogIn, LogOut, MapPin, Lock } from 'lucide-react';
+import { useCustomAuth } from '@/lib/CustomAuthContext';
+
+// =====================================================================
+// MODO TERMINAL DE FICHAJE — móvil compartido del taller (rol Terminal).
+// El trabajador toca su nombre, mete SU PIN personal y ficha entrada/salida.
+// Todo se valida en el backend (trackTime: kioskCheckPin / kioskClockIn / kioskClockOut).
+// =====================================================================
 
 const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e1a8455e_image.png';
-const KEY_TOKEN = 'noucolor_phone_token';
-const KEY_NAME = 'noucolor_phone_name';
+const GRANATE = '#5a123e';
+const NARANJA = '#e6671a';
+const IDLE_MS = 20000;      // sin tocar nada 20 s → vuelve a la lista
+const OK_MS = 3000;         // confirmación verde 3 s
+const GPS_MAX_M = 200;      // misma regla que el backend (GPS_MAX_ACCEPT_M)
+const TZ = 'Europe/Andorra';
 
-const hm = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Andorra' }) : '');
-const errMsg = (e) => e?.response?.data?.error || e?.message || 'Error desconocido';
+const hm = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: TZ }) : '');
+const errMsg = (e) => e?.response?.data?.error || e?.data?.error || e?.message || 'Error desconocido';
+const isAuthErr = (e) => e?.response?.status === 401 || e?.status === 401;
 
 function getPosition() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error('Este teléfono no da la ubicación.')); return; }
+    if (!navigator.geolocation) { reject(new Error('Este teléfono no puede dar la ubicación. No se puede fichar.')); return; }
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-      (err) => reject(new Error(err.code === 1 ? 'La ubicación está desactivada para esta app. Actívala en los ajustes del teléfono.' : 'No se pudo obtener la ubicación. Sal a un sitio abierto y vuelve a probar.')),
-      { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 },
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, at: Date.now() }),
+      (err) => reject(new Error(err.code === 1
+        ? 'Sin permiso de ubicación. Activa la ubicación (exacta) para esta app en los ajustes del terminal. No se puede fichar.'
+        : 'No se pudo obtener la ubicación GPS. Comprueba que el GPS está activado y vuelve a probar.')),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
     );
   });
 }
 
-// Pantalla de TELÉFONO DE EMPRESA: un solo móvil para que fichen todos.
-// El trabajador toca su nombre, mete su código de seguridad (PIN) y ficha.
+// ---------- Teclado numérico grande ----------
+function Keypad({ value, onChange, disabled }) {
+  const press = (d) => { if (!disabled && value.length < 4) onChange(value + d); };
+  const back = () => { if (!disabled && value.length > 0) onChange(value.slice(0, -1)); };
+  const key = 'h-20 rounded-2xl bg-white/10 text-3xl font-bold text-white active:scale-95 active:bg-white/25 transition disabled:opacity-40';
+  return (
+    <div className="w-full max-w-xs mx-auto select-none">
+      <div className="flex justify-center gap-5 mb-6" aria-label={`${value.length} de 4 dígitos`}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="w-5 h-5 rounded-full border-2 transition"
+            style={i < value.length ? { background: NARANJA, borderColor: NARANJA } : { borderColor: 'rgba(255,255,255,0.45)' }} />
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+          <button key={d} type="button" className={key} disabled={disabled} onClick={() => press(d)}>{d}</button>
+        ))}
+        <div />
+        <button type="button" className={key} disabled={disabled} onClick={() => press('0')}>0</button>
+        <button type="button" className={`${key} text-xl`} disabled={disabled} onClick={back} aria-label="Borrar">⌫</button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Reloj grande ----------
+function BigClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  const time = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: TZ });
+  const date = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ });
+  return (
+    <div className="text-center">
+      <p className="text-6xl sm:text-7xl font-extrabold tabular-nums tracking-tight leading-none">{time}</p>
+      <p className="mt-2 text-lg capitalize text-white/80">{date}</p>
+    </div>
+  );
+}
+
 export default function TelefonoEmpresa() {
-  const [token, setToken] = useState(() => { try { return localStorage.getItem(KEY_TOKEN) || ''; } catch { return ''; } });
-  const [phoneName, setPhoneName] = useState(() => { try { return localStorage.getItem(KEY_NAME) || ''; } catch { return ''; } });
+  const { terminal, terminalLogout } = useCustomAuth();
+  const token = terminal?.token || '';
 
-  const [user, setUser] = useState('');
-  const [pass, setPass] = useState('');
-  const [loginErr, setLoginErr] = useState('');
-  const [loggingIn, setLoggingIn] = useState(false);
-
+  const [phoneName, setPhoneName] = useState(terminal?.nombre || '');
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [listErr, setListErr] = useState('');
 
+  // view: 'list' | 'pin' | 'status' | 'ok'
+  const [view, setView] = useState('list');
   const [sel, setSel] = useState(null);
   const [pin, setPin] = useState('');
+  const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [pinErr, setPinErr] = useState('');
-  const [done, setDone] = useState(null);
+  const [err, setErr] = useState('');
+  const [ok, setOk] = useState(null);
+
   const posRef = useRef(null);
   const posErrRef = useRef('');
+  const lastTouch = useRef(Date.now());
+  const pinRef = useRef(''); // PIN validado, en memoria solo mientras dura este fichaje
 
-  const logout = useCallback(() => {
-    try { localStorage.removeItem(KEY_TOKEN); localStorage.removeItem(KEY_NAME); } catch { /* sin almacenamiento */ }
-    setToken(''); setPhoneName(''); setWorkers([]); setSel(null);
+  const reset = useCallback(() => {
+    setView('list'); setSel(null); setPin(''); setStatus(null); setErr(''); setOk(null); setBusy(false);
+    pinRef.current = ''; posRef.current = null; posErrRef.current = '';
   }, []);
 
   const load = useCallback(async () => {
@@ -60,198 +110,234 @@ export default function TelefonoEmpresa() {
       setWorkers(res.data?.workers || []);
       if (res.data?.phone) setPhoneName(res.data.phone);
     } catch (e) {
-      if (e?.response?.status === 401 || e?.response?.status === 403) { logout(); return; }
+      if (isAuthErr(e)) { terminalLogout(); return; }
       setListErr(errMsg(e));
     } finally {
       setLoading(false);
     }
-  }, [token, logout]);
+  }, [token, terminalLogout]);
 
   useEffect(() => { load(); }, [load]);
-  // La lista se refresca sola cada minuto para ver quién ha fichado.
   useEffect(() => {
-    if (!token || sel || done) return undefined;
+    if (view !== 'list') return undefined;
     const t = setInterval(load, 60000);
     return () => clearInterval(t);
-  }, [token, sel, done, load]);
+  }, [view, load]);
 
-  async function doLogin(e) {
-    e.preventDefault();
-    setLoggingIn(true);
-    setLoginErr('');
-    try {
-      const res = await base44.functions.invoke('phoneLogin', { username: user, password: pass });
-      if (res.data?.success) {
-        try { localStorage.setItem(KEY_TOKEN, res.data.sessionToken); localStorage.setItem(KEY_NAME, res.data.phone?.nombre || ''); } catch { /* sin almacenamiento */ }
-        setPhoneName(res.data.phone?.nombre || '');
-        setToken(res.data.sessionToken);
-        setPass('');
-      } else {
-        setLoginErr(res.data?.error || 'Usuario o contraseña incorrectos');
-      }
-    } catch (err) {
-      setLoginErr(errMsg(err));
-    } finally {
-      setLoggingIn(false);
-    }
-  }
+  // Pantalla siempre encendida (si el navegador lo permite)
+  useEffect(() => {
+    let lock = null;
+    const req = async () => { try { lock = await navigator.wakeLock?.request('screen'); } catch { /* no soportado */ } };
+    req();
+    const onVis = () => { if (document.visibilityState === 'visible') req(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { document.removeEventListener('visibilitychange', onVis); try { lock?.release(); } catch { /* nada */ } };
+  }, []);
 
-  function pick(w) {
-    if (w.estado === 'terminado') return;
-    setSel(w);
-    setPin('');
-    setPinErr('');
+  // Inactividad: 20 s sin tocar → vuelve a la lista (nadie se queda con la sesión de otro)
+  useEffect(() => {
+    const touch = () => { lastTouch.current = Date.now(); };
+    window.addEventListener('pointerdown', touch);
+    window.addEventListener('keydown', touch);
+    const t = setInterval(() => {
+      if (view !== 'list' && view !== 'ok' && !busy && Date.now() - lastTouch.current > IDLE_MS) reset();
+    }, 1000);
+    return () => { window.removeEventListener('pointerdown', touch); window.removeEventListener('keydown', touch); clearInterval(t); };
+  }, [view, busy, reset]);
+
+  function warmGps() {
     posRef.current = null;
     posErrRef.current = '';
-    // Pedimos la ubicación ya, mientras mete el código, para que ficharlo sea rápido.
     getPosition().then((p) => { posRef.current = p; }).catch((e) => { posErrRef.current = e.message; });
   }
 
-  function back() { setSel(null); setPin(''); setPinErr(''); }
+  function pick(w) {
+    lastTouch.current = Date.now();
+    setSel(w); setPin(''); setErr(''); setStatus(null); pinRef.current = '';
+    setView('pin');
+    warmGps(); // pedimos el GPS ya, mientras mete el PIN
+  }
 
   async function onPin(v) {
     setPin(v);
-    setPinErr('');
+    setErr('');
     if (v.length !== 4 || busy) return;
     setBusy(true);
     try {
-      let pos = posRef.current;
-      if (!pos) {
-        try { pos = await getPosition(); } catch (e) { setPinErr(e.message); setPin(''); setBusy(false); return; }
-      }
-      const entrando = sel.estado === 'sin_fichar';
-      const res = await base44.functions.invoke('trackTime', {
-        operation: entrando ? 'kioskClockIn' : 'kioskClockOut',
-        sessionToken: token, employeeId: sel.id, pin: v,
-        lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy,
-      });
+      const res = await base44.functions.invoke('trackTime', { operation: 'kioskCheckPin', sessionToken: token, employeeId: sel.id, pin: v });
       if (res.data?.success) {
-        setDone({ nombre: sel.full_name, entrando, hora: hm(new Date().toISOString()), tarde: !!res.data.isLate, ya: !!res.data.alreadyClockedIn });
-        setSel(null);
-        setPin('');
-        load();
-        setTimeout(() => setDone(null), 5000);
+        pinRef.current = v;
+        setStatus(res.data);
+        setView('status');
       } else {
-        setPinErr(res.data?.error || 'No se pudo fichar');
+        setErr(res.data?.error || 'PIN incorrecto');
         setPin('');
-        posRef.current = null;
-        getPosition().then((p) => { posRef.current = p; }).catch(() => {});
       }
     } catch (e) {
-      if (e?.response?.status === 401) { logout(); return; }
-      setPinErr(errMsg(e));
+      if (isAuthErr(e)) { terminalLogout(); return; }
+      setErr(errMsg(e));
       setPin('');
-      // Ubicación imprecisa o similar: pedimos una lectura nueva para el siguiente intento.
-      posRef.current = null;
-      getPosition().then((p) => { posRef.current = p; }).catch(() => {});
     } finally {
       setBusy(false);
     }
   }
 
-  const shell = 'min-h-[100dvh] bg-background text-foreground flex flex-col';
-
-  // ---------- Login del teléfono ----------
-  if (!token) {
-    return (
-      <div className={`${shell} items-center justify-center p-6`}>
-        <form onSubmit={doLogin} className="w-full max-w-sm space-y-4">
-          <div className="text-center">
-            <img src={LOGO} alt="Noucolor" className="mx-auto h-14 w-auto mb-4 rounded-lg" />
-            <h1 className="text-xl font-bold flex items-center justify-center gap-2"><Smartphone size={20} /> Teléfono de empresa</h1>
-            <p className="text-sm text-muted-foreground mt-1">Entra con el usuario y la contraseña de este teléfono.</p>
-          </div>
-          <Input value={user} onChange={(e) => setUser(e.target.value)} placeholder="Usuario (telefono1)" autoCapitalize="none" autoCorrect="off" className="h-12" />
-          <Input type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Contraseña" className="h-12" />
-          {loginErr && <p className="text-sm text-red-500">{loginErr}</p>}
-          <Button type="submit" disabled={loggingIn || !user || !pass} className="w-full h-12">
-            {loggingIn ? <Loader2 className="animate-spin" size={18} /> : 'Entrar'}
-          </Button>
-        </form>
-      </div>
-    );
+  async function fichar() {
+    if (busy || !status) return;
+    setBusy(true);
+    setErr('');
+    const entrando = status.estado === 'fuera';
+    try {
+      // Ubicación GPS precisa obligatoria (misma regla que siempre)
+      let pos = posRef.current && Date.now() - posRef.current.at < 60000 ? posRef.current : null;
+      if (!pos) {
+        try { pos = await getPosition(); } catch (e) { setErr(e.message); return; }
+      }
+      if (!Number.isFinite(pos.accuracy) || pos.accuracy > GPS_MAX_M) {
+        setErr(`Ubicación poco precisa (±${Math.round(pos.accuracy || 0)} m). Acerca el terminal a una ventana o sal al exterior y vuelve a probar. No se ha fichado.`);
+        warmGps();
+        return;
+      }
+      const res = await base44.functions.invoke('trackTime', {
+        operation: entrando ? 'kioskClockIn' : 'kioskClockOut',
+        sessionToken: token, employeeId: sel.id, pin: pinRef.current,
+        lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy,
+      });
+      if (res.data?.success) {
+        const iso = entrando ? res.data.clockIn : res.data.clockOut;
+        pinRef.current = '';
+        setOk({ entrando, nombre: sel.full_name, hora: hm(iso || new Date().toISOString()), tarde: !!res.data.isLate, ya: !!res.data.alreadyClockedIn });
+        setView('ok');
+        load();
+        setTimeout(reset, OK_MS);
+      } else {
+        setErr(res.data?.error || 'No se pudo fichar');
+        warmGps();
+      }
+    } catch (e) {
+      if (isAuthErr(e)) { terminalLogout(); return; }
+      setErr(errMsg(e));
+      warmGps();
+    } finally {
+      setBusy(false);
+    }
   }
 
-  // ---------- Resultado ----------
-  if (done) {
+  // Salida oculta para mantenimiento: mantener pulsado el logo 3 s
+  const pressTimer = useRef(null);
+  const startPress = () => {
+    pressTimer.current = setTimeout(() => {
+      if (window.confirm('¿Cerrar la sesión del terminal de fichaje?')) terminalLogout();
+    }, 3000);
+  };
+  const endPress = () => clearTimeout(pressTimer.current);
+
+  const shell = 'min-h-[100dvh] w-full text-white flex flex-col select-none';
+  const bg = { background: `radial-gradient(circle at 50% 0%, #7a1d55 0%, ${GRANATE} 55%, #3d0b29 100%)` };
+
+  const ErrorBox = () => (err ? (
+    <div className="mt-4 rounded-2xl border border-red-300/60 bg-red-600/90 px-4 py-3 text-base font-semibold flex items-start gap-2 text-left">
+      <AlertTriangle size={20} className="shrink-0 mt-0.5" /> <span>{err}</span>
+    </div>
+  ) : null);
+
+  // ---------- Confirmación ----------
+  if (view === 'ok' && ok) {
     return (
-      <div className={`${shell} items-center justify-center p-6 text-center`}>
-        <CheckCircle2 size={88} className="text-emerald-500 mb-4" />
-        <h1 className="text-2xl font-bold">{done.entrando ? 'Entrada fichada' : 'Salida fichada'}</h1>
-        <p className="text-lg mt-2">{done.nombre}</p>
-        <p className="text-4xl font-bold tabular-nums mt-2">{done.hora}</p>
-        {done.ya && <p className="text-sm text-muted-foreground mt-3">Ya tenía la entrada abierta hoy.</p>}
-        {done.tarde && <p className="mt-3 flex items-center gap-2 text-amber-500"><AlertTriangle size={16} /> Entrada registrada con retraso</p>}
-        <Button className="mt-8 h-12 px-8" onClick={() => setDone(null)}>Volver a la lista</Button>
+      <div className={`${shell} items-center justify-center p-6 text-center`} style={{ background: '#15803d' }}>
+        <CheckCircle2 size={110} className="mb-5" />
+        <h1 className="text-3xl font-extrabold">{ok.entrando ? 'Entrada registrada' : 'Salida registrada'} {ok.hora}</h1>
+        <p className="text-2xl mt-3 font-semibold">{ok.nombre}</p>
+        {ok.ya && <p className="text-base mt-4 text-white/85">Ya tenías la entrada abierta hoy.</p>}
+        {ok.tarde && <p className="mt-4 text-lg font-semibold flex items-center gap-2"><AlertTriangle size={20} /> Entrada con retraso</p>}
       </div>
     );
   }
 
   // ---------- PIN ----------
-  if (sel) {
-    const entrando = sel.estado === 'sin_fichar';
+  if (view === 'pin' && sel) {
     return (
-      <div className={`${shell} items-center justify-center p-6`}>
-        <div className="w-full max-w-sm text-center">
-          <button type="button" onClick={back} disabled={busy} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft size={16} /> Volver
-          </button>
-          <h1 className="text-2xl font-bold">{sel.full_name}</h1>
-          <p className="text-sm text-muted-foreground mt-1 mb-1">
-            {entrando ? 'Mete tu código para fichar la ENTRADA' : `Entraste a las ${hm(sel.entrada)}. Mete tu código para fichar la SALIDA`}
-          </p>
-          {!sel.pin_set && <p className="text-sm text-amber-500 mb-2">Aún no tienes código de seguridad: créalo en tu usuario personal.</p>}
-          <div className="min-h-[1.5rem] mb-2">
-            {busy && <p className="text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> Fichando…</p>}
-            {pinErr && <p className="text-sm text-red-500">{pinErr}</p>}
+      <div className={`${shell} p-5`} style={bg}>
+        <button type="button" onClick={reset} disabled={busy} className="self-start inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-lg font-semibold active:bg-white/20">
+          <ArrowLeft size={22} /> Volver
+        </button>
+        <div className="flex-1 flex flex-col items-center justify-center text-center w-full max-w-sm mx-auto">
+          <h1 className="text-3xl font-extrabold">{sel.full_name}</h1>
+          <p className="text-lg text-white/80 mt-2 mb-6">Introduce tu PIN personal</p>
+          {!sel.pin_set && <p className="mb-4 text-base font-semibold" style={{ color: NARANJA }}>Aún no tienes PIN. Créalo en tu app personal o pídeselo al administrador.</p>}
+          <Keypad value={pin} onChange={onPin} disabled={busy} />
+          <div className="min-h-[2rem] mt-4">
+            {busy && <p className="text-base flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Comprobando…</p>}
           </div>
-          <PinPad value={pin} onChange={onPin} disabled={busy} />
+          <ErrorBox />
         </div>
       </div>
     );
   }
 
-  // ---------- Lista de trabajadores ----------
-  const dentro = workers.filter((w) => w.estado === 'dentro').length;
-  return (
-    <div className={shell}>
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <img src={LOGO} alt="Noucolor" className="h-9 w-auto rounded" />
-          <div className="min-w-0">
-            <p className="font-semibold leading-tight truncate">{phoneName || 'Teléfono de empresa'}</p>
-            <p className="text-xs text-muted-foreground">{dentro} trabajando ahora</p>
+  // ---------- Estado + botón de fichar ----------
+  if (view === 'status' && sel && status) {
+    const baja = status.estado_laboral && status.estado_laboral !== 'activo';
+    const dentro = status.estado === 'dentro';
+    const terminado = status.estado === 'terminado';
+    return (
+      <div className={`${shell} p-5`} style={bg}>
+        <button type="button" onClick={reset} disabled={busy} className="self-start inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-lg font-semibold active:bg-white/20">
+          <ArrowLeft size={22} /> Volver
+        </button>
+        <div className="flex-1 flex flex-col items-center justify-center text-center w-full max-w-md mx-auto">
+          <h1 className="text-3xl font-extrabold">{sel.full_name}</h1>
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-5 w-full">
+            {dentro && <p className="text-2xl font-bold">Estás dentro desde las {hm(status.entrada)}</p>}
+            {status.estado === 'fuera' && <p className="text-2xl font-bold">Estás fuera</p>}
+            {terminado && <p className="text-2xl font-bold">Jornada de hoy terminada{status.entrada ? ` (${hm(status.entrada)} – ${hm(status.salida)})` : ''}</p>}
           </div>
+
+          {baja ? (
+            <p className="mt-8 text-xl font-semibold" style={{ color: NARANJA }}>Estás marcado como de {status.estado_laboral}. No puedes fichar. Habla con tu encargado.</p>
+          ) : terminado ? (
+            <p className="mt-8 text-lg text-white/85">Si es un error, habla con tu encargado.</p>
+          ) : (
+            <button type="button" onClick={fichar} disabled={busy}
+              className="mt-8 w-full h-24 rounded-3xl text-3xl font-extrabold tracking-wide shadow-2xl active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-3"
+              style={dentro ? { background: '#ffffff', color: GRANATE } : { background: NARANJA, color: '#ffffff' }}>
+              {busy ? <><Loader2 size={30} className="animate-spin" /> Fichando…</>
+                : dentro ? <><LogOut size={32} /> FICHAR SALIDA</> : <><LogIn size={32} /> FICHAR ENTRADA</>}
+            </button>
+          )}
+          {!baja && !terminado && <p className="mt-3 text-sm text-white/70 flex items-center gap-1"><MapPin size={14} /> Se guarda la ubicación GPS del terminal</p>}
+          <ErrorBox />
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={load} aria-label="Actualizar">{loading ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}</Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Cerrar la sesión de este teléfono?')) logout(); }} aria-label="Cerrar sesión del teléfono"><LogOut size={18} /></Button>
+      </div>
+    );
+  }
+
+  // ---------- Lista de nombres ----------
+  return (
+    <div className={shell} style={bg}>
+      <header className="px-5 pt-5 pb-4">
+        <div className="flex items-center justify-between mb-4">
+          <img src={LOGO} alt="Noucolor" className="h-10 w-auto rounded"
+            onPointerDown={startPress} onPointerUp={endPress} onPointerLeave={endPress} onContextMenu={(e) => e.preventDefault()} draggable={false} />
+          <p className="text-sm font-semibold text-white/80 flex items-center gap-1"><Lock size={14} /> {phoneName || 'Terminal de fichaje'}</p>
         </div>
+        <BigClock />
       </header>
-      <main className="flex-1 p-4 max-w-2xl w-full mx-auto">
-        <p className="text-sm text-muted-foreground mb-3">Toca tu nombre para fichar.</p>
-        {listErr && <p className="text-sm text-red-500 mb-3">{listErr}</p>}
-        <div className="grid gap-2">
-          {workers.map((w) => {
-            const baja = w.estado_laboral !== 'activo';
-            const cls = w.estado === 'dentro' ? 'border-emerald-500/60 bg-emerald-500/10'
-              : w.estado === 'terminado' ? 'border-border bg-secondary/40 opacity-60'
-                : 'border-border bg-card';
-            return (
-              <button key={w.id} type="button" disabled={w.estado === 'terminado' || baja} onClick={() => pick(w)}
-                className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left active:scale-[0.99] transition ${cls}`}>
-                <span className="text-lg font-semibold">{w.full_name}</span>
-                <span className="text-sm text-right">
-                  {baja ? <span className="text-muted-foreground">{w.estado_laboral}</span>
-                    : w.estado === 'dentro' ? <span className="text-emerald-500 font-semibold">Dentro · {hm(w.entrada)}<br /><span className="text-xs font-normal">Toca para fichar salida</span></span>
-                      : w.estado === 'terminado' ? <span className="text-muted-foreground">Jornada terminada</span>
-                        : <span className="text-primary font-semibold">Fichar entrada</span>}
-                </span>
-              </button>
-            );
-          })}
-          {!loading && workers.length === 0 && !listErr && <p className="text-sm text-muted-foreground">No hay trabajadores.</p>}
+      <div className="h-1 w-full" style={{ background: NARANJA }} />
+      <main className="flex-1 p-4 w-full max-w-3xl mx-auto">
+        <p className="text-lg font-semibold text-center mb-4">Toca tu nombre para fichar</p>
+        {listErr && <p className="mb-3 rounded-xl bg-red-600/90 px-4 py-2 text-base font-semibold">{listErr}</p>}
+        {loading && workers.length === 0 && <p className="text-center flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={18} /> Cargando…</p>}
+        <div className="grid grid-cols-2 gap-3">
+          {workers.map((w) => (
+            <button key={w.id} type="button" onClick={() => pick(w)}
+              className="relative min-h-[96px] rounded-2xl bg-white/10 border-2 border-white/15 px-3 py-4 text-center text-lg font-bold leading-tight uppercase active:scale-[0.97] active:bg-white/20 transition">
+              {w.estado === 'dentro' && <span className="absolute top-2 right-2 w-3 h-3 rounded-full bg-emerald-400" aria-label="Dentro" />}
+              {w.full_name}
+            </button>
+          ))}
         </div>
+        {!loading && workers.length === 0 && !listErr && <p className="text-center text-white/80">No hay trabajadores activos.</p>}
       </main>
     </div>
   );
