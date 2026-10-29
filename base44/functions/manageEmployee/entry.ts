@@ -198,6 +198,50 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, results });
     }
 
+    // ---- Terminal de fichaje (rol Terminal, entidad TelefonoEmpresa) ----
+    // No es un empleado: no aparece en nóminas, informes ni listados. Solo admins.
+    if (action === 'listTerminals') {
+      const phones = await base44.asServiceRole.entities.TelefonoEmpresa.list('nombre', 50);
+      return Response.json({
+        success: true,
+        terminals: phones.map(p => ({ id: p.id, nombre: p.nombre, user: p.user, activo: p.activo === true })),
+      });
+    }
+
+    if (action === 'updateTerminal') {
+      const terminalId = String(data?.id || '');
+      const found = terminalId ? await base44.asServiceRole.entities.TelefonoEmpresa.filter({ id: terminalId }) : [];
+      if (found.length === 0) return Response.json({ error: 'Terminal no encontrado' }, { status: 404 });
+      const patch = {};
+      if (typeof data.nombre === 'string' && data.nombre.trim()) patch.nombre = data.nombre.trim();
+      if (typeof data.user === 'string' && data.user.trim()) {
+        const u = data.user.trim().toLowerCase();
+        if (!/^[a-z0-9._-]{3,30}$/.test(u)) {
+          return Response.json({ error: 'Usuario no válido (3-30 letras, números, punto o guion)' }, { status: 400 });
+        }
+        const emps = await base44.asServiceRole.entities.Employee.list('-created_date', 500);
+        if (emps.some(e => typeof e.user === 'string' && e.user.toLowerCase() === u)) {
+          return Response.json({ error: 'Ese usuario ya lo usa un empleado' }, { status: 400 });
+        }
+        const phones = await base44.asServiceRole.entities.TelefonoEmpresa.list('nombre', 50);
+        if (phones.some(p => p.id !== terminalId && typeof p.user === 'string' && p.user.toLowerCase() === u)) {
+          return Response.json({ error: 'Ese usuario ya lo usa otro terminal' }, { status: 400 });
+        }
+        patch.user = u;
+      }
+      if (data.pin !== undefined && data.pin !== '') {
+        const pin = String(data.pin);
+        if (!/^\d{4}$/.test(pin)) return Response.json({ error: 'El PIN debe tener exactamente 4 dígitos' }, { status: 400 });
+        patch.pass = await hashPin(pin);
+      }
+      if (typeof data.activo === 'boolean') patch.activo = data.activo;
+      // Cerrar la sesión del terminal en el móvil (p. ej. si se pierde o se cambia).
+      if (data.revokeSession === true) patch.session_token = null;
+      if (Object.keys(patch).length === 0) return Response.json({ error: 'Nada que cambiar' }, { status: 400 });
+      await base44.asServiceRole.entities.TelefonoEmpresa.update(terminalId, patch);
+      return Response.json({ success: true });
+    }
+
     const precioHora = parseFloat(data.precioHora) || 0;
     // Salario bruto, neto y precio de hora extra vienen de la hoja de nóminas
     // de la empresa: se guardan tal cual, NUNCA se recalculan (antes se pisaba
