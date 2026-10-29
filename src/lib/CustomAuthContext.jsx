@@ -16,6 +16,15 @@ const KEYS = {
   cache: 'noucolor_emp_cache',
 };
 
+// Terminal de fichaje (rol Terminal): sesión aparte, permanente, sin caducidad.
+export const TERMINAL_KEYS = { token: 'noucolor_phone_token', name: 'noucolor_phone_name' };
+function readTerminal() {
+  try {
+    const token = localStorage.getItem(TERMINAL_KEYS.token);
+    return token ? { token, nombre: localStorage.getItem(TERMINAL_KEYS.name) || '' } : null;
+  } catch { return null; }
+}
+
 function clearSessionStorage() {
   localStorage.removeItem(KEYS.empId);
   localStorage.removeItem(KEYS.token);
@@ -29,6 +38,29 @@ function clearSessionStorage() {
 export function CustomAuthProvider({ children }) {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [terminal, setTerminal] = useState(() => readTerminal());
+
+  // Si no es empleado, probamos si las credenciales son las del terminal de fichaje.
+  async function tryTerminalLogin(username, credential) {
+    if (!/^\d{4}$/.test(String(credential || ''))) return null;
+    try {
+      const res = await base44.functions.invoke('phoneLogin', { username, pin: String(credential) });
+      if (!res.data?.success) return null;
+      try {
+        localStorage.setItem(TERMINAL_KEYS.token, res.data.sessionToken);
+        localStorage.setItem(TERMINAL_KEYS.name, res.data.phone?.nombre || '');
+      } catch { /* sin almacenamiento */ }
+      const t = { token: res.data.sessionToken, nombre: res.data.phone?.nombre || '' };
+      setTerminal(t);
+      return t;
+    } catch { return null; }
+  }
+
+  function terminalLogout() {
+    try { localStorage.removeItem(TERMINAL_KEYS.token); localStorage.removeItem(TERMINAL_KEYS.name); } catch { /* sin almacenamiento */ }
+    setTerminal(null);
+    window.location.replace('/login');
+  }
 
   useEffect(() => {
     // El desbloqueo con código de seguridad solo vale para la carga actual:
@@ -94,6 +126,11 @@ export function CustomAuthProvider({ children }) {
   async function login(username, credential, { pin = false } = {}) {
     const payload = pin ? { username, pin: credential } : { username, password: credential };
     const result = await base44.functions.invoke('employeeLogin', payload);
+    // No es un empleado → ¿es el usuario del terminal de fichaje?
+    if (!result.data?.success && !result.data?.pin_required) {
+      const t = await tryTerminalLogin(username, credential);
+      if (t) return { terminal: true };
+    }
     // Empleado migrado al código de seguridad: su contraseña ya no vale para entrar
     if (!pin && result.data?.pin_required) {
       const err = new Error('PIN_REQUIRED');
@@ -129,6 +166,8 @@ export function CustomAuthProvider({ children }) {
       loading,
       login,
       logout,
+      terminal,
+      terminalLogout,
       isAdmin: employee?.role === 'administrador' || 
                employee?.role === 'jefe' || 
                employee?.role === 'admin' ||
