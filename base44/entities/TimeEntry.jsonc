@@ -60,11 +60,11 @@
       "type": "string"
     },
     "fichado_desde_entrada": {
-      "description": "Tel\u00e9fono de empresa desde el que se fich\u00f3 la entrada (vac\u00edo = m\u00f3vil personal)",
+      "description": "Terminal desde el que se fich\u00f3 la entrada (vac\u00edo = m\u00f3vil personal)",
       "type": "string"
     },
     "fichado_desde_salida": {
-      "description": "Tel\u00e9fono de empresa desde el que se fich\u00f3 la salida (vac\u00edo = m\u00f3vil personal)",
+      "description": "Terminal desde el que se fich\u00f3 la salida (vac\u00edo = m\u00f3vil personal)",
       "type": "string"
     },
     "opened_by": {
@@ -75,6 +75,22 @@
       "default": false,
       "description": "True si el fichaje lo abrio un admin/jefe manualmente (no el propio operario)",
       "type": "boolean"
+    },
+    "origen": {
+      "description": "Desde d\u00f3nde se fich\u00f3 la ENTRADA: terminal (terminal del taller) o personal (m\u00f3vil propio). Vac\u00edo = fichajes antiguos o abiertos por un admin",
+      "enum": [
+        "terminal",
+        "personal"
+      ],
+      "type": "string"
+    },
+    "origen_salida": {
+      "description": "Desde d\u00f3nde se fich\u00f3 la SALIDA: terminal o personal. Vac\u00edo = antiguo, cierre autom\u00e1tico o admin",
+      "enum": [
+        "terminal",
+        "personal"
+      ],
+      "type": "string"
     },
     "overtime_hours": {
       "default": 0,
@@ -104,6 +120,7 @@
     "clock_in",
     "date"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "$or": [
@@ -146,6 +163,5 @@
         }
       ]
     }
-  },
-  "type": "object"
+  }
 }
