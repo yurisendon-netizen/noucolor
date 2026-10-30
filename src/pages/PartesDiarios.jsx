@@ -240,7 +240,7 @@ function AdminView() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground mt-3">Las horas salen solas de los fichajes. Toca un trabajador para ver entrada, salida, horas extra, obra y sus notas.</p>
+      <p className="text-xs text-muted-foreground mt-3">Las horas salen solas de los fichajes. Cada día fichado cuenta 8 h (más las extras aprobadas, si las hay). Toca un trabajador para ver entrada, salida, obra y sus notas.</p>
     </>
   );
 }

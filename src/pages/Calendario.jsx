@@ -24,20 +24,23 @@ function andorraToday() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Andorra', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
-// Cada día fichado cuenta como una jornada de 8 h exactas, más las horas extra.
+// Cada día fichado cuenta como una jornada de 8 h exactas. Las extras casi nunca
+// se hacen: solo se suman las aprobadas en Horas Extras.
 const JORNADA_H = 8;
 
 // Agrupa los fichajes por día y trabajador (puede haber varios tramos en un día).
-function groupByDay(entries) {
+function groupByDay(entries, extras = []) {
   const days = {};
   for (const e of entries) {
     const byEmp = (days[e.date] ||= {});
     const g = (byEmp[e.employee_id] ||= { employee_id: e.employee_id, horas: JORNADA_H, extra: 0, entrada: null, salida: null, abierto: false });
-    g.horas += e.overtime_hours;
-    g.extra += e.overtime_hours;
     if (e.clock_in && (!g.entrada || e.clock_in < g.entrada)) g.entrada = e.clock_in;
     if (e.clock_out && (!g.salida || e.clock_out > g.salida)) g.salida = e.clock_out;
     if (e.abierto) g.abierto = true;
+  }
+  for (const x of extras) {
+    const g = days[x.date]?.[x.employee_id];
+    if (g) { g.horas += x.horas; g.extra += x.horas; }
   }
   return days;
 }
@@ -75,7 +78,7 @@ export default function Calendario() {
     return map;
   }, [employees]);
   const nameOf = useMemo(() => Object.fromEntries(employees.map(e => [e.id, e.full_name])), [employees]);
-  const days = useMemo(() => groupByDay(data?.month === month ? data.entries : []), [data, month]);
+  const days = useMemo(() => (data?.month === month ? groupByDay(data.entries, data.extras) : {}), [data, month]);
   const single = !isAdmin || !!employeeId;
 
   const [y, m] = month.split('-').map(Number);

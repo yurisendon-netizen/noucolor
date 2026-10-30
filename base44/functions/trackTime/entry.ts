@@ -331,6 +331,8 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
   for (const d of (parte?.dias || [])) saved[d.date] = d;
   const entries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: employeeId, date: { $gte: weekStart, $lte: ymdAdd(weekStart, 6) } }, 'date', 20);
   const asig = (await base44.asServiceRole.entities.Asignacion.filter({ employee_id: employeeId }, '-date', 60));
+  const extrasAprobadas = (await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: employeeId, date: { $gte: weekStart, $lte: ymdAdd(weekStart, 6) } }, 'date', 50))
+    .filter(o => o.status === 'aprobado');
   const days = [];
   for (let i = 0; i < 7; i++) {
     const date = ymdAdd(weekStart, i);
@@ -339,7 +341,9 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
     const es = entries.filter(e => e.date === date && e.status !== 'ausencia_injustificada');
     const fichado = es.length > 0;
     if (i >= 5 && !fichado && !saved[date]) continue;
-    const extra = es.reduce((s, e) => s + (Number(e.overtime_hours) || 0), 0);
+    // En Noucolor casi nunca se hacen extras: solo cuentan las aprobadas en Horas Extras,
+    // no las que se calculan solas por fichar la salida después de las 16:00.
+    const extra = extrasAprobadas.filter(o => o.date === date).reduce((s, o) => s + (Number(o.duration) || 0), 0);
     const abierto = es.some(e => e.status === 'abierto');
     const a = asig.find(x => x.date <= date);
     const s = saved[date];
@@ -350,7 +354,7 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
       obra_nombre: (s?.obra_nombre) || a?.obra_nombre || '',
       entrada: ins[0] || null,
       salida: abierto ? null : (outs[outs.length - 1] || null),
-      // Cada día fichado cuenta como una jornada de 8 h exactas, más las horas extra.
+      // Cada día fichado cuenta como una jornada de 8 h exactas, más las extras aprobadas.
       horas: fichado && !abierto ? Math.round((8 + extra) * 100) / 100 : null,
       horas_extra: fichado && !abierto ? Math.round(extra * 100) / 100 : null,
       descripcion: s?.descripcion || '',
@@ -1100,6 +1104,9 @@ Deno.serve(async (req) => {
         const range = { date: { $gte: from, $lte: to } };
         const entries = (await base44.asServiceRole.entities.TimeEntry.filter(target ? { ...range, employee_id: target } : range, 'date', target ? 200 : 3000))
           .filter(t => t.status !== 'ausencia_injustificada');
+        // Solo las horas extra aprobadas en Horas Extras (casi nunca se hacen).
+        const extras = (await base44.asServiceRole.entities.OvertimeHour.filter(target ? { ...range, employee_id: target } : range, 'date', target ? 100 : 1000))
+          .filter(o => o.status === 'aprobado');
         let employees;
         if (!isAdmin) {
           employees = [{ id: empId, full_name: empName }];
@@ -1113,8 +1120,9 @@ Deno.serve(async (req) => {
           success: true, month, from, to, today: getLocalParts(new Date()).dateStr, employees,
           entries: entries.map(t => ({
             employee_id: t.employee_id, date: t.date, clock_in: t.clock_in || null, clock_out: t.clock_out || null,
-            total_hours: Number(t.total_hours) || 0, overtime_hours: Number(t.overtime_hours) || 0, abierto: t.status === 'abierto',
+            abierto: t.status === 'abierto',
           })),
+          extras: extras.map(o => ({ employee_id: o.employee_id, date: o.date, horas: Number(o.duration) || 0 })),
         });
       }
 
