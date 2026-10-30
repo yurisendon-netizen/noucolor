@@ -98,11 +98,14 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
       if (data.pdfUrl) {
         const body = `${message}\n\nParte de treball (PDF): ${data.pdfUrl}`;
         const q = encodeURIComponent;
+        const mailto = `mailto:${email}?subject=${q(subject)}&body=${q(body.replace(/\r?\n/g, '\r\n'))}`;
         setFallback({
           email,
           body,
-          gmail: `https://mail.google.com/mail/?view=cm&fs=1&to=${q(email)}&su=${q(subject)}&body=${q(body)}`,
-          mailto: `mailto:${email}?subject=${q(subject)}&body=${q(body.replace(/\r?\n/g, '\r\n'))}`,
+          // Formato del gestor mailto de Gmail: conserva el borrador aunque Gmail redirija
+          // (varias cuentas, inicio de sesión), a diferencia de ?view=cm.
+          gmail: `https://mail.google.com/mail/?extsrc=mailto&url=${q(mailto)}`,
+          mailto,
         });
       } else {
         toast({ title: 'No se ha podido enviar', description: data.error || e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
@@ -114,6 +117,8 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
 
   function openGmail() {
     window.open(fallback.gmail, '_blank', 'noopener');
+    // Por si Gmail no rellena el borrador: el mensaje queda copiado para pegarlo.
+    navigator.clipboard?.writeText(fallback.body).catch(() => {});
     authInvoke('trackTime', { operation: 'markWorkOrderSent', workOrderId: order.id, to: fallback.email }).catch(() => {});
     onSent?.(order.id, fallback.email);
     onClose();
