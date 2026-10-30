@@ -1196,11 +1196,15 @@ Deno.serve(async (req) => {
         const to = typeof body.to === 'string' ? body.to.trim().toLowerCase() : '';
         const subject = typeof body.subject === 'string' ? body.subject.trim().slice(0, 300) : '';
         const message = typeof body.message === 'string' ? body.message.trim().slice(0, 10000) : '';
-        if (!EMAIL_RE.test(to)) return Response.json({ error: 'El correo del encargado no es válido.' }, { status: 400 });
+        if (!EMAIL_RE.test(to)) {
+          console.warn('sendWorkOrderEmail: correo no válido', to);
+          return Response.json({ error: 'El correo del encargado no es válido.' }, { status: 400 });
+        }
         if (!subject || !message) return Response.json({ error: 'Faltan el asunto o el mensaje.' }, { status: 400 });
         const found = await base44.asServiceRole.entities.WorkOrder.filter({ id: workOrderId });
         if (found.length === 0) return Response.json({ error: 'Parte no encontrado' }, { status: 404 });
         if (typeof pdfBase64 !== 'string' || !pdfBase64 || pdfBase64.length > 8000000) {
+          console.warn('sendWorkOrderEmail: PDF no válido', typeof pdfBase64, pdfBase64?.length);
           return Response.json({ error: 'No se ha podido generar el PDF del parte.' }, { status: 400 });
         }
         const bin = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
@@ -1550,6 +1554,7 @@ Deno.serve(async (req) => {
       }
 
       default:
+        console.warn('trackTime: operación no válida', op);
         return Response.json({ error: 'Operación no válida' }, { status: 400 });
     }
   } catch (error) {
