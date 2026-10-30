@@ -1116,13 +1116,15 @@ Deno.serve(async (req) => {
             .filter(e => e.is_active !== false || entries.some(t => t.employee_id === e.id))
             .map(e => ({ id: e.id, full_name: e.full_name }));
         }
+        // Solo fichajes y extras de los trabajadores listados (fuera jefes y testers).
+        const ids = new Set(employees.map(e => e.id));
         return Response.json({
           success: true, month, from, to, today: getLocalParts(new Date()).dateStr, employees,
-          entries: entries.map(t => ({
+          entries: entries.filter(t => ids.has(t.employee_id)).map(t => ({
             employee_id: t.employee_id, date: t.date, clock_in: t.clock_in || null, clock_out: t.clock_out || null,
             abierto: t.status === 'abierto',
           })),
-          extras: extras.map(o => ({ employee_id: o.employee_id, date: o.date, horas: Number(o.duration) || 0 })),
+          extras: extras.filter(o => ids.has(o.employee_id)).map(o => ({ employee_id: o.employee_id, date: o.date, horas: Number(o.duration) || 0 })),
         });
       }
 
