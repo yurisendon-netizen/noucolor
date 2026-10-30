@@ -18,6 +18,11 @@
       "description": "Hash del token de sesi\u00f3n",
       "type": "string"
     },
+    "ubicacion_fija": {
+      "default": false,
+      "description": "Terminal fijo del taller sin GPS (p. ej. port\u00e1til): ficha con la ubicaci\u00f3n del taller si est\u00e1 a menos de 3 km",
+      "type": "boolean"
+    },
     "user": {
       "description": "Usuario de login del tel\u00e9fono",
       "type": "string"
@@ -28,6 +33,7 @@
     "user",
     "pass"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
@@ -49,6 +55,5 @@
         "role": "admin"
       }
     }
-  },
-  "type": "object"
+  }
 }
