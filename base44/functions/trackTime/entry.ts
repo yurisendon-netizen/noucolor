@@ -1184,14 +1184,20 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
-      // Solo Andrea (secretaría): sube el PDF del parte y deja constancia del envío.
-      // El correo lo envía ella desde su propio programa de correo (mailto), porque
-      // el correo integrado de Base44 solo entrega a usuarios de la app.
-      case 'prepareWorkOrderEmail': {
+      // Solo Andrea (secretaría): envía el parte al encargado desde el servidor, con el
+      // PDF adjunto. Con RESEND_FROM (remitente de un dominio verificado en Resend) se
+      // envía por Resend, que entrega a cualquier dirección, con respuesta a Andrea y
+      // copia oculta para ella. Sin él se usa el correo integrado de Base44, que solo
+      // entrega a usuarios de la app. Si el envío falla se devuelve el enlace al PDF para
+      // que pueda enviarlo a mano.
+      case 'sendWorkOrderEmail': {
         if (!isSecretaria(caller)) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { workOrderId, pdfBase64 } = body;
         const to = typeof body.to === 'string' ? body.to.trim().toLowerCase() : '';
+        const subject = typeof body.subject === 'string' ? body.subject.trim().slice(0, 300) : '';
+        const message = typeof body.message === 'string' ? body.message.trim().slice(0, 10000) : '';
         if (!EMAIL_RE.test(to)) return Response.json({ error: 'El correo del encargado no es válido.' }, { status: 400 });
+        if (!subject || !message) return Response.json({ error: 'Faltan el asunto o el mensaje.' }, { status: 400 });
         const found = await base44.asServiceRole.entities.WorkOrder.filter({ id: workOrderId });
         if (found.length === 0) return Response.json({ error: 'Parte no encontrado' }, { status: 404 });
         if (typeof pdfBase64 !== 'string' || !pdfBase64 || pdfBase64.length > 8000000) {
@@ -1199,13 +1205,42 @@ Deno.serve(async (req) => {
         }
         const bin = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
         const safe = (found[0].title || 'parte').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 60);
-        const file = new File([bin], `Parte_${safe}.pdf`, { type: 'application/pdf' });
-        const up = await base44.asServiceRole.integrations.Core.UploadFile({ file });
-        if (!up?.file_url) return Response.json({ error: 'No se ha podido subir el PDF.' }, { status: 500 });
+        const filename = `Parte_${safe}.pdf`;
+        const up = await base44.asServiceRole.integrations.Core.UploadFile({ file: new File([bin], filename, { type: 'application/pdf' }) });
+        const pdfUrl = up?.file_url || null;
+
+        const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const htmlBody = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#222;">${esc(message).replace(/\n/g, '<br>')}</div>`;
+        const resendKey = Deno.env.get('RESEND_API_KEY');
+        const resendFrom = Deno.env.get('RESEND_FROM');
+        let via = '';
+        try {
+          if (resendKey && resendFrom) {
+            const r = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                from: resendFrom, to: [to], reply_to: SECRETARIA_EMAIL, bcc: [SECRETARIA_EMAIL],
+                subject, text: message, html: htmlBody,
+                attachments: [{ filename, content: pdfBase64 }],
+              }),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(data?.message || `Resend ${r.status}`);
+            via = 'resend';
+          } else {
+            const link = pdfUrl ? `<p><a href="${pdfUrl}">Descarregar el parte de treball (PDF)</a></p>` : '';
+            await base44.asServiceRole.integrations.Core.SendEmail({ to, from_name: 'Noucolor', subject, body: htmlBody + link });
+            via = 'base44';
+          }
+        } catch (e) {
+          console.error('sendWorkOrderEmail', e?.message);
+          return Response.json({ error: `No se ha podido enviar el correo: ${e?.message || 'error desconocido'}`, pdfUrl }, { status: 502 });
+        }
         await base44.asServiceRole.entities.WorkOrder.update(workOrderId, {
           encargado_email: to, enviado_a: to, enviado_at: new Date().toISOString(),
         });
-        return Response.json({ success: true, pdfUrl: up.file_url });
+        return Response.json({ success: true, via, pdfUrl });
       }
 
       case 'deleteWorkOrder': {

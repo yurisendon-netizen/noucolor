@@ -50,54 +50,61 @@ function blobToBase64(blob) {
   });
 }
 
-// Prepara el correo del parte (destinatario, asunto y texto ya escritos) con el enlace
-// al PDF. Se hace en dos pasos: preparar (genera y sube el PDF) y abrir. El enlace mailto
-// se abre con un toque directo de Andrea, porque abrirlo tras la espera de la subida lo
-// bloquea el navegador sin avisar. Si no tiene programa de correo, puede copiarlo todo.
+// Envía el parte al encargado desde la app (destinatario, asunto y texto ya escritos,
+// PDF adjunto): Andrea solo revisa y pulsa Enviar. Si el envío falla, se ofrece abrirlo
+// en su programa de correo o copiarlo, con el enlace al PDF.
 export default function SendWorkOrderEmailDialog({ order, senderName, onClose, onSent }) {
   const { toast } = useToast();
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [preparing, setPreparing] = useState(false);
-  const [prepared, setPrepared] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [fallback, setFallback] = useState(null);
   const [copied, setCopied] = useState('');
 
   useEffect(() => {
     if (!order) return;
-    setPrepared(null);
+    setFallback(null);
     setTo(order.encargado_email || '');
     setSubject(defaultSubject(order));
     setMessage(defaultMessage(order, senderName));
   }, [order, senderName]);
 
-  async function handlePrepare() {
+  async function handleSend() {
     const email = to.trim().toLowerCase();
     if (!EMAIL_RE.test(email)) {
       toast({ title: 'Correo no válido', description: 'Escribe el correo del encargado.', variant: 'destructive' });
       return;
     }
-    setPreparing(true);
+    setSending(true);
+    let res;
     try {
       const blob = await generateWorkOrderPdf(order, { download: false });
-      const res = await authInvoke('trackTime', {
-        operation: 'prepareWorkOrderEmail',
+      res = await authInvoke('trackTime', {
+        operation: 'sendWorkOrderEmail',
         workOrderId: order.id,
         to: email,
+        subject,
+        message,
         pdfBase64: await blobToBase64(blob),
       });
-      if (res?.data?.error || !res?.data?.pdfUrl) throw new Error(res?.data?.error || 'No se ha podido preparar el PDF.');
-      const body = `${message}\n\nParte de treball (PDF): ${res.data.pdfUrl}`;
-      setPrepared({
-        email,
-        body,
-        mailto: `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`,
-      });
+      if (res?.data?.error) throw new Error(res.data.error);
+      toast({ variant: 'success', title: 'Parte enviado', description: `Enviado a ${email}.` });
       onSent?.(order.id, email);
+      onClose();
     } catch (e) {
-      toast({ title: 'Error al preparar el correo', description: e?.response?.data?.error || e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
+      const data = e?.response?.data || res?.data || {};
+      toast({ title: 'No se ha podido enviar', description: data.error || e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
+      if (data.pdfUrl) {
+        const body = `${message}\n\nParte de treball (PDF): ${data.pdfUrl}`;
+        setFallback({
+          email,
+          body,
+          mailto: `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`,
+        });
+      }
     } finally {
-      setPreparing(false);
+      setSending(false);
     }
   }
 
@@ -123,19 +130,19 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
         <DialogHeader>
           <DialogTitle>Enviar parte al encargado</DialogTitle>
         </DialogHeader>
-        {prepared ? (
+        {fallback ? (
           <div className="space-y-3 mt-2">
-            <p className="text-sm">Correo preparado para <span className="font-medium break-all">{prepared.email}</span>.</p>
+            <p className="text-sm">No se ha podido enviar automáticamente. Puedes enviarlo tú a <span className="font-medium break-all">{fallback.email}</span>:</p>
             <Button asChild className="w-full h-11 gap-2">
-              <a href={prepared.mailto}><Mail size={16} /> Abrir correo</a>
+              <a href={fallback.mailto}><Mail size={16} /> Abrir en mi correo</a>
             </Button>
             <p className="text-xs text-muted-foreground">
-              Si no se abre ningún programa de correo (por ejemplo, si usas el correo desde la web), copia cada parte y pégala en un correo nuevo:
+              O copia cada parte y pégala en un correo nuevo (incluye el enlace al PDF):
             </p>
             <div className="flex flex-wrap gap-2">
-              <CopyButton k="to" value={prepared.email} label="Para" />
+              <CopyButton k="to" value={fallback.email} label="Para" />
               <CopyButton k="subject" value={subject} label="Asunto" />
-              <CopyButton k="body" value={prepared.body} label="Mensaje" />
+              <CopyButton k="body" value={fallback.body} label="Mensaje" />
             </div>
             <Button type="button" variant="ghost" onClick={onClose} className="w-full">Cerrar</Button>
           </div>
@@ -154,10 +161,10 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
             <Textarea rows={10} value={message} onChange={e => setMessage(e.target.value)} className="bg-secondary border-border" />
           </div>
           <p className="text-xs text-muted-foreground">
-            Se preparará el correo con todo escrito y el enlace al PDF del parte. Después solo tienes que abrirlo y darle a Enviar.
+            El correo se envía directamente desde la app con el PDF del parte adjunto. Las respuestas del encargado te llegarán a ti.
           </p>
-          <Button onClick={handlePrepare} disabled={preparing} className="w-full h-11 gap-2">
-            {preparing ? <><Loader2 size={16} className="animate-spin" /> Preparando...</> : <><Mail size={16} /> Preparar correo</>}
+          <Button onClick={handleSend} disabled={sending} className="w-full h-11 gap-2">
+            {sending ? <><Loader2 size={16} className="animate-spin" /> Enviando...</> : <><Mail size={16} /> Enviar</>}
           </Button>
         </div>
         )}
