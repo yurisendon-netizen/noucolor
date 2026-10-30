@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Loader2, CheckCircle2, ArrowLeft, AlertTriangle, LogIn, LogOut, MapPin, Lock } from 'lucide-react';
+import { Loader2, CheckCircle2, ArrowLeft, AlertTriangle, LogIn, LogOut, MapPin, Lock, ClipboardList, PenLine } from 'lucide-react';
+import SignaturePadInput from '@/components/parts/SignaturePadInput';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 
 // =====================================================================
@@ -13,11 +14,14 @@ const LOGO = 'https://media.base44.com/images/public/6a477a12854ad64ff8bd1b46/7e
 const GRANATE = '#5a123e';
 const NARANJA = '#e6671a';
 const IDLE_MS = 20000;      // sin tocar nada 20 s → vuelve a la lista
+const IDLE_PARTES_MS = 120000; // leyendo/firmando un parte: 2 min
 const OK_MS = 3000;         // confirmación verde 3 s
 const GPS_MAX_M = 200;      // misma regla que el backend (GPS_MAX_ACCEPT_M)
 const TZ = 'Europe/Andorra';
 
 const hm = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: TZ }) : '');
+const fmtH = (h) => { const n = Number(h) || 0; return Number.isInteger(n) ? `${n} h` : `${n.toFixed(2).replace('.', ',')} h`; };
+const fmtFecha = (d) => { try { return new Date(`${d}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }); } catch { return d; } };
 const errMsg = (e) => e?.response?.data?.error || e?.data?.error || e?.message || 'Error desconocido';
 const isAuthErr = (e) => e?.response?.status === 401 || e?.status === 401;
 
@@ -91,6 +95,12 @@ export default function TelefonoEmpresa() {
   const [err, setErr] = useState('');
   const [ok, setOk] = useState(null);
 
+  // Partes por firmar (el encargado de la obra firma con el dedo en el terminal)
+  const [partes, setPartes] = useState([]);
+  const [parteSel, setParteSel] = useState(null);
+  const [encargadoNombre, setEncargadoNombre] = useState('');
+  const [firma, setFirma] = useState(null);
+
   const posRef = useRef(null);
   const posErrRef = useRef('');
   const lastTouch = useRef(Date.now());
@@ -98,6 +108,7 @@ export default function TelefonoEmpresa() {
 
   const reset = useCallback(() => {
     setView('list'); setSel(null); setPin(''); setStatus(null); setErr(''); setOk(null); setBusy(false);
+    setParteSel(null); setEncargadoNombre(''); setFirma(null);
     pinRef.current = ''; posRef.current = null; posErrRef.current = '';
   }, []);
 
@@ -109,6 +120,8 @@ export default function TelefonoEmpresa() {
       const res = await base44.functions.invoke('trackTime', { operation: 'kioskWorkers', sessionToken: token });
       setWorkers(res.data?.workers || []);
       if (res.data?.phone) setPhoneName(res.data.phone);
+      base44.functions.invoke('trackTime', { operation: 'kioskPartes', sessionToken: token })
+        .then((r) => setPartes(r.data?.partes || [])).catch(() => {});
     } catch (e) {
       if (isAuthErr(e)) { terminalLogout(); return; }
       setListErr(errMsg(e));
@@ -140,7 +153,8 @@ export default function TelefonoEmpresa() {
     window.addEventListener('pointerdown', touch);
     window.addEventListener('keydown', touch);
     const t = setInterval(() => {
-      if (view !== 'list' && view !== 'ok' && !busy && Date.now() - lastTouch.current > IDLE_MS) reset();
+      const limite = (view === 'partes' || view === 'parte') ? IDLE_PARTES_MS : IDLE_MS;
+      if (view !== 'list' && view !== 'ok' && !busy && Date.now() - lastTouch.current > limite) reset();
     }, 1000);
     return () => { window.removeEventListener('pointerdown', touch); window.removeEventListener('keydown', touch); clearInterval(t); };
   }, [view, busy, reset]);
@@ -223,6 +237,57 @@ export default function TelefonoEmpresa() {
     }
   }
 
+  // ---------- Partes por firmar ----------
+  async function abrirPartes() {
+    lastTouch.current = Date.now();
+    setErr(''); setParteSel(null);
+    setView('partes');
+    try {
+      const r = await base44.functions.invoke('trackTime', { operation: 'kioskPartes', sessionToken: token });
+      setPartes(r.data?.partes || []);
+    } catch (e) {
+      if (isAuthErr(e)) { terminalLogout(); return; }
+      setErr(errMsg(e));
+    }
+  }
+
+  function abrirParte(p) {
+    lastTouch.current = Date.now();
+    setErr('');
+    setParteSel(p);
+    setEncargadoNombre(p.encargado_obra || '');
+    setFirma(null);
+    setView('parte');
+  }
+
+  async function firmarParte() {
+    if (busy || !parteSel) return;
+    setErr('');
+    const nombre = encargadoNombre.trim();
+    if (!nombre) { setErr('Pon el nombre del encargado que firma.'); return; }
+    if (!firma) { setErr('Firma con el dedo en el recuadro blanco.'); return; }
+    setBusy(true);
+    try {
+      const res = await base44.functions.invoke('trackTime', {
+        operation: 'kioskFirmarParte', sessionToken: token,
+        workOrderId: parteSel.id, firmaDataUrl: firma, encargado: nombre,
+      });
+      if (res.data?.success) {
+        setPartes((ps) => ps.filter((x) => x.id !== parteSel.id));
+        setOk({ parte: true, nombre: parteSel.title || parteSel.client_name, hora: '' });
+        setView('ok');
+        setTimeout(reset, OK_MS);
+      } else {
+        setErr(res.data?.error || 'No se pudo firmar');
+      }
+    } catch (e) {
+      if (isAuthErr(e)) { terminalLogout(); return; }
+      setErr(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Salida oculta para mantenimiento: mantener pulsado el logo 3 s
   const pressTimer = useRef(null);
   const startPress = () => {
@@ -246,10 +311,114 @@ export default function TelefonoEmpresa() {
     return (
       <div className={`${shell} items-center justify-center p-6 text-center`} style={{ background: '#15803d' }}>
         <CheckCircle2 size={110} className="mb-5" />
-        <h1 className="text-3xl font-extrabold">{ok.entrando ? 'Entrada registrada' : 'Salida registrada'} {ok.hora}</h1>
+        <h1 className="text-3xl font-extrabold">{ok.parte ? 'Parte firmado' : `${ok.entrando ? 'Entrada registrada' : 'Salida registrada'} ${ok.hora}`}</h1>
         <p className="text-2xl mt-3 font-semibold">{ok.nombre}</p>
         {ok.ya && <p className="text-base mt-4 text-white/85">Ya tenías la entrada abierta hoy.</p>}
         {ok.tarde && <p className="mt-4 text-lg font-semibold flex items-center gap-2"><AlertTriangle size={20} /> Entrada con retraso</p>}
+      </div>
+    );
+  }
+
+  // ---------- Lista de partes por firmar ----------
+  if (view === 'partes') {
+    return (
+      <div className={`${shell} p-5`} style={bg}>
+        <button type="button" onClick={reset} className="self-start inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-lg font-semibold active:bg-white/20">
+          <ArrowLeft size={22} /> Volver
+        </button>
+        <div className="flex-1 w-full max-w-2xl mx-auto mt-4">
+          <h1 className="text-3xl font-extrabold text-center">Partes por firmar</h1>
+          <p className="text-base text-white/75 text-center mt-1 mb-5">El encargado de la obra toca el parte, lo revisa y firma</p>
+          <ErrorBox />
+          {partes.length === 0 && !err && (
+            <p className="text-center text-lg text-white/80 mt-10">No hay partes pendientes de firma.</p>
+          )}
+          <div className="space-y-3 mt-3">
+            {partes.map((p) => (
+              <button key={p.id} type="button" onClick={() => abrirParte(p)}
+                className="w-full text-left rounded-2xl bg-white/10 border-2 border-white/15 px-4 py-4 active:scale-[0.98] active:bg-white/20 transition">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xl font-bold truncate">{p.title || p.client_name}</p>
+                  <span className="shrink-0 text-lg font-bold" style={{ color: NARANJA }}>{fmtH(p.total_horas)}</span>
+                </div>
+                <p className="text-sm text-white/70 mt-1"><span className="capitalize">{fmtFecha(p.date)}</span>{p.client_name ? ` · ${p.client_name}` : ''} · {p.assigned_name}</p>
+                {p.description && <p className="text-base text-white/85 mt-2 line-clamp-2">{p.description}</p>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Revisar y firmar un parte ----------
+  if (view === 'parte' && parteSel) {
+    const p = parteSel;
+    return (
+      <div className={`${shell} p-5`} style={bg}>
+        <button type="button" onClick={() => { setErr(''); setParteSel(null); setView('partes'); }} disabled={busy}
+          className="self-start inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-lg font-semibold active:bg-white/20">
+          <ArrowLeft size={22} /> Volver
+        </button>
+        <div className="flex-1 w-full max-w-2xl mx-auto mt-4 pb-8">
+          <h1 className="text-3xl font-extrabold">{p.title || p.client_name}</h1>
+          <p className="text-base text-white/75 mt-1"><span className="capitalize">{fmtFecha(p.date)}</span>{p.client_name ? ` · ${p.client_name}` : ''} · hecho por {p.assigned_name}</p>
+
+          <div className="mt-4 rounded-2xl bg-white/10 p-4 space-y-3">
+            {p.description && (
+              <div>
+                <p className="text-sm font-semibold text-white/60 uppercase">Trabajo realizado</p>
+                <p className="text-lg whitespace-pre-wrap">{p.description}</p>
+              </div>
+            )}
+            {p.horas_trabajadas.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold text-white/60 uppercase mb-1">Horas</p>
+                <div className="rounded-xl overflow-hidden border border-white/15">
+                  {p.horas_trabajadas.map((r, i) => (
+                    <div key={i} className="flex justify-between px-3 py-2 text-base odd:bg-white/5">
+                      <span>{r.employee_name}</span><span className="font-mono">{fmtH(r.horas)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between px-3 py-2 text-base font-bold" style={{ background: 'rgba(230,103,26,0.25)' }}>
+                    <span>Total</span><span className="font-mono">{fmtH(p.total_horas)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {p.materials && (
+              <div>
+                <p className="text-sm font-semibold text-white/60 uppercase">Materiales</p>
+                <p className="text-base whitespace-pre-wrap">{p.materials}</p>
+              </div>
+            )}
+            {p.notes && (
+              <div>
+                <p className="text-sm font-semibold text-white/60 uppercase">Observaciones</p>
+                <p className="text-base whitespace-pre-wrap">{p.notes}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 rounded-2xl bg-white/10 p-4">
+            <label htmlFor="t-encargado" className="text-sm font-semibold text-white/60 uppercase">Encargado de la obra que firma</label>
+            <input id="t-encargado" value={encargadoNombre} onChange={(e) => setEncargadoNombre(e.target.value)}
+              placeholder="Nombre y apellido" maxLength={200}
+              className="mt-1 w-full h-14 rounded-xl bg-white text-[#1a1a1a] px-4 text-lg font-semibold outline-none" />
+            <p className="text-sm font-semibold text-white/60 uppercase mt-4 mb-1">Firma con el dedo</p>
+            <div className="[&_canvas]:h-44 [&_button]:text-white [&_button]:bg-white/10">
+              <SignaturePadInput key={p.id} onChange={setFirma} />
+            </div>
+          </div>
+
+          <ErrorBox />
+          <button type="button" onClick={firmarParte} disabled={busy}
+            className="mt-5 w-full h-20 rounded-3xl text-2xl font-extrabold tracking-wide shadow-2xl active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-3"
+            style={{ background: NARANJA, color: '#ffffff' }}>
+            {busy ? <><Loader2 size={28} className="animate-spin" /> Firmando…</> : <><PenLine size={28} /> FIRMAR PARTE</>}
+          </button>
+          <p className="mt-3 text-sm text-white/70 text-center">Al firmar confirmas que el trabajo y las horas son correctos.</p>
+        </div>
       </div>
     );
   }
@@ -340,11 +509,20 @@ export default function TelefonoEmpresa() {
         {!loading && workers.length === 0 && !listErr && <p className="text-center text-white/80">No hay trabajadores activos.</p>}
       </main>
       {/* Cerrar sesión del terminal (con confirmación para evitar toques sin querer) */}
-      <div className="px-4 pb-4 pt-2" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+      <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-3" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <button type="button"
           onClick={() => { if (window.confirm('¿Cerrar la sesión de este terminal de fichaje?')) terminalLogout(); }}
           className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-base font-semibold text-white/85 active:bg-white/20">
           <LogOut size={18} /> Cerrar sesión
+        </button>
+        {/* Partes por firmar */}
+        <button type="button" onClick={abrirPartes} aria-label="Partes por firmar"
+          className="inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-bold shadow-lg active:scale-95 transition"
+          style={{ background: NARANJA, color: '#ffffff' }}>
+          <ClipboardList size={18} /> Partes
+          {partes.length > 0 && (
+            <span className="min-w-[1.5rem] h-6 px-1.5 rounded-full bg-white text-sm font-bold inline-flex items-center justify-center" style={{ color: GRANATE }}>{partes.length}</span>
+          )}
         </button>
       </div>
     </div>
