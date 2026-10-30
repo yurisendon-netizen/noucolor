@@ -51,6 +51,12 @@ function impreciseMsg(acc) {
 const LEGACY_BACKUP = { lat: 42.46768, lng: 1.49327 };
 const OUTDATED_MSG = 'Tu app está desactualizada. Ciérrala del todo, vuelve a abrirla y ficha de nuevo.';
 
+// Terminal FIJO del taller (p. ej. el portátil): no tiene GPS, así que el fichaje
+// se guarda con la ubicación del taller. Para que no se pueda fichar con él desde
+// otro sitio, su ubicación aproximada (red/WiFi) tiene que estar cerca del taller.
+const TALLER = { lat: 42.46768, lng: 1.49327 };
+const TALLER_RADIO_M = 3000;
+
 function isLegacyBackup(lat, lng) {
   return Math.abs(Number(lat) - LEGACY_BACKUP.lat) < 0.00001 && Math.abs(Number(lng) - LEGACY_BACKUP.lng) < 0.00001;
 }
@@ -295,6 +301,7 @@ Deno.serve(async (req) => {
     // Verify caller identity via session token (not client-supplied employeeId)
     const session = await verifySession(base44, sessionToken);
     let kiosk = null; // registro TelefonoEmpresa si se ficha desde un teléfono de empresa
+    let fixedLoc = false; // fichaje desde un terminal fijo del taller (ubicación del taller)
     let op = operation;
     let caller, empId, empName, isAdmin;
     if (session) {
@@ -381,7 +388,7 @@ Deno.serve(async (req) => {
               entrada: open ? open.clock_in : (closed ? closed.clock_in : null),
             };
           });
-        return Response.json({ success: true, phone: kiosk.nombre, date: todayStr, workers });
+        return Response.json({ success: true, phone: kiosk.nombre, ubicacion_fija: kiosk.ubicacion_fija === true, date: todayStr, workers });
       }
       // kioskClockIn / kioskClockOut: el trabajador elige su nombre y mete su PIN.
       const worker = (await base44.asServiceRole.entities.Employee.filter({ id: String(body.employeeId || '') }))[0];
@@ -427,6 +434,20 @@ Deno.serve(async (req) => {
       empId = worker.id;
       empName = worker.full_name;
       isAdmin = false;
+      if (kiosk.ubicacion_fija === true) {
+        // Terminal fijo: la ubicación aproximada debe estar cerca del taller.
+        if (!isValidCoord(body.lat, body.lng)) {
+          return Response.json({ success: false, error: 'Este terminal no da su ubicación. Activa la ubicación en Windows y en Chrome y vuelve a probar. No se ha fichado.' });
+        }
+        const d = distMeters(Number(body.lat), Number(body.lng), TALLER.lat, TALLER.lng);
+        if (d > TALLER_RADIO_M) {
+          return Response.json({ success: false, error: `Este terminal solo puede fichar en el taller y ahora está a ${(d / 1000).toFixed(1).replace('.', ',')} km. No se ha fichado.` });
+        }
+        fixedLoc = true;
+        body.lat = TALLER.lat;
+        body.lng = TALLER.lng;
+        body.accuracy = 0;
+      }
       if (operation === 'kioskClockOut') {
         const open = (await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: worker.id, status: 'abierto' }, '-clock_in', 5))[0];
         if (!open) {
@@ -453,10 +474,10 @@ Deno.serve(async (req) => {
         }
         const acc = toAccuracy(accuracy);
         // Sin margen de error o con el respaldo fijo del taller = versión antigua de la app.
-        if (acc === null || isLegacyBackup(lat, lng)) {
+        if (!fixedLoc && (acc === null || isLegacyBackup(lat, lng))) {
           return Response.json({ error: OUTDATED_MSG }, { status: 400 });
         }
-        if (acc > GPS_MAX_ACCEPT_M) {
+        if (!fixedLoc && acc > GPS_MAX_ACCEPT_M) {
           await logImpreciseLocation(base44, empId, empName, 'in', acc);
           return Response.json({ error: impreciseMsg(acc) }, { status: 400 });
         }
@@ -587,10 +608,10 @@ Deno.serve(async (req) => {
         }
         const acc = toAccuracy(accuracy);
         // Sin margen de error o con el respaldo fijo del taller = versión antigua de la app.
-        if (acc === null || isLegacyBackup(lat, lng)) {
+        if (!fixedLoc && (acc === null || isLegacyBackup(lat, lng))) {
           return Response.json({ error: OUTDATED_MSG }, { status: 400 });
         }
-        if (acc > GPS_MAX_ACCEPT_M) {
+        if (!fixedLoc && acc > GPS_MAX_ACCEPT_M) {
           await logImpreciseLocation(base44, empId, empName, 'out', acc);
           return Response.json({ error: impreciseMsg(acc) }, { status: 400 });
         }
