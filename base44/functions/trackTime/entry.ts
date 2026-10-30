@@ -339,7 +339,6 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
     const es = entries.filter(e => e.date === date && e.status !== 'ausencia_injustificada');
     const fichado = es.length > 0;
     if (i >= 5 && !fichado && !saved[date]) continue;
-    const ordinarias = es.reduce((s, e) => s + (Number(e.total_hours) || 0), 0);
     const extra = es.reduce((s, e) => s + (Number(e.overtime_hours) || 0), 0);
     const abierto = es.some(e => e.status === 'abierto');
     const a = asig.find(x => x.date <= date);
@@ -351,7 +350,8 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
       obra_nombre: (s?.obra_nombre) || a?.obra_nombre || '',
       entrada: ins[0] || null,
       salida: abierto ? null : (outs[outs.length - 1] || null),
-      horas: fichado && !abierto ? Math.round((ordinarias + extra) * 100) / 100 : null,
+      // Cada día fichado cuenta como una jornada de 8 h exactas, más las horas extra.
+      horas: fichado && !abierto ? Math.round((8 + extra) * 100) / 100 : null,
       horas_extra: fichado && !abierto ? Math.round(extra * 100) / 100 : null,
       descripcion: s?.descripcion || '',
       materiales: s?.materiales || '',

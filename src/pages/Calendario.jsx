@@ -24,13 +24,16 @@ function andorraToday() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Andorra', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
+// Cada día fichado cuenta como una jornada de 8 h exactas, más las horas extra.
+const JORNADA_H = 8;
+
 // Agrupa los fichajes por día y trabajador (puede haber varios tramos en un día).
 function groupByDay(entries) {
   const days = {};
   for (const e of entries) {
     const byEmp = (days[e.date] ||= {});
-    const g = (byEmp[e.employee_id] ||= { employee_id: e.employee_id, horas: 0, extra: 0, entrada: null, salida: null, abierto: false });
-    g.horas += e.total_hours + e.overtime_hours;
+    const g = (byEmp[e.employee_id] ||= { employee_id: e.employee_id, horas: JORNADA_H, extra: 0, entrada: null, salida: null, abierto: false });
+    g.horas += e.overtime_hours;
     g.extra += e.overtime_hours;
     if (e.clock_in && (!g.entrada || e.clock_in < g.entrada)) g.entrada = e.clock_in;
     if (e.clock_out && (!g.salida || e.clock_out > g.salida)) g.salida = e.clock_out;
