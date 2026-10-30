@@ -14,6 +14,63 @@ function isSecretaria(emp) {
   return emp?.user === 'andrea' || String(emp?.email || '').toLowerCase() === SECRETARIA_EMAIL;
 }
 
+// Token del conector de Gmail de la app, o null si no está conectado.
+async function getGmailToken(base44) {
+  try {
+    const c = base44.asServiceRole.connectors;
+    if (typeof c.getConnection === 'function') return (await c.getConnection('gmail'))?.accessToken || null;
+    const t = await c.getAccessToken('gmail');
+    return (typeof t === 'string' ? t : t?.access_token) || null;
+  } catch {
+    return null;
+  }
+}
+
+// Correo MIME (texto + HTML + PDF adjunto) codificado en base64url para la API de Gmail.
+function buildMimeMessage({ to, bcc, replyTo, subject, text, html, filename, pdfBase64 }) {
+  // UTF-8 → base64 por trozos (un spread de todo el texto desborda con PDFs grandes).
+  const b64 = (str) => {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  };
+  const wrap = (str) => str.replace(/.{1,76}/g, '$&\r\n');
+  const mixed = `mixed_${crypto.randomUUID()}`, alt = `alt_${crypto.randomUUID()}`;
+  const mime = [
+    `To: ${to}`,
+    `Bcc: ${bcc}`,
+    `Reply-To: ${replyTo}`,
+    `Subject: =?UTF-8?B?${b64(subject)}?=`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${mixed}"`,
+    '',
+    `--${mixed}`,
+    `Content-Type: multipart/alternative; boundary="${alt}"`,
+    '',
+    `--${alt}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrap(b64(text)),
+    `--${alt}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrap(b64(html)),
+    `--${alt}--`,
+    `--${mixed}`,
+    `Content-Type: application/pdf; name="${filename}"`,
+    'Content-Transfer-Encoding: base64',
+    `Content-Disposition: attachment; filename="${filename}"`,
+    '',
+    wrap(pdfBase64),
+    `--${mixed}--`,
+  ].join('\r\n');
+  // El mensaje ya es ASCII (cada parte va en base64), así que btoa sirve directamente.
+  return btoa(mime).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 // Horas extra: se cuentan en tramos de 15 minutos completos a partir de las 16:00.
 const OVERTIME_STEP_H = 0.25;
 
@@ -1186,6 +1243,7 @@ Deno.serve(async (req) => {
 
       // Solo Andrea (secretaría): envía el parte al encargado desde el servidor, con el
       // PDF adjunto. Por orden de preferencia:
+      //  0. Conector de Gmail de la app: desde la cuenta de Gmail que lo autorizó.
       //  1. SMTP_HOST/SMTP_USER/SMTP_PASS: desde el buzón real de Andrea (entrega a
       //     cualquier dirección y las respuestas le llegan a ella).
       //  2. RESEND_FROM (remitente de un dominio verificado en Resend): con respuesta y
@@ -1224,7 +1282,20 @@ Deno.serve(async (req) => {
         const smtpPass = Deno.env.get('SMTP_PASS');
         let via = '';
         try {
-          if (smtpHost && smtpUser && smtpPass) {
+          const gmailToken = await getGmailToken(base44);
+          if (gmailToken) {
+            const raw = buildMimeMessage({ to, bcc: SECRETARIA_EMAIL, replyTo: SECRETARIA_EMAIL, subject, text: message, html: htmlBody, filename, pdfBase64 });
+            const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${gmailToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ raw }),
+            });
+            if (!r.ok) {
+              const data = await r.json().catch(() => ({}));
+              throw new Error(data?.error?.message || `Gmail ${r.status}`);
+            }
+            via = 'gmail';
+          } else if (smtpHost && smtpUser && smtpPass) {
             // Se carga aquí y no arriba: un fallo de la librería no debe tumbar los fichajes.
             const { default: nodemailer } = await import('npm:nodemailer@6.9.16');
             const port = Number(Deno.env.get('SMTP_PORT') || 587);
