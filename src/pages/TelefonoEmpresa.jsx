@@ -82,6 +82,7 @@ export default function TelefonoEmpresa() {
   const token = terminal?.token || '';
 
   const [phoneName, setPhoneName] = useState(terminal?.nombre || '');
+  const [fija, setFija] = useState(false); // terminal fijo del taller (portátil): sin GPS, ubicación del taller
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [listErr, setListErr] = useState('');
@@ -120,6 +121,7 @@ export default function TelefonoEmpresa() {
       const res = await base44.functions.invoke('trackTime', { operation: 'kioskWorkers', sessionToken: token });
       setWorkers(res.data?.workers || []);
       if (res.data?.phone) setPhoneName(res.data.phone);
+      setFija(res.data?.ubicacion_fija === true);
       base44.functions.invoke('trackTime', { operation: 'kioskPartes', sessionToken: token })
         .then((r) => setPartes(r.data?.partes || [])).catch(() => {});
     } catch (e) {
@@ -207,7 +209,9 @@ export default function TelefonoEmpresa() {
       if (!pos) {
         try { pos = await getPosition(); } catch (e) { setErr(e.message); return; }
       }
-      if (!Number.isFinite(pos.accuracy) || pos.accuracy > GPS_MAX_M) {
+      // Terminal fijo (portátil del taller): no tiene GPS; el servidor comprueba que
+      // está cerca del taller y guarda la ubicación del taller.
+      if (!fija && (!Number.isFinite(pos.accuracy) || pos.accuracy > GPS_MAX_M)) {
         setErr(`Ubicación poco precisa (±${Math.round(pos.accuracy || 0)} m). Acerca el terminal a una ventana o sal al exterior y vuelve a probar. No se ha fichado.`);
         warmGps();
         return;
@@ -474,7 +478,7 @@ export default function TelefonoEmpresa() {
                 : dentro ? <><LogOut size={32} /> FICHAR SALIDA</> : <><LogIn size={32} /> FICHAR ENTRADA</>}
             </button>
           )}
-          {!baja && !terminado && <p className="mt-3 text-sm text-white/70 flex items-center gap-1"><MapPin size={14} /> Se guarda la ubicación GPS del terminal</p>}
+          {!baja && !terminado && <p className="mt-3 text-sm text-white/70 flex items-center gap-1"><MapPin size={14} /> {fija ? 'Terminal fijo del taller: se guarda la ubicación del taller' : 'Se guarda la ubicación GPS del terminal'}</p>}
           <ErrorBox />
         </div>
       </div>
