@@ -3,6 +3,11 @@ import { requireCronSecret } from '../../shared/cronAuth.ts';
 import { runCronTracked } from '../../shared/cronMonitor.ts';
 import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 
+// Desactivado: los partes diarios ya se rellenan solos con los fichajes, así que
+// no hay nada que recordar. El workflow de las 16:45 sigue llamando a la función
+// (y queda registrada como ejecutada) pero no envía avisos.
+const DESACTIVADO = true;
+
 // Aviso de fin de día (lun-vie): a quien ha fichado hoy y todavía no ha
 // rellenado la línea de hoy en su parte semanal.
 function todayAndorra() {
@@ -19,6 +24,7 @@ Deno.serve(async (req) => {
   if (unauthorized) return unauthorized;
   const base44 = createClientFromRequest(req);
   return await runCronTracked(base44, 'partesDiariosRecordatorio', async () => {
+    if (DESACTIVADO) return Response.json({ success: true, skipped: 'Partes diarios automáticos: sin recordatorio' });
     const today = todayAndorra();
     const week = mondayOf(today);
     const emps = (await base44.asServiceRole.entities.Employee.list('full_name', 200))

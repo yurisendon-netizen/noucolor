@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, Loader2, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, ChevronDown, ChevronUp, Save, Clock } from 'lucide-react';
 import { authInvoke } from '@/lib/authInvoke';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import useEmployeeProfile from '@/hooks/useEmployeeProfile';
-import { fDate, fH } from '@/components/registro/registroUtils';
+import { fDate, fH, hhmm } from '@/components/registro/registroUtils';
 
 const DOW_NAME = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DOW_SHORT = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
@@ -31,29 +30,31 @@ function WeekNav({ weekStart, weekEnd, today, onChange }) {
   );
 }
 
+// Resumen de fichaje de un día: "08:02 – 16:00 · 8 h (+1 h extra)".
+function fichajeResumen(day) {
+  if (!day.fichado) return day.future ? 'Aún no' : 'Sin fichaje';
+  if (day.abierto) return `Entrada ${hhmm(day.entrada)} · jornada en curso`;
+  const extra = day.horas_extra > 0 ? ` (+${fH(day.horas_extra)} h extra)` : '';
+  return `${hhmm(day.entrada)} – ${hhmm(day.salida)} · ${fH(day.horas)} h${extra}`;
+}
+
 // ── Vista del trabajador ──────────────────────────────────────────────────
-function DayCard({ day, today, onSave, employeeId }) {
-  const [open, setOpen] = useState(day.date === today && !day.done);
-  const [obra, setObra] = useState(day.obra_nombre || '');
-  const [horas, setHoras] = useState(day.horas != null ? String(day.horas).replace('.', ',') : '');
+// El parte se rellena solo con el fichaje; el trabajador puede añadir una nota.
+function DayCard({ day, today, onSave }) {
+  const [open, setOpen] = useState(false);
   const [desc, setDesc] = useState(day.descripcion || '');
   const [mat, setMat] = useState(day.materiales || '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setObra(day.obra_nombre || '');
-    setHoras(day.horas != null ? String(day.horas).replace('.', ',') : '');
     setDesc(day.descripcion || '');
     setMat(day.materiales || '');
-  }, [day.date, day.obra_nombre, day.horas, day.descripcion, day.materiales]);
-
-  const needs = !day.done && !day.future && (day.fichado || day.date === today);
-  const status = day.done ? 'ok' : day.future ? 'future' : needs ? 'pending' : 'none';
+  }, [day.date, day.descripcion, day.materiales]);
 
   async function save() {
     setSaving(true);
     try {
-      await onSave({ date: day.date, obra_nombre: obra, horas: Number(String(horas).replace(',', '.')), descripcion: desc, materiales: mat, employeeId });
+      await onSave({ date: day.date, obra_nombre: day.obra_nombre, descripcion: desc, materiales: mat });
       setOpen(false);
     } finally {
       setSaving(false);
@@ -61,41 +62,34 @@ function DayCard({ day, today, onSave, employeeId }) {
   }
 
   return (
-    <div className={`bg-card rounded-xl border ${status === 'pending' ? 'border-amber-500/60' : 'border-border'} ${day.future ? 'opacity-50' : ''}`}>
+    <div className={`bg-card rounded-xl border border-border ${day.future ? 'opacity-50' : ''}`}>
       <button type="button" className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left" onClick={() => !day.future && setOpen(o => !o)} disabled={day.future}>
         <div className="min-w-0">
           <p className="font-semibold">{DOW_NAME[day.dow]} <span className="text-muted-foreground font-normal text-sm">{fDate(day.date)}{day.date === today ? ' · hoy' : ''}</span></p>
           <p className="text-xs text-muted-foreground truncate">
-            {day.done ? `${day.obra_nombre || '—'} · ${fH(day.horas)} h` : day.fichado ? 'Fichado · parte pendiente' : day.future ? 'Aún no' : 'Sin fichaje'}
+            {fichajeResumen(day)}{day.obra_nombre ? ` · ${day.obra_nombre}` : ''}
           </p>
+          {day.descripcion && <p className="text-xs text-muted-foreground truncate mt-0.5">Nota: {day.descripcion}</p>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {status === 'ok' && <span className="inline-flex items-center gap-1 text-xs text-green-500 font-medium"><Check size={14} /> Hecho</span>}
-          {status === 'pending' && <span className="text-xs text-amber-500 font-medium">Pendiente</span>}
+          {day.fichado && !day.abierto && <span className="text-sm font-semibold">{fH(day.horas)} h</span>}
+          {day.abierto && <span className="text-xs text-amber-500 font-medium">En curso</span>}
           {!day.future && (open ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
         </div>
       </button>
       {open && !day.future && (
         <div className="px-4 pb-4 space-y-3 border-t border-border/60 pt-3">
+          <p className="text-xs text-muted-foreground">Las horas salen solas de tu fichaje. Si quieres, añade una nota del día.</p>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Obra / cliente</label>
-            <Input value={obra} onChange={(e) => setObra(e.target.value)} className="bg-secondary border-border" placeholder="Ej. La Cortinada" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Horas trabajadas</label>
-            <Input value={horas} onChange={(e) => setHoras(e.target.value)} inputMode="decimal" className="bg-secondary border-border w-32" placeholder="8" />
-            {day.abierto && <p className="text-[11px] text-muted-foreground mt-1">Tu jornada sigue abierta: pon las horas que llevas o ajusta al fichar la salida.</p>}
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Qué has hecho</label>
-            <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="bg-secondary border-border min-h-[90px]" placeholder="Describe el trabajo de hoy" />
+            <label className="text-xs text-muted-foreground mb-1 block">Nota (opcional)</label>
+            <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="bg-secondary border-border min-h-[80px]" placeholder="Qué has hecho, incidencias…" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Materiales usados (opcional)</label>
             <Textarea value={mat} onChange={(e) => setMat(e.target.value)} className="bg-secondary border-border min-h-[60px]" placeholder="Pintura, cinta, masilla…" />
           </div>
-          <Button onClick={save} disabled={saving || !obra.trim() || !desc.trim() || horas === ''} className="w-full h-11 gap-2">
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {day.done ? 'Actualizar parte del día' : 'Guardar parte del día'}
+          <Button onClick={save} disabled={saving || (!desc.trim() && !mat.trim())} className="w-full h-11 gap-2">
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Guardar nota
           </Button>
         </div>
       )}
@@ -128,7 +122,7 @@ function WorkerView() {
     try {
       const res = await authInvoke('trackTime', { operation: 'saveParteDia', ...payload });
       if (res?.data?.error) throw new Error(res.data.error);
-      toast({ variant: 'success', title: 'Parte guardado' });
+      toast({ variant: 'success', title: 'Nota guardada' });
       await load(date);
     } catch (e) {
       toast({ title: 'No se pudo guardar', description: e?.response?.data?.error || e.message, variant: 'destructive' });
@@ -137,18 +131,14 @@ function WorkerView() {
 
   if (loading && !data) return <div className="flex items-center justify-center h-48"><Loader2 className="animate-spin text-muted-foreground" /></div>;
   if (!data) return null;
-  const pendientes = data.days.filter(d => !d.done && !d.future && (d.fichado || d.date === data.today)).length;
+  const total = data.days.reduce((s, d) => s + (Number(d.horas) || 0), 0);
 
   return (
     <>
       <WeekNav weekStart={data.week_start} weekEnd={data.week_end} today={data.today} onChange={setDate} />
-      {pendientes > 0 ? (
-        <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-          Tienes <b>{pendientes}</b> {pendientes === 1 ? 'día' : 'días'} sin parte esta semana. Rellénalo cada día antes de irte.
-        </div>
-      ) : (
-        <div className="mb-4 rounded-lg border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm">Todos los partes de esta semana están al día.</div>
-      )}
+      <div className="mb-4 rounded-lg border border-border bg-card px-4 py-3 text-sm flex items-center gap-2">
+        <Clock size={16} className="text-primary" /> Total fichado esta semana: <b>{fH(total)} h</b>
+      </div>
       <div className="space-y-3">
         {data.days.map(d => <DayCard key={d.date} day={d} today={data.today} onSave={onSave} />)}
       </div>
@@ -195,9 +185,8 @@ function AdminView() {
     <>
       <WeekNav weekStart={data.week_start} weekEnd={data.week_end} today={data.today} onChange={setDate} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-green-600" /> Parte hecho</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-amber-500" /> Hoy, aún sin parte (jornada abierta)</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-red-600" /> Fichó y no hizo parte</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-green-600" /> Horas fichadas</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-amber-500" /> Jornada en curso</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-secondary" /> Sin fichaje / futuro</span>
       </div>
       <div className="bg-card rounded-xl border border-border overflow-x-auto">
@@ -206,6 +195,7 @@ function AdminView() {
             <tr className="bg-secondary/60 text-muted-foreground text-xs">
               <th className="text-left px-3 py-2 font-semibold">Trabajador</th>
               {cols.map(c => <th key={c.date} className="px-2 py-2 text-center font-medium w-12"><div>{DOW_SHORT[c.dow]}</div><div className="text-[10px]">{c.date.slice(8)}</div></th>)}
+              <th className="px-3 py-2 text-right font-semibold">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -219,24 +209,23 @@ function AdminView() {
                       const d = r.days.find(x => x.date === c.date);
                       let cls = 'bg-secondary';
                       let mark = '';
-                      if (d?.done) { cls = 'bg-green-600 text-white'; mark = '✓'; }
-                      else if (d && d.fichado && !d.future && !d.abierto) { cls = 'bg-red-600 text-white'; mark = '!'; }
-                      else if (d && d.fichado && !d.future && c.date < data.today) { cls = 'bg-red-600 text-white'; mark = '!'; }
-                      else if (d && d.fichado && !d.future) { cls = 'bg-amber-500 text-black'; mark = '…'; }
-                      return <td key={c.date} className="p-1 text-center"><span className={`w-7 h-7 mx-auto rounded text-xs font-bold flex items-center justify-center ${cls}`}>{mark}</span></td>;
+                      if (d?.fichado && d.abierto) { cls = 'bg-amber-500 text-black'; mark = '…'; }
+                      else if (d?.fichado) { cls = 'bg-green-600 text-white'; mark = fH(d.horas); }
+                      return <td key={c.date} className="p-1 text-center"><span className={`min-w-[2.25rem] h-7 px-1 mx-auto rounded text-xs font-bold flex items-center justify-center ${cls}`}>{mark}</span></td>;
                     })}
+                    <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{fH(r.days.reduce((s, d) => s + (Number(d.horas) || 0), 0))} h</td>
                   </tr>
                   {expanded && (
                     <tr>
-                      <td colSpan={cols.length + 1} className="bg-secondary/20 px-3 py-3">
-                        {r.days.filter(d => d.done).length === 0 ? (
-                          <p className="text-xs text-muted-foreground">Sin partes esta semana.</p>
+                      <td colSpan={cols.length + 2} className="bg-secondary/20 px-3 py-3">
+                        {r.days.filter(d => d.fichado).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Sin fichajes esta semana.</p>
                         ) : (
                           <div className="space-y-3 max-w-3xl">
-                            {r.days.filter(d => d.done).map(d => (
+                            {r.days.filter(d => d.fichado).map(d => (
                               <div key={d.date} className="text-xs">
-                                <p className="font-semibold">{DOW_NAME[d.dow]} {fDate(d.date)} · {d.obra_nombre} · {fH(d.horas)} h</p>
-                                <p className="text-muted-foreground whitespace-pre-wrap">{d.descripcion}</p>
+                                <p className="font-semibold">{DOW_NAME[d.dow]} {fDate(d.date)} · {fichajeResumen(d)}{d.obra_nombre ? ` · ${d.obra_nombre}` : ''}</p>
+                                {d.descripcion && <p className="text-muted-foreground whitespace-pre-wrap">Nota: {d.descripcion}</p>}
                                 {d.materiales && <p className="text-muted-foreground whitespace-pre-wrap">Materiales: {d.materiales}</p>}
                               </div>
                             ))}
@@ -251,7 +240,7 @@ function AdminView() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground mt-3">Toca un trabajador para leer sus partes. Cada trabajador rellena un parte por semana con una línea por día.</p>
+      <p className="text-xs text-muted-foreground mt-3">Las horas salen solas de los fichajes. Toca un trabajador para ver entrada, salida, horas extra, obra y sus notas.</p>
     </>
   );
 }
@@ -263,7 +252,7 @@ export default function PartesDiarios() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
       <PageHeader
         title="Partes diarios"
-        subtitle={isAdmin ? 'Partes semanales de los trabajadores' : 'Rellena tu parte cada día; la semana entera va en el mismo parte'}
+        subtitle={isAdmin ? 'Horas fichadas por cada trabajador, día a día' : 'Tu registro de horas de cada día, a partir de tus fichajes'}
       />
       {isAdmin ? <AdminView /> : <WorkerView />}
     </div>

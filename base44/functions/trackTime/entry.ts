@@ -322,7 +322,9 @@ function mondayOf(ymd) {
 function isYmd(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
 
 // Construye la vista de la semana de un trabajador: lunes a viernes siempre;
-// sábado y domingo solo si ficharon ese día.
+// sábado y domingo solo si ficharon ese día. El parte es automático: horas,
+// entrada/salida y obra salen de los fichajes y la asignación; el trabajador
+// solo puede añadir una nota opcional.
 async function buildParteSemana(base44, employeeId, weekStart, today) {
   const parte = (await base44.asServiceRole.entities.ParteSemanal.filter({ employee_id: employeeId, week_start: weekStart }))[0] || null;
   const saved = {};
@@ -337,14 +339,20 @@ async function buildParteSemana(base44, employeeId, weekStart, today) {
     const es = entries.filter(e => e.date === date && e.status !== 'ausencia_injustificada');
     const fichado = es.length > 0;
     if (i >= 5 && !fichado && !saved[date]) continue;
-    const horasFichaje = es.reduce((s, e) => s + (Number(e.total_hours) || 0) + (Number(e.overtime_hours) || 0), 0);
+    const ordinarias = es.reduce((s, e) => s + (Number(e.total_hours) || 0), 0);
+    const extra = es.reduce((s, e) => s + (Number(e.overtime_hours) || 0), 0);
     const abierto = es.some(e => e.status === 'abierto');
     const a = asig.find(x => x.date <= date);
     const s = saved[date];
+    const ins = es.map(e => e.clock_in).filter(Boolean).sort();
+    const outs = es.map(e => e.clock_out).filter(Boolean).sort();
     days.push({
       date, dow, future: date > today, fichado, abierto,
-      obra_nombre: s ? (s.obra_nombre || '') : (a?.obra_nombre || ''),
-      horas: s ? (s.horas ?? 0) : (fichado && !abierto ? Math.round(horasFichaje * 100) / 100 : null),
+      obra_nombre: (s?.obra_nombre) || a?.obra_nombre || '',
+      entrada: ins[0] || null,
+      salida: abierto ? null : (outs[outs.length - 1] || null),
+      horas: fichado && !abierto ? Math.round((ordinarias + extra) * 100) / 100 : null,
+      horas_extra: fichado && !abierto ? Math.round(extra * 100) / 100 : null,
       descripcion: s?.descripcion || '',
       materiales: s?.materiales || '',
       done: !!s,
@@ -1052,8 +1060,9 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, week_start: weekStart, week_end: ymdAdd(weekStart, 6), today, days: view.days });
       }
 
-      // Guarda la línea de un día del parte semanal. Solo el propio trabajador
-      // (o un admin en nombre de otro) y nunca días futuros.
+      // Guarda la nota opcional de un día del parte semanal (las horas salen solas
+      // del fichaje). Solo el propio trabajador (o un admin en nombre de otro) y
+      // nunca días futuros.
       case 'saveParteDia': {
         const target = isAdmin && body.employeeId ? String(body.employeeId) : empId;
         const today = getLocalParts(new Date()).dateStr;
@@ -1064,15 +1073,11 @@ Deno.serve(async (req) => {
         const descripcion = String(body.descripcion || '').trim().slice(0, 2000);
         const obra = String(body.obra_nombre || '').trim().slice(0, 200);
         const materiales = String(body.materiales || '').trim().slice(0, 1000);
-        let horas = Number(body.horas);
-        if (!Number.isFinite(horas) || horas < 0 || horas > 24) return Response.json({ error: 'Horas no válidas (0 a 24)' }, { status: 400 });
-        horas = Math.round(horas * 100) / 100;
-        if (!obra) return Response.json({ error: 'Indica la obra o cliente' }, { status: 400 });
-        if (!descripcion) return Response.json({ error: 'Describe lo que has hecho' }, { status: 400 });
+        if (!descripcion && !materiales && !obra) return Response.json({ error: 'Escribe una nota' }, { status: 400 });
         const emp = (await base44.asServiceRole.entities.Employee.filter({ id: target }))[0];
         if (!emp) return Response.json({ error: 'Trabajador no encontrado' }, { status: 404 });
         const weekStart = mondayOf(date);
-        const line = { date, obra_nombre: obra, horas, descripcion, materiales, saved_at: new Date().toISOString() };
+        const line = { date, obra_nombre: obra, descripcion, materiales, saved_at: new Date().toISOString() };
         const existing = (await base44.asServiceRole.entities.ParteSemanal.filter({ employee_id: target, week_start: weekStart }))[0];
         if (existing) {
           const dias = (existing.dias || []).filter(d => d.date !== date).concat([line]).sort((a, b) => a.date.localeCompare(b.date));
