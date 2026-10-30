@@ -309,10 +309,61 @@ Deno.serve(async (req) => {
       if (!kiosk) {
         return Response.json({ error: 'No autorizado' }, { status: 401 });
       }
-      if (!['kioskWorkers', 'kioskCheckPin', 'kioskClockIn', 'kioskClockOut'].includes(operation)) {
+      if (!['kioskWorkers', 'kioskCheckPin', 'kioskClockIn', 'kioskClockOut', 'kioskPartes', 'kioskFirmarParte'].includes(operation)) {
         return Response.json({ error: 'No autorizado' }, { status: 403 });
       }
       const todayStr = getLocalParts(new Date()).dateStr;
+
+      // ── Partes por firmar en el terminal: el encargado de la obra firma con el
+      // dedo los partes SIN firma de los últimos 14 días. No puede editar el
+      // parte ni cambiar una firma que ya exista.
+      const d14 = new Date(`${todayStr}T12:00:00Z`); d14.setUTCDate(d14.getUTCDate() - 14);
+      const desdeFirma = d14.toISOString().slice(0, 10);
+      const parteSinFirma = (w) => !w.encargado_firma && typeof w.date === 'string'
+        && /^\d{4}-\d{2}-\d{2}$/.test(w.date) && w.date >= desdeFirma && w.date <= todayStr;
+      if (operation === 'kioskPartes') {
+        const all = await base44.asServiceRole.entities.WorkOrder.filter({ date: { $gte: desdeFirma } }, '-date', 300);
+        const partes = all.filter(parteSinFirma).map(w => ({
+          id: w.id,
+          date: w.date,
+          title: w.title || '',
+          client_name: w.client_name || '',
+          description: w.description || '',
+          materials: w.materials || '',
+          notes: w.notes || '',
+          // Si no se puso encargado, el parte guarda el nombre de quien lo hizo: no se propone
+          encargado_obra: w.encargado_obra && w.encargado_obra !== w.assigned_name ? w.encargado_obra : '',
+          total_horas: w.total_horas || 0,
+          assigned_name: w.assigned_name || '',
+          horas_trabajadas: (Array.isArray(w.horas_trabajadas) ? w.horas_trabajadas : [])
+            .map(h => ({ employee_name: h.employee_name, horas: h.horas })),
+        }));
+        return Response.json({ success: true, partes });
+      }
+      if (operation === 'kioskFirmarParte') {
+        const found = body.workOrderId ? await base44.asServiceRole.entities.WorkOrder.filter({ id: String(body.workOrderId) }) : [];
+        const w = found[0];
+        if (!w) return Response.json({ success: false, error: 'Parte no encontrado' }, { status: 404 });
+        if (w.encargado_firma) return Response.json({ success: false, error: 'Este parte ya está firmado.' }, { status: 400 });
+        if (!parteSinFirma(w)) return Response.json({ success: false, error: 'Este parte ya no se puede firmar desde el terminal.' }, { status: 400 });
+        const dataUrl = typeof body.firmaDataUrl === 'string' ? body.firmaDataUrl : '';
+        if (!/^data:image\/(png|jpeg);base64,/.test(dataUrl) || dataUrl.length > 1500000) {
+          return Response.json({ success: false, error: 'Firma no válida. Vuelve a firmar.' }, { status: 400 });
+        }
+        const encargado = typeof body.encargado === 'string' ? body.encargado.trim().slice(0, 200) : '';
+        if (!encargado) return Response.json({ success: false, error: 'Pon el nombre del encargado que firma.' }, { status: 400 });
+        // Igual que al crear el parte: se sube como imagen y, si falla, se guarda la propia imagen.
+        let firma = dataUrl;
+        try {
+          const isJpeg = dataUrl.startsWith('data:image/jpeg');
+          const bin = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0));
+          const file = new File([bin], isJpeg ? 'firma_encargado.jpg' : 'firma_encargado.png', { type: isJpeg ? 'image/jpeg' : 'image/png' });
+          const up = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+          if (up?.file_url) firma = up.file_url;
+        } catch (e) { console.error('upload firma terminal', e); }
+        await base44.asServiceRole.entities.WorkOrder.update(w.id, { encargado_firma: firma, encargado_obra: encargado });
+        return Response.json({ success: true });
+      }
       if (operation === 'kioskWorkers') {
         const emps = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ date: todayStr });
