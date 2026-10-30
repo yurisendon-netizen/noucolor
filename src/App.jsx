@@ -18,6 +18,7 @@ import Dashboard from '@/pages/Dashboard';
 import ControlHorario from '@/pages/ControlHorario';
 import HorasExtras from '@/pages/HorasExtras';
 import PartesTrabajo from '@/pages/PartesTrabajo';
+import Calendario from '@/pages/Calendario';
 import Justificantes from '@/pages/Justificantes';
 import PartesDiarios from '@/pages/PartesDiarios';
 import Empleados from '@/pages/Empleados';
@@ -64,6 +65,7 @@ function App() {
                 <Route path="/horas-extras" element={<HorasExtras />} />
                   <Route path="/partes-trabajo" element={<PartesTrabajo />} />
                   <Route path="/partes-diarios" element={<PartesDiarios />} />
+                  <Route path="/calendario" element={<Calendario />} />
                   <Route path="/justificantes" element={<Justificantes />} />
                   <Route path="/empleados" element={<Empleados />} />
                   <Route path="/estado-notificaciones" element={<EstadoNotificaciones />} />

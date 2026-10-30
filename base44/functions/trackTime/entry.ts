@@ -1088,6 +1088,36 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
 
+      // Calendario de horas fichadas de un mes. Cada trabajador ve solo lo suyo; un
+      // admin ve a toda la plantilla o a un trabajador concreto (employeeId).
+      case 'calendarioHoras': {
+        const month = String(body.month || '');
+        if (!/^\d{4}-\d{2}$/.test(month)) return Response.json({ error: 'Mes no válido' }, { status: 400 });
+        const [y, m] = month.split('-').map(Number);
+        const from = `${month}-01`;
+        const to = `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
+        const target = !isAdmin ? empId : (body.employeeId ? String(body.employeeId) : null);
+        const range = { date: { $gte: from, $lte: to } };
+        const entries = (await base44.asServiceRole.entities.TimeEntry.filter(target ? { ...range, employee_id: target } : range, 'date', target ? 200 : 3000))
+          .filter(t => t.status !== 'ausencia_injustificada');
+        let employees;
+        if (!isAdmin) {
+          employees = [{ id: empId, full_name: empName }];
+        } else {
+          employees = (await base44.asServiceRole.entities.Employee.list('full_name', 500))
+            .filter(e => e.role !== 'jefe' && !/tester/i.test(e.full_name || ''))
+            .filter(e => e.is_active !== false || entries.some(t => t.employee_id === e.id))
+            .map(e => ({ id: e.id, full_name: e.full_name }));
+        }
+        return Response.json({
+          success: true, month, from, to, today: getLocalParts(new Date()).dateStr, employees,
+          entries: entries.map(t => ({
+            employee_id: t.employee_id, date: t.date, clock_in: t.clock_in || null, clock_out: t.clock_out || null,
+            total_hours: Number(t.total_hours) || 0, overtime_hours: Number(t.overtime_hours) || 0, abierto: t.status === 'abierto',
+          })),
+        });
+      }
+
       // Admin: estado de los partes de toda la plantilla en una semana.
       case 'listPartesSemana': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
