@@ -58,6 +58,12 @@ function impreciseMsg(acc) {
 const LEGACY_BACKUP = { lat: 42.46768, lng: 1.49327 };
 const OUTDATED_MSG = 'Tu app está desactualizada. Ciérrala del todo, vuelve a abrirla y ficha de nuevo.';
 
+// Terminal FIJO del taller (p. ej. el portátil): no tiene GPS, así que el fichaje
+// se guarda con la ubicación del taller. Para que no se pueda fichar con él desde
+// otro sitio, su ubicación aproximada (red/WiFi) tiene que estar cerca del taller.
+const TALLER = { lat: 42.46768, lng: 1.49327 };
+const TALLER_RADIO_M = 3000;
+
 function isLegacyBackup(lat, lng) {
   return Math.abs(Number(lat) - LEGACY_BACKUP.lat) < 0.00001 && Math.abs(Number(lng) - LEGACY_BACKUP.lng) < 0.00001;
 }
@@ -302,6 +308,7 @@ Deno.serve(async (req) => {
     // Verify caller identity via session token (not client-supplied employeeId)
     const session = await verifySession(base44, sessionToken);
     let kiosk = null; // registro TelefonoEmpresa si se ficha desde un teléfono de empresa
+    let fixedLoc = false; // fichaje desde un terminal fijo del taller (ubicación del taller)
     let op = operation;
     let caller, empId, empName, isAdmin;
     if (session) {
@@ -310,15 +317,67 @@ Deno.serve(async (req) => {
       empName = caller.full_name;
       isAdmin = session.isAdmin;
     } else {
-      // Teléfono de empresa: solo puede listar trabajadores y fichar por ellos con su PIN.
+      // Terminal de fichaje (TelefonoEmpresa): solo puede listar los nombres de los
+      // operarios, comprobar un PIN y fichar por ellos. No lee ni toca nada más.
       kiosk = await verifyPhoneSession(base44, sessionToken);
       if (!kiosk) {
         return Response.json({ error: 'No autorizado' }, { status: 401 });
       }
-      if (!['kioskWorkers', 'kioskClockIn', 'kioskClockOut'].includes(operation)) {
+      if (!['kioskWorkers', 'kioskCheckPin', 'kioskClockIn', 'kioskClockOut', 'kioskPartes', 'kioskFirmarParte'].includes(operation)) {
         return Response.json({ error: 'No autorizado' }, { status: 403 });
       }
       const todayStr = getLocalParts(new Date()).dateStr;
+
+      // ── Partes por firmar en el terminal: el encargado de la obra firma con el
+      // dedo los partes SIN firma de los últimos 14 días. No puede editar el
+      // parte ni cambiar una firma que ya exista.
+      const d14 = new Date(`${todayStr}T12:00:00Z`); d14.setUTCDate(d14.getUTCDate() - 14);
+      const desdeFirma = d14.toISOString().slice(0, 10);
+      const parteSinFirma = (w) => !w.encargado_firma && typeof w.date === 'string'
+        && /^\d{4}-\d{2}-\d{2}$/.test(w.date) && w.date >= desdeFirma && w.date <= todayStr;
+      if (operation === 'kioskPartes') {
+        const all = await base44.asServiceRole.entities.WorkOrder.filter({ date: { $gte: desdeFirma } }, '-date', 300);
+        const partes = all.filter(parteSinFirma).map(w => ({
+          id: w.id,
+          date: w.date,
+          title: w.title || '',
+          client_name: w.client_name || '',
+          description: w.description || '',
+          materials: w.materials || '',
+          notes: w.notes || '',
+          // Si no se puso encargado, el parte guarda el nombre de quien lo hizo: no se propone
+          encargado_obra: w.encargado_obra && w.encargado_obra !== w.assigned_name ? w.encargado_obra : '',
+          total_horas: w.total_horas || 0,
+          assigned_name: w.assigned_name || '',
+          horas_trabajadas: (Array.isArray(w.horas_trabajadas) ? w.horas_trabajadas : [])
+            .map(h => ({ employee_name: h.employee_name, horas: h.horas })),
+        }));
+        return Response.json({ success: true, partes });
+      }
+      if (operation === 'kioskFirmarParte') {
+        const found = body.workOrderId ? await base44.asServiceRole.entities.WorkOrder.filter({ id: String(body.workOrderId) }) : [];
+        const w = found[0];
+        if (!w) return Response.json({ success: false, error: 'Parte no encontrado' }, { status: 404 });
+        if (w.encargado_firma) return Response.json({ success: false, error: 'Este parte ya está firmado.' }, { status: 400 });
+        if (!parteSinFirma(w)) return Response.json({ success: false, error: 'Este parte ya no se puede firmar desde el terminal.' }, { status: 400 });
+        const dataUrl = typeof body.firmaDataUrl === 'string' ? body.firmaDataUrl : '';
+        if (!/^data:image\/(png|jpeg);base64,/.test(dataUrl) || dataUrl.length > 1500000) {
+          return Response.json({ success: false, error: 'Firma no válida. Vuelve a firmar.' }, { status: 400 });
+        }
+        const encargado = typeof body.encargado === 'string' ? body.encargado.trim().slice(0, 200) : '';
+        if (!encargado) return Response.json({ success: false, error: 'Pon el nombre del encargado que firma.' }, { status: 400 });
+        // Igual que al crear el parte: se sube como imagen y, si falla, se guarda la propia imagen.
+        let firma = dataUrl;
+        try {
+          const isJpeg = dataUrl.startsWith('data:image/jpeg');
+          const bin = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0));
+          const file = new File([bin], isJpeg ? 'firma_encargado.jpg' : 'firma_encargado.png', { type: isJpeg ? 'image/jpeg' : 'image/png' });
+          const up = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+          if (up?.file_url) firma = up.file_url;
+        } catch (e) { console.error('upload firma terminal', e); }
+        await base44.asServiceRole.entities.WorkOrder.update(w.id, { encargado_firma: firma, encargado_obra: encargado });
+        return Response.json({ success: true });
+      }
       if (operation === 'kioskWorkers') {
         const emps = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ date: todayStr });
@@ -336,7 +395,7 @@ Deno.serve(async (req) => {
               entrada: open ? open.clock_in : (closed ? closed.clock_in : null),
             };
           });
-        return Response.json({ success: true, phone: kiosk.nombre, date: todayStr, workers });
+        return Response.json({ success: true, phone: kiosk.nombre, ubicacion_fija: kiosk.ubicacion_fija === true, date: todayStr, workers });
       }
       // kioskClockIn / kioskClockOut: el trabajador elige su nombre y mete su PIN.
       const worker = (await base44.asServiceRole.entities.Employee.filter({ id: String(body.employeeId || '') }))[0];
@@ -365,10 +424,37 @@ Deno.serve(async (req) => {
       if (Number(worker.pin_fails) > 0 || worker.pin_lock_until) {
         await base44.asServiceRole.entities.Employee.update(worker.id, { pin_fails: 0, pin_lock_until: '' });
       }
+      // PIN correcto: devolver solo el estado de HOY de ese trabajador.
+      if (operation === 'kioskCheckPin') {
+        const today = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: worker.id, date: todayStr });
+        const open = today.find(x => x.status === 'abierto');
+        const closed = today.filter(x => x.status === 'cerrado').sort((a, b) => String(b.clock_out).localeCompare(String(a.clock_out)))[0];
+        return Response.json({
+          success: true,
+          estado: open ? 'dentro' : (closed ? 'terminado' : 'fuera'),
+          entrada: open ? open.clock_in : (closed ? closed.clock_in : null),
+          salida: closed && !open ? closed.clock_out : null,
+          estado_laboral: worker.estado_laboral || 'activo',
+        });
+      }
       caller = worker;
       empId = worker.id;
       empName = worker.full_name;
       isAdmin = false;
+      if (kiosk.ubicacion_fija === true) {
+        // Terminal fijo: la ubicación aproximada debe estar cerca del taller.
+        if (!isValidCoord(body.lat, body.lng)) {
+          return Response.json({ success: false, error: 'Este terminal no da su ubicación. Activa la ubicación en Windows y en Chrome y vuelve a probar. No se ha fichado.' });
+        }
+        const d = distMeters(Number(body.lat), Number(body.lng), TALLER.lat, TALLER.lng);
+        if (d > TALLER_RADIO_M) {
+          return Response.json({ success: false, error: `Este terminal solo puede fichar en el taller y ahora está a ${(d / 1000).toFixed(1).replace('.', ',')} km. No se ha fichado.` });
+        }
+        fixedLoc = true;
+        body.lat = TALLER.lat;
+        body.lng = TALLER.lng;
+        body.accuracy = 0;
+      }
       if (operation === 'kioskClockOut') {
         const open = (await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: worker.id, status: 'abierto' }, '-clock_in', 5))[0];
         if (!open) {
@@ -381,12 +467,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Con teléfonos de empresa activos, los operarios ya no fichan desde su usuario personal.
-    if (!kiosk && (op === 'clockIn' || op === 'clockOut') && caller.role === 'operario') {
-      const activePhones = await base44.asServiceRole.entities.TelefonoEmpresa.filter({ activo: true });
-      if (activePhones.length > 0) {
-        return Response.json({ error: 'El fichaje se hace desde el teléfono de empresa. Fichar desde tu usuario personal ya no está permitido.' }, { status: 403 });
-      }
+    // Los operarios SOLO fichan en el terminal del taller, nunca desde su usuario personal.
+    // (googletester queda fuera: es la cuenta de revisión de Google Play, no un trabajador.)
+    if (!kiosk && (op === 'clockIn' || op === 'clockOut') && caller.role === 'operario' && caller.user !== 'googletester') {
+      return Response.json({ error: 'El fichaje se realiza en el terminal del taller.' }, { status: 403 });
     }
 
     switch (op) {
@@ -397,10 +481,10 @@ Deno.serve(async (req) => {
         }
         const acc = toAccuracy(accuracy);
         // Sin margen de error o con el respaldo fijo del taller = versión antigua de la app.
-        if (acc === null || isLegacyBackup(lat, lng)) {
+        if (!fixedLoc && (acc === null || isLegacyBackup(lat, lng))) {
           return Response.json({ error: OUTDATED_MSG }, { status: 400 });
         }
-        if (acc > GPS_MAX_ACCEPT_M) {
+        if (!fixedLoc && acc > GPS_MAX_ACCEPT_M) {
           await logImpreciseLocation(base44, empId, empName, 'in', acc);
           return Response.json({ error: impreciseMsg(acc) }, { status: 400 });
         }
@@ -448,12 +532,14 @@ Deno.serve(async (req) => {
         if (absenceEntry) {
           await base44.asServiceRole.entities.TimeEntry.update(absenceEntry.id, {
             clock_in: clockIn, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto',
+            origen: kiosk ? 'terminal' : 'personal',
             ...(kiosk ? { fichado_desde_entrada: kiosk.nombre } : {})
           });
         } else {
           await base44.asServiceRole.entities.TimeEntry.create({
             employee_id: empId, employee_name: empName,
             clock_in: clockIn, date, clock_in_lat: lat, clock_in_lng: lng, clock_in_fallback: false, clock_in_accuracy: acc, status: 'abierto',
+            origen: kiosk ? 'terminal' : 'personal',
             ...(kiosk ? { fichado_desde_entrada: kiosk.nombre } : {})
           });
         }
@@ -529,10 +615,10 @@ Deno.serve(async (req) => {
         }
         const acc = toAccuracy(accuracy);
         // Sin margen de error o con el respaldo fijo del taller = versión antigua de la app.
-        if (acc === null || isLegacyBackup(lat, lng)) {
+        if (!fixedLoc && (acc === null || isLegacyBackup(lat, lng))) {
           return Response.json({ error: OUTDATED_MSG }, { status: 400 });
         }
-        if (acc > GPS_MAX_ACCEPT_M) {
+        if (!fixedLoc && acc > GPS_MAX_ACCEPT_M) {
           await logImpreciseLocation(base44, empId, empName, 'out', acc);
           return Response.json({ error: impreciseMsg(acc) }, { status: 400 });
         }
@@ -559,6 +645,7 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.TimeEntry.update(entryId, {
           clock_out: clockOut, clock_out_lat: lat, clock_out_lng: lng, clock_out_fallback: false, clock_out_accuracy: acc,
           total_hours: regularHours, overtime_hours: overtimeHours, status: 'cerrado',
+          origen_salida: kiosk ? 'terminal' : 'personal',
           ...(kiosk ? { fichado_desde_salida: kiosk.nombre } : {})
         });
 

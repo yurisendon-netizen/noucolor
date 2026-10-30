@@ -24,6 +24,8 @@ export default function Login() {
   }
 
   function done(emp) {
+    // Usuario del terminal de fichaje → solo su pantalla
+    if (emp?.terminal) { navigate('/terminal', { replace: true }); return; }
     navigate(emp.pin_set === false ? '/codigo-seguridad' : safeReturnTo());
   }
 

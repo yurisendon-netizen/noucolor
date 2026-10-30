@@ -6,7 +6,11 @@ import { generateSessionToken, hashPin } from '../../shared/employeeAuth.ts';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { username, password } = await req.json().catch(() => ({}));
+    // El terminal entra desde el login normal con usuario + PIN de 4 cifras
+    // (se acepta también 'password' por compatibilidad: es el mismo hash).
+    const body = await req.json().catch(() => ({}));
+    const username = body.username;
+    const password = body.pin ?? body.password;
     if (!username || !password) {
       return Response.json({ success: false, error: 'Faltan usuario o contraseña' }, { status: 400 });
     }
@@ -24,7 +28,7 @@ Deno.serve(async (req) => {
     }
     const { token, tokenHash } = await generateSessionToken();
     await base44.asServiceRole.entities.TelefonoEmpresa.update(phone.id, { session_token: tokenHash });
-    return Response.json({ success: true, phone: { id: phone.id, nombre: phone.nombre }, sessionToken: token });
+    return Response.json({ success: true, role: 'terminal', phone: { id: phone.id, nombre: phone.nombre }, sessionToken: token });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

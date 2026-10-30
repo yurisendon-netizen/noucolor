@@ -374,6 +374,8 @@ export default function ControlHorario() {
   // Con horario flexible no hay "antes de hora": su jornada empieza cuando entra.
   const earlyExit = !flexible && hour < 16;
   const showProximo = !openEntry && !canClockIn;
+  // Los operarios SOLO fichan en el terminal del taller (también bloqueado en el backend).
+  const terminalOnly = employee?.role === 'operario' && employee?.user !== 'googletester';
 
   const columns = [
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
@@ -437,7 +439,7 @@ export default function ControlHorario() {
       />
 
       <ClockInBanner
-        visible={showBanner}
+        visible={showBanner && !terminalOnly}
         onClockIn={handleClockIn}
         clockingIn={clockingIn}
       />
@@ -461,7 +463,12 @@ export default function ControlHorario() {
         )}
 
         <div className="mt-6">
-          {openEntry ? (
+          {terminalOnly ? (
+            <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl border border-primary/30 bg-primary/10 text-base font-semibold">
+              <MapPin size={20} className="text-primary shrink-0" />
+              <span>El fichaje se realiza en el terminal del taller</span>
+            </div>
+          ) : openEntry ? (
             canClockOut ? (
               <Button
                 onClick={handleClockOut}
@@ -494,7 +501,7 @@ export default function ControlHorario() {
               {!isOnline ? 'Sin conexión' : clockingIn ? 'Fichando...' : 'Fichar Entrada'}
             </Button>
           )}
-          {!isOnline && (canClockOut || (!openEntry && !showProximo)) && (
+          {!terminalOnly && !isOnline && (canClockOut || (!openEntry && !showProximo)) && (
             <p className="text-xs text-muted-foreground mt-2">Necesitas conexión a internet para fichar.</p>
           )}
         </div>
