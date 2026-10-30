@@ -1185,11 +1185,13 @@ Deno.serve(async (req) => {
       }
 
       // Solo Andrea (secretaría): envía el parte al encargado desde el servidor, con el
-      // PDF adjunto. Con RESEND_FROM (remitente de un dominio verificado en Resend) se
-      // envía por Resend, que entrega a cualquier dirección, con respuesta a Andrea y
-      // copia oculta para ella. Sin él se usa el correo integrado de Base44, que solo
-      // entrega a usuarios de la app. Si el envío falla se devuelve el enlace al PDF para
-      // que pueda enviarlo a mano.
+      // PDF adjunto. Por orden de preferencia:
+      //  1. SMTP_HOST/SMTP_USER/SMTP_PASS: desde el buzón real de Andrea (entrega a
+      //     cualquier dirección y las respuestas le llegan a ella).
+      //  2. RESEND_FROM (remitente de un dominio verificado en Resend): con respuesta y
+      //     copia oculta a Andrea.
+      //  3. Correo integrado de Base44: solo entrega a usuarios de la app.
+      // Si el envío falla se devuelve el enlace al PDF para que pueda enviarlo a mano.
       case 'sendWorkOrderEmail': {
         if (!isSecretaria(caller)) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { workOrderId, pdfBase64 } = body;
@@ -1217,9 +1219,26 @@ Deno.serve(async (req) => {
         const htmlBody = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#222;">${esc(message).replace(/\n/g, '<br>')}</div>`;
         const resendKey = Deno.env.get('RESEND_API_KEY');
         const resendFrom = Deno.env.get('RESEND_FROM');
+        const smtpHost = Deno.env.get('SMTP_HOST');
+        const smtpUser = Deno.env.get('SMTP_USER');
+        const smtpPass = Deno.env.get('SMTP_PASS');
         let via = '';
         try {
-          if (resendKey && resendFrom) {
+          if (smtpHost && smtpUser && smtpPass) {
+            // Se carga aquí y no arriba: un fallo de la librería no debe tumbar los fichajes.
+            const { default: nodemailer } = await import('npm:nodemailer@6.9.16');
+            const port = Number(Deno.env.get('SMTP_PORT') || 587);
+            const transport = nodemailer.createTransport({
+              host: smtpHost, port, secure: port === 465,
+              auth: { user: smtpUser, pass: smtpPass },
+            });
+            await transport.sendMail({
+              from: `${Deno.env.get('SMTP_FROM_NAME') || 'Noucolor'} <${smtpUser}>`,
+              to, bcc: smtpUser, subject, text: message, html: htmlBody,
+              attachments: [{ filename, content: pdfBase64, encoding: 'base64', contentType: 'application/pdf' }],
+            });
+            via = 'smtp';
+          } else if (resendKey && resendFrom) {
             const r = await fetch('https://api.resend.com/emails', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
