@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import moment from 'moment';
-import { Loader2, Mail } from 'lucide-react';
+import { Check, Copy, Loader2, Mail } from 'lucide-react';
 import { authInvoke } from '@/lib/authInvoke';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,23 +50,28 @@ function blobToBase64(blob) {
   });
 }
 
-// Prepara el correo del parte (destinatario, asunto y texto ya escritos) y lo abre
-// en el programa de correo de Andrea con el enlace al PDF: solo tiene que darle a Enviar.
+// Prepara el correo del parte (destinatario, asunto y texto ya escritos) con el enlace
+// al PDF. Se hace en dos pasos: preparar (genera y sube el PDF) y abrir. El enlace mailto
+// se abre con un toque directo de Andrea, porque abrirlo tras la espera de la subida lo
+// bloquea el navegador sin avisar. Si no tiene programa de correo, puede copiarlo todo.
 export default function SendWorkOrderEmailDialog({ order, senderName, onClose, onSent }) {
   const { toast } = useToast();
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [preparing, setPreparing] = useState(false);
+  const [prepared, setPrepared] = useState(null);
+  const [copied, setCopied] = useState('');
 
   useEffect(() => {
     if (!order) return;
+    setPrepared(null);
     setTo(order.encargado_email || '');
     setSubject(defaultSubject(order));
     setMessage(defaultMessage(order, senderName));
   }, [order, senderName]);
 
-  async function handleOpenMail() {
+  async function handlePrepare() {
     const email = to.trim().toLowerCase();
     if (!EMAIL_RE.test(email)) {
       toast({ title: 'Correo no válido', description: 'Escribe el correo del encargado.', variant: 'destructive' });
@@ -82,10 +87,13 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
         pdfBase64: await blobToBase64(blob),
       });
       if (res?.data?.error || !res?.data?.pdfUrl) throw new Error(res?.data?.error || 'No se ha podido preparar el PDF.');
-      const body = `${message}\n\nParte de treball (PDF): ${res.data.pdfUrl}`.replace(/\r?\n/g, '\r\n');
-      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const body = `${message}\n\nParte de treball (PDF): ${res.data.pdfUrl}`;
+      setPrepared({
+        email,
+        body,
+        mailto: `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`,
+      });
       onSent?.(order.id, email);
-      onClose();
     } catch (e) {
       toast({ title: 'Error al preparar el correo', description: e?.response?.data?.error || e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
     } finally {
@@ -93,12 +101,45 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
     }
   }
 
+  async function copy(key, value) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      setTimeout(() => setCopied(c => (c === key ? '' : c)), 1500);
+    } catch {
+      toast({ title: 'No se ha podido copiar', variant: 'destructive' });
+    }
+  }
+
+  const CopyButton = ({ k, value, label }) => (
+    <Button type="button" variant="outline" onClick={() => copy(k, value)} className="flex-1 gap-1 border-border">
+      {copied === k ? <Check size={14} /> : <Copy size={14} />} {label}
+    </Button>
+  );
+
   return (
     <Dialog open={!!order} onOpenChange={open => { if (!open) onClose(); }}>
       <DialogContent className="bg-card border-border max-w-lg w-[calc(100vw-1.5rem)] max-h-[90dvh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Enviar parte al encargado</DialogTitle>
         </DialogHeader>
+        {prepared ? (
+          <div className="space-y-3 mt-2">
+            <p className="text-sm">Correo preparado para <span className="font-medium break-all">{prepared.email}</span>.</p>
+            <Button asChild className="w-full h-11 gap-2">
+              <a href={prepared.mailto}><Mail size={16} /> Abrir correo</a>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Si no se abre ningún programa de correo (por ejemplo, si usas el correo desde la web), copia cada parte y pégala en un correo nuevo:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <CopyButton k="to" value={prepared.email} label="Para" />
+              <CopyButton k="subject" value={subject} label="Asunto" />
+              <CopyButton k="body" value={prepared.body} label="Mensaje" />
+            </div>
+            <Button type="button" variant="ghost" onClick={onClose} className="w-full">Cerrar</Button>
+          </div>
+        ) : (
         <div className="space-y-3 mt-2">
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">Para</label>
@@ -113,12 +154,13 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
             <Textarea rows={10} value={message} onChange={e => setMessage(e.target.value)} className="bg-secondary border-border" />
           </div>
           <p className="text-xs text-muted-foreground">
-            Se abrirá tu correo con todo escrito y el enlace al PDF del parte. Solo tienes que darle a Enviar.
+            Se preparará el correo con todo escrito y el enlace al PDF del parte. Después solo tienes que abrirlo y darle a Enviar.
           </p>
-          <Button onClick={handleOpenMail} disabled={preparing} className="w-full h-11 gap-2">
-            {preparing ? <><Loader2 size={16} className="animate-spin" /> Preparando...</> : <><Mail size={16} /> Abrir correo</>}
+          <Button onClick={handlePrepare} disabled={preparing} className="w-full h-11 gap-2">
+            {preparing ? <><Loader2 size={16} className="animate-spin" /> Preparando...</> : <><Mail size={16} /> Preparar correo</>}
           </Button>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
