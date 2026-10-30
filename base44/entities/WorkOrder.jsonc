@@ -29,6 +29,19 @@
       "description": "Nom de l'encarregat d'obra",
       "type": "string"
     },
+    "encargado_email": {
+      "description": "Correu on s'ha d'enviar el parte (el posa l'encarregat)",
+      "type": "string"
+    },
+    "enviado_a": {
+      "description": "Correu al qual s'ha preparat l'enviament del parte",
+      "type": "string"
+    },
+    "enviado_at": {
+      "description": "Quan es va preparar el correu del parte",
+      "format": "date-time",
+      "type": "string"
+    },
     "horas_trabajadas": {
       "description": "Hores treballades per cada treballador",
       "items": {

@@ -7,6 +7,13 @@ import { sendOneSignalPush } from '../../shared/onesignalPush.ts';
 // Hora de Andorra: siempre con la zona horaria real (verano +02:00 / invierno
 // +01:00), nunca con un offset fijo.
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Secretaría (Andrea): única que envía los partes de trabajo a los encargados.
+const SECRETARIA_EMAIL = 'secrenoucolor@andorra.ad';
+function isSecretaria(emp) {
+  return emp?.user === 'andrea' || String(emp?.email || '').toLowerCase() === SECRETARIA_EMAIL;
+}
+
 // Horas extra: se cuentan en tramos de 15 minutos completos a partir de las 16:00.
 const OVERTIME_STEP_H = 0.25;
 
@@ -1050,6 +1057,7 @@ Deno.serve(async (req) => {
           materials: str(f.materials),
           notes: str(f.notes),
           encargado_obra: str(f.encargado_obra, 200) || empName,
+          encargado_email: EMAIL_RE.test(str(f.encargado_email, 200)) ? str(f.encargado_email, 200).toLowerCase() : '',
           encargado_firma: firma,
           horas_trabajadas,
           total_horas,
@@ -1087,6 +1095,30 @@ Deno.serve(async (req) => {
         if (!isAdmin && found[0].assigned_to !== empId) return Response.json({ error: 'No autorizado' }, { status: 403 });
         await base44.asServiceRole.entities.WorkOrder.update(workOrderId, { status });
         return Response.json({ success: true });
+      }
+
+      // Solo Andrea (secretaría): sube el PDF del parte y deja constancia del envío.
+      // El correo lo envía ella desde su propio programa de correo (mailto), porque
+      // el correo integrado de Base44 solo entrega a usuarios de la app.
+      case 'prepareWorkOrderEmail': {
+        if (!isSecretaria(caller)) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const { workOrderId, pdfBase64 } = body;
+        const to = typeof body.to === 'string' ? body.to.trim().toLowerCase() : '';
+        if (!EMAIL_RE.test(to)) return Response.json({ error: 'El correo del encargado no es válido.' }, { status: 400 });
+        const found = await base44.asServiceRole.entities.WorkOrder.filter({ id: workOrderId });
+        if (found.length === 0) return Response.json({ error: 'Parte no encontrado' }, { status: 404 });
+        if (typeof pdfBase64 !== 'string' || !pdfBase64 || pdfBase64.length > 8000000) {
+          return Response.json({ error: 'No se ha podido generar el PDF del parte.' }, { status: 400 });
+        }
+        const bin = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+        const safe = (found[0].title || 'parte').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 60);
+        const file = new File([bin], `Parte_${safe}.pdf`, { type: 'application/pdf' });
+        const up = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+        if (!up?.file_url) return Response.json({ error: 'No se ha podido subir el PDF.' }, { status: 500 });
+        await base44.asServiceRole.entities.WorkOrder.update(workOrderId, {
+          encargado_email: to, enviado_a: to, enviado_at: new Date().toISOString(),
+        });
+        return Response.json({ success: true, pdfUrl: up.file_url });
       }
 
       case 'deleteWorkOrder': {

@@ -4,7 +4,8 @@ import { createDoc, addHeader, addTable, addTextBlock, addSignature, addFooters 
 const PRIORITY_LABELS = { baja: 'Baja', media: 'Media', alta: 'Alta' };
 const STATUS_LABELS = { pendiente: 'Pendiente', en_progreso: 'En Progreso', completado: 'Completado' };
 
-export async function generateWorkOrderPdf(order) {
+// download=false devuelve el PDF como Blob (para enviarlo por correo) en vez de descargarlo.
+export async function generateWorkOrderPdf(order, { download = true } = {}) {
   const { doc, pageHeight, margin } = await createDoc();
   const horas = Array.isArray(order.horas_trabajadas) ? order.horas_trabajadas : [];
   const totalHoras = Number(order.total_horas) || horas.reduce((s, h) => s + (Number(h.horas) || 0), 0);
@@ -74,5 +75,6 @@ export async function generateWorkOrderPdf(order) {
   y = await addSignature(doc, { encargadoName: order.encargado_obra, firmaUrl: order.encargado_firma, startY: y, pageHeight, margin });
 
   addFooters(doc);
+  if (!download) return doc.output('blob');
   doc.save(`Parte_${(order.title || 'treball').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 }

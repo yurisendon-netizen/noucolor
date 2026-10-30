@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
-import { Plus, Trash2, CheckCircle, X, Download, Loader2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, X, Download, Loader2, Mail } from 'lucide-react';
 import { generateWorkOrderPdf } from '@/components/parts/WorkOrderPdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import WorkOrderFilters from '@/components/parts/WorkOrderFilters';
+import SendWorkOrderEmailDialog, { isSecretaria } from '@/components/parts/SendWorkOrderEmailDialog';
 import moment from 'moment';
 
 export default function PartesTrabajo() {
@@ -25,7 +26,9 @@ export default function PartesTrabajo() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
-  const emptyForm = { title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '', obra_id: '' };
+  const [mailOrder, setMailOrder] = useState(null);
+  const canSendMail = isSecretaria(employee);
+  const emptyForm = { title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '', encargado_email: '', obra_id: '' };
   const [form, setForm] = useState(emptyForm);
   const [obras, setObras] = useState([]);
   const [firmaDataUrl, setFirmaDataUrl] = useState(null);
@@ -238,11 +241,17 @@ export default function PartesTrabajo() {
               <span>{row.total_horas ? `${row.total_horas} h` : '—'}</span>
               {row.assigned_name && <span className="break-words">{row.assigned_name}</span>}
             </div>
+            {canSendMail && row.enviado_a && (
+              <p className="text-xs text-emerald-400 break-words">Enviado a {row.enviado_a} · {moment(row.enviado_at).format('DD/MM HH:mm')}</p>
+            )}
             <div className="flex items-center justify-end gap-1 pt-1">
               {row.status !== 'completado' ? (
                 <Button variant="ghost" size="sm" onClick={() => handleStatusChange(row.id, 'completado')} className="text-emerald-400"><CheckCircle size={18} /></Button>
               ) : (
                 <Button variant="ghost" size="sm" onClick={() => handleStatusChange(row.id, 'pendiente')} className="text-yellow-400"><X size={18} /></Button>
+              )}
+              {canSendMail && (
+                <Button variant="ghost" size="sm" onClick={() => setMailOrder(row)} className="text-primary"><Mail size={18} /></Button>
               )}
               <Button variant="ghost" size="sm" onClick={() => handleDownloadPdf(row)} disabled={downloadingId === row.id} className="text-blue-400">
                 {downloadingId === row.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
@@ -277,6 +286,11 @@ export default function PartesTrabajo() {
                 <X size={16} />
               </Button>
             )}
+            {canSendMail && (
+              <Button variant="ghost" size="sm" onClick={() => setMailOrder(row)} title={row.enviado_a ? `Enviado a ${row.enviado_a}` : 'Enviar al encargado'} className={row.enviado_a ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10' : 'text-primary hover:bg-primary/10'}>
+                <Mail size={16} />
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={() => handleDownloadPdf(row)} disabled={downloadingId === row.id} className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10">
               {downloadingId === row.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             </Button>
@@ -287,6 +301,13 @@ export default function PartesTrabajo() {
         )}
       />
       </div>
+
+      <SendWorkOrderEmailDialog
+        order={mailOrder}
+        senderName={employee?.full_name}
+        onClose={() => setMailOrder(null)}
+        onSent={(id, email) => setOrders(os => os.map(o => (o.id === id ? { ...o, encargado_email: email, enviado_a: email, enviado_at: new Date().toISOString() } : o)))}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="bg-card border-border max-w-lg w-[calc(100vw-1.5rem)] max-h-[90dvh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
@@ -323,6 +344,10 @@ export default function PartesTrabajo() {
             <div>
               <label className="text-xs text-muted-foreground mb-1.5 block">Encargado de Obra</label>
               <Input placeholder="Nombre del encargado" value={form.encargado_obra} onChange={e => setForm({ ...form, encargado_obra: e.target.value })} className="bg-secondary border-border" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Correo donde enviar el parte</label>
+              <Input type="email" inputMode="email" placeholder="correo@encargado.com" value={form.encargado_email} onChange={e => setForm({ ...form, encargado_email: e.target.value })} className="bg-secondary border-border" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1.5 block">Firma del Encargado</label>
