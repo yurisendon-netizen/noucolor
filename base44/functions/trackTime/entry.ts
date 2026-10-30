@@ -1266,6 +1266,19 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, via, pdfUrl });
       }
 
+      // Andrea ha abierto Gmail con el parte: se deja constancia de a quién se envió.
+      case 'markWorkOrderSent': {
+        if (!isSecretaria(caller)) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const to = typeof body.to === 'string' ? body.to.trim().toLowerCase() : '';
+        if (!EMAIL_RE.test(to)) return Response.json({ error: 'El correo del encargado no es válido.' }, { status: 400 });
+        const found = await base44.asServiceRole.entities.WorkOrder.filter({ id: body.workOrderId });
+        if (found.length === 0) return Response.json({ error: 'Parte no encontrado' }, { status: 404 });
+        await base44.asServiceRole.entities.WorkOrder.update(found[0].id, {
+          encargado_email: to, enviado_a: to, enviado_at: new Date().toISOString(),
+        });
+        return Response.json({ success: true });
+      }
+
       case 'deleteWorkOrder': {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { workOrderId } = body;

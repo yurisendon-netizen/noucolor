@@ -51,8 +51,9 @@ function blobToBase64(blob) {
 }
 
 // Envía el parte al encargado desde la app (destinatario, asunto y texto ya escritos,
-// PDF adjunto): Andrea solo revisa y pulsa Enviar. Si el envío falla, se ofrece abrirlo
-// en su programa de correo o copiarlo, con el enlace al PDF.
+// PDF adjunto): Andrea solo revisa y pulsa Enviar. Si la app no puede enviarlo sola
+// (sin correo de salida configurado), pregunta si abrir Gmail con todo escrito y el
+// enlace al PDF; Gmail se abre en ese toque de Andrea, así el navegador no lo bloquea.
 export default function SendWorkOrderEmailDialog({ order, senderName, onClose, onSent }) {
   const { toast } = useToast();
   const [to, setTo] = useState('');
@@ -94,18 +95,28 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
       onClose();
     } catch (e) {
       const data = e?.response?.data || res?.data || {};
-      toast({ title: 'No se ha podido enviar', description: data.error || e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
       if (data.pdfUrl) {
         const body = `${message}\n\nParte de treball (PDF): ${data.pdfUrl}`;
+        const q = encodeURIComponent;
         setFallback({
           email,
           body,
-          mailto: `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`,
+          gmail: `https://mail.google.com/mail/?view=cm&fs=1&to=${q(email)}&su=${q(subject)}&body=${q(body)}`,
+          mailto: `mailto:${email}?subject=${q(subject)}&body=${q(body.replace(/\r?\n/g, '\r\n'))}`,
         });
+      } else {
+        toast({ title: 'No se ha podido enviar', description: data.error || e?.message || 'Vuelve a intentarlo.', variant: 'destructive' });
       }
     } finally {
       setSending(false);
     }
+  }
+
+  function openGmail() {
+    window.open(fallback.gmail, '_blank', 'noopener');
+    authInvoke('trackTime', { operation: 'markWorkOrderSent', workOrderId: order.id, to: fallback.email }).catch(() => {});
+    onSent?.(order.id, fallback.email);
+    onClose();
   }
 
   async function copy(key, value) {
@@ -132,19 +143,26 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
         </DialogHeader>
         {fallback ? (
           <div className="space-y-3 mt-2">
-            <p className="text-sm">No se ha podido enviar automáticamente. Puedes enviarlo tú a <span className="font-medium break-all">{fallback.email}</span>:</p>
-            <Button asChild className="w-full h-11 gap-2">
-              <a href={fallback.mailto}><Mail size={16} /> Abrir en mi correo</a>
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              O copia cada parte y pégala en un correo nuevo (incluye el enlace al PDF):
+            <p className="text-base font-medium">¿Permites abrir Gmail para enviar el correo?</p>
+            <p className="text-sm text-muted-foreground">
+              Se abrirá Gmail con el correo a <span className="font-medium break-all text-foreground">{fallback.email}</span> ya escrito y el enlace al PDF del parte. Solo tendrás que darle a Enviar.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <CopyButton k="to" value={fallback.email} label="Para" />
-              <CopyButton k="subject" value={subject} label="Asunto" />
-              <CopyButton k="body" value={fallback.body} label="Mensaje" />
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 border-border">Cancelar</Button>
+              <Button type="button" onClick={openGmail} className="flex-1 h-11 gap-2"><Mail size={16} /> Sí, abrir Gmail</Button>
             </div>
-            <Button type="button" variant="ghost" onClick={onClose} className="w-full">Cerrar</Button>
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none">Otras opciones</summary>
+              <div className="space-y-2 mt-2">
+                <a href={fallback.mailto} className="underline">Abrir en otro programa de correo</a>
+                <p>O copia cada parte y pégala en un correo nuevo:</p>
+                <div className="flex flex-wrap gap-2">
+                  <CopyButton k="to" value={fallback.email} label="Para" />
+                  <CopyButton k="subject" value={subject} label="Asunto" />
+                  <CopyButton k="body" value={fallback.body} label="Mensaje" />
+                </div>
+              </div>
+            </details>
           </div>
         ) : (
         <div className="space-y-3 mt-2">
@@ -161,7 +179,7 @@ export default function SendWorkOrderEmailDialog({ order, senderName, onClose, o
             <Textarea rows={10} value={message} onChange={e => setMessage(e.target.value)} className="bg-secondary border-border" />
           </div>
           <p className="text-xs text-muted-foreground">
-            El correo se envía directamente desde la app con el PDF del parte adjunto. Las respuestas del encargado te llegarán a ti.
+            Al pulsar Enviar se prepara el correo con el PDF del parte.
           </p>
           <Button onClick={handleSend} disabled={sending} className="w-full h-11 gap-2">
             {sending ? <><Loader2 size={16} className="animate-spin" /> Enviando...</> : <><Mail size={16} /> Enviar</>}
