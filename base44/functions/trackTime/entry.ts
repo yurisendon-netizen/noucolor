@@ -1321,7 +1321,8 @@ Deno.serve(async (req) => {
       //  3. Correo integrado de Base44: solo entrega a usuarios de la app.
       // Si el envío falla se devuelve el enlace al PDF para que pueda enviarlo a mano.
       case 'sendWorkOrderEmail': {
-        if (!isSecretaria(caller)) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        // Pueden enviar partes: secretaría y administradores/jefes.
+        if (!isSecretaria(caller) && !isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const { workOrderId, pdfBase64 } = body;
         const to = typeof body.to === 'string' ? body.to.trim().toLowerCase() : '';
         const subject = typeof body.subject === 'string' ? body.subject.trim().slice(0, 300) : '';
