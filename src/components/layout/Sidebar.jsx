@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Clock, FileText, ShieldCheck, Users,
-  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, TrendingUp, User, Bell, PiggyBank, CalendarDays, ClipboardList, Calendar
+  CalendarCheck, Receipt, MapPin, BookOpen, LogOut, X, ChevronLeft, Timer, BarChart3, TrendingUp, User, Bell, PiggyBank, CalendarDays, ClipboardList, Calendar, Palmtree
 } from 'lucide-react';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 
@@ -13,6 +13,7 @@ const navItems = [
   { path: '/partes-diarios', label: 'Partes diarios', icon: ClipboardList, adminOnly: false },
   { path: '/calendario', label: 'Calendario', icon: Calendar, adminOnly: false },
   { path: '/partes-trabajo', label: 'Partes de Trabajo', icon: FileText, adminOnly: false },
+  { path: '/vacaciones', label: 'Vacaciones', icon: Palmtree, adminOnly: false },
   { path: '/justificantes', label: 'Justificantes', icon: ShieldCheck, adminOnly: false },
 
   // Solo para Administradores
