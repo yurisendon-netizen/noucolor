@@ -108,6 +108,18 @@ export default function Vacaciones() {
 
   const diasPedidos = form.date_from && form.date_to && form.date_to >= form.date_from ? dayN(form.date_to) - dayN(form.date_from) + 1 : 0;
   const antelacion = form.date_from ? dayN(form.date_from) - dayN(hoy) : null;
+  // Días que caen en cada año (Navidad: parte de este año y parte del siguiente)
+  const enAnio = (y) => {
+    if (!diasPedidos) return 0;
+    const a = form.date_from < `${y}-01-01` ? `${y}-01-01` : form.date_from;
+    const b = form.date_to > `${y}-12-31` ? `${y}-12-31` : form.date_to;
+    return b < a ? 0 : dayN(b) - dayN(a) + 1;
+  };
+  const yFrom = Number((form.date_from || hoy).slice(0, 4));
+  const yTo = Number((form.date_to || hoy).slice(0, 4));
+  const cruzaAnio = diasPedidos > 0 && yTo > yFrom;
+  const diasEsteAnio = enAnio(year);
+  const sinSaldo = !!mio && diasEsteAnio > mio.quedan;
 
   async function pedir() {
     setSaving(true);
@@ -344,11 +356,14 @@ export default function Vacaciones() {
                 <Input type="date" min={form.date_from || hoy} value={form.date_to} onChange={e => setForm(f => ({ ...f, date_to: e.target.value }))} className="bg-secondary border-border" />
               </div>
             </div>
-            {diasPedidos > 0 && (
-              <p className="text-sm">Son <span className="font-semibold">{diasPedidos} días naturales</span>{mio ? <> · te quedarían <span className="font-semibold">{mio.quedan - diasPedidos}</span></> : null}.</p>
+            {diasPedidos > 0 && !cruzaAnio && (
+              <p className="text-sm">Son <span className="font-semibold">{diasPedidos} días naturales</span>{mio && yFrom === year ? <> · te quedarían <span className="font-semibold">{mio.quedan - diasPedidos}</span></> : null}.</p>
             )}
-            {mio && diasPedidos > mio.quedan && (
-              <p className="text-sm text-red-400">No tienes tantos días: te quedan {mio.quedan}.</p>
+            {cruzaAnio && (
+              <p className="text-sm">Son <span className="font-semibold">{diasPedidos} días naturales</span>: {enAnio(yFrom)} de {yFrom} y {enAnio(yTo)} de {yTo} (cada parte se descuenta de su año).</p>
+            )}
+            {sinSaldo && (
+              <p className="text-sm text-red-400">No tienes tantos días de {year}: te quedan {mio.quedan}.</p>
             )}
             {antelacion !== null && antelacion >= 0 && antelacion < 45 && (
               <p className="text-xs text-amber-400 flex items-start gap-1"><AlertTriangle size={14} className="shrink-0 mt-0.5" /> Faltan {antelacion} días: el reglamento pide 45 días de antelación. Puedes pedirlas igual; la empresa decidirá.</p>
@@ -357,7 +372,7 @@ export default function Vacaciones() {
               <label className="text-xs text-muted-foreground mb-1.5 block">Comentario (opcional)</label>
               <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} className="bg-secondary border-border" rows={2} />
             </div>
-            <Button onClick={pedir} disabled={saving || !diasPedidos || (mio && diasPedidos > mio.quedan)} className="w-full h-11">
+            <Button onClick={pedir} disabled={saving || !diasPedidos || sinSaldo} className="w-full h-11">
               {saving ? <Loader2 size={16} className="animate-spin" /> : 'Enviar solicitud'}
             </Button>
           </div>
