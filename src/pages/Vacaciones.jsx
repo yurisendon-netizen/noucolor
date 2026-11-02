@@ -106,6 +106,7 @@ export default function Vacaciones() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadCal(); }, [loadCal]);
 
+  const mio = data?.mio;
   const diasPedidos = form.date_from && form.date_to && form.date_to >= form.date_from ? dayN(form.date_to) - dayN(form.date_from) + 1 : 0;
   const antelacion = form.date_from ? dayN(form.date_from) - dayN(hoy) : null;
   // Días que caen en cada año (Navidad: parte de este año y parte del siguiente)
@@ -191,7 +192,6 @@ export default function Vacaciones() {
   if (loading && !data) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-muted-foreground" /></div>;
   }
-  const mio = data?.mio;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
