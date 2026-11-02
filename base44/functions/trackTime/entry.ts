@@ -1334,24 +1334,28 @@ Deno.serve(async (req) => {
         const from = String(body.date_from || ''), to = String(body.date_to || '');
         if (!isYmd(from) || !isYmd(to)) return Response.json({ error: 'Pon la fecha de inicio y la de fin.' }, { status: 400 });
         if (to < from) return Response.json({ error: 'La fecha de fin es anterior a la de inicio.' }, { status: 400 });
-        if (from.slice(0, 4) !== to.slice(0, 4)) return Response.json({ error: 'Pide las vacaciones de cada año por separado (hasta el 31/12 y otra solicitud desde el 1/1).' }, { status: 400 });
+        if (Number(to.slice(0, 4)) - Number(from.slice(0, 4)) > 1) return Response.json({ error: 'Periodo demasiado largo.' }, { status: 400 });
         const hoy = getLocalParts(new Date()).dateStr;
         if (from < hoy) return Response.json({ error: 'No se pueden pedir vacaciones de días que ya han pasado.' }, { status: 400 });
         const mias = await base44.asServiceRole.entities.Justificante.filter({ employee_id: empId, type: 'vacaciones' });
         if (mias.some(j => j.status !== 'rechazado' && j.date_from <= to && j.date_to >= from)) {
           return Response.json({ error: 'Ya tienes vacaciones pedidas o aprobadas en esas fechas.' }, { status: 400 });
         }
-        // Saldo del año
-        const year = from.slice(0, 4), y0 = `${year}-01-01`, y1 = `${year}-12-31`;
+        // Saldo de cada año que toca la solicitud (p. ej. Navidad: 24/12 – 08/01 gasta
+        // los días de diciembre del año en curso y los de enero del año siguiente).
         const dayN = (s) => Math.round(Date.parse(`${s}T12:00:00Z`) / 86400000);
         const dias = dayN(to) - dayN(from) + 1;
-        const alta = isYmd(caller.hire_date) ? caller.hire_date : y0;
-        const desde = alta > y0 ? alta : y0;
-        const derecho = alta > y1 ? 0 : Math.round((30 * (dayN(y1) - dayN(desde) + 1)) / (dayN(y1) - dayN(y0) + 1));
-        const ocupados = mias.filter(j => j.status !== 'rechazado' && j.date_to >= y0 && j.date_from <= y1)
-          .reduce((s, j) => s + (dayN(j.date_to > y1 ? y1 : j.date_to) - dayN(j.date_from < y0 ? y0 : j.date_from) + 1), 0);
-        const quedan = derecho - ocupados;
-        if (dias > quedan) return Response.json({ error: `Pides ${dias} días y solo te quedan ${quedan} en ${year}.` }, { status: 400 });
+        for (let yy = Number(from.slice(0, 4)); yy <= Number(to.slice(0, 4)); yy++) {
+          const y0 = `${yy}-01-01`, y1 = `${yy}-12-31`;
+          const enRango = (a, b) => { const f = a < y0 ? y0 : a, t = b > y1 ? y1 : b; return t < f ? 0 : dayN(t) - dayN(f) + 1; };
+          const alta = isYmd(caller.hire_date) ? caller.hire_date : y0;
+          const desde = alta > y0 ? alta : y0;
+          const derecho = alta > y1 ? 0 : Math.round((30 * (dayN(y1) - dayN(desde) + 1)) / (dayN(y1) - dayN(y0) + 1));
+          const ocupados = mias.filter(j => j.status !== 'rechazado').reduce((s, j) => s + enRango(j.date_from, j.date_to), 0);
+          const pide = enRango(from, to);
+          const quedan = derecho - ocupados;
+          if (pide > quedan) return Response.json({ error: `De ${yy} pides ${pide} días y solo te quedan ${quedan}.` }, { status: 400 });
+        }
         const antelacion = dayN(from) - dayN(hoy);
         const created = await base44.asServiceRole.entities.Justificante.create({
           employee_id: empId, employee_name: empName, type: 'vacaciones',
@@ -1372,7 +1376,6 @@ Deno.serve(async (req) => {
         if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const from = String(body.date_from || ''), to = String(body.date_to || '');
         if (!isYmd(from) || !isYmd(to) || to < from) return Response.json({ error: 'Fechas no válidas.' }, { status: 400 });
-        if (from.slice(0, 4) !== to.slice(0, 4)) return Response.json({ error: 'Apúntalas por años por separado.' }, { status: 400 });
         const emp = (await base44.asServiceRole.entities.Employee.filter({ id: String(body.employee_id || '') }))[0];
         if (!emp) return Response.json({ error: 'Trabajador no encontrado' }, { status: 404 });
         const prev = await base44.asServiceRole.entities.Justificante.filter({ employee_id: emp.id, type: 'vacaciones' });
