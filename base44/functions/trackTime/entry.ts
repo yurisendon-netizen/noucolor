@@ -1410,7 +1410,7 @@ Deno.serve(async (req) => {
 
       // Andrea ha abierto Gmail con el parte: se deja constancia de a quién se envió.
       case 'markWorkOrderSent': {
-        if (!isSecretaria(caller)) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        if (!isSecretaria(caller) && !isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
         const to = typeof body.to === 'string' ? body.to.trim().toLowerCase() : '';
         if (!EMAIL_RE.test(to)) return Response.json({ error: 'El correo del encargado no es válido.' }, { status: 400 });
         const found = await base44.asServiceRole.entities.WorkOrder.filter({ id: body.workOrderId });
