@@ -796,6 +796,11 @@ Deno.serve(async (req) => {
         // Con horario flexible no hay falta por no fichar a las 8:30.
         if (caller.horario_flexible) return Response.json({ success: true, skipped: true });
         const { clockIn, date, description } = body;
+        // Con vacaciones (u otro justificante) aprobado ese día tampoco hay falta.
+        {
+          const js = await base44.asServiceRole.entities.Justificante.filter({ employee_id: empId, status: 'aprobado' });
+          if (js.some(j => j.date_from <= date && j.date_to >= date)) return Response.json({ success: true, skipped: true });
+        }
         await base44.asServiceRole.entities.TimeEntry.create({
           employee_id: empId, employee_name: empName,
           clock_in: clockIn, date, status: 'ausencia_injustificada'
