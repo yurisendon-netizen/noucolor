@@ -1257,6 +1257,31 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, workOrder: created });
       }
 
+      // Datos extra para el PDF del parte (formato de 1 hoja): obra vinculada y
+      // horas EXTRA de cada trabajador ese día (salen solas de Horas Extras;
+      // no cuentan las rechazadas).
+      case 'workOrderPdfData': {
+        const wo = (await base44.asServiceRole.entities.WorkOrder.filter({ id: String(body.workOrderId || '') }))[0];
+        if (!wo) return Response.json({ error: 'Parte no encontrado' }, { status: 404 });
+        const rows = Array.isArray(wo.horas_trabajadas) ? wo.horas_trabajadas : [];
+        const enParte = wo.assigned_to === empId || rows.some(h => h.employee_id === empId);
+        if (!isAdmin && !enParte) return Response.json({ error: 'No autorizado' }, { status: 403 });
+        let obra = null;
+        if (wo.obra_id) {
+          const ob = (await base44.asServiceRole.entities.Obra.filter({ id: wo.obra_id }))[0];
+          if (ob) obra = { nombre: ob.nombre || '', cliente: ob.cliente || '', direccion: ob.direccion || '' };
+        }
+        const extras = {};
+        for (const h of rows) {
+          if (!h.employee_id || extras[h.employee_id] !== undefined) continue;
+          const ot = await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: h.employee_id, date: wo.date });
+          extras[h.employee_id] = Math.round(ot
+            .filter(o => o.status !== 'rechazado')
+            .reduce((s, o) => s + (Number(o.duration) || 0), 0) * 100) / 100;
+        }
+        return Response.json({ success: true, obra, extras });
+      }
+
       // Lista de trabajadores activos (id + nombre) para el formulario de partes.
       case 'listWorkers': {
         const all = await base44.asServiceRole.entities.Employee.list('full_name', 200);
