@@ -562,6 +562,14 @@ Deno.serve(async (req) => {
         if (caller.estado_laboral === 'baja' || caller.estado_laboral === 'vacaciones') {
           return Response.json({ error: `No puedes fichar: estás marcado como de ${caller.estado_laboral}. Contacta con tu encargado.` }, { status: 403 });
         }
+        // Vacaciones aprobadas que cubren hoy: tampoco se ficha.
+        {
+          const hoyVac = getLocalParts(new Date()).dateStr;
+          const vacs = await base44.asServiceRole.entities.Justificante.filter({ employee_id: empId, type: 'vacaciones', status: 'aprobado' });
+          if (vacs.some(v => v.date_from <= hoyVac && v.date_to >= hoyVac)) {
+            return Response.json({ error: 'Hoy estás de vacaciones (aprobadas). No hace falta fichar.' }, { status: 403 });
+          }
+        }
         // La hora de entrada, la fecha y si llega tarde se calculan aquí con el reloj
         // del servidor — nunca a partir de lo que envíe el cliente (el móvil de un
         // trabajador podría tener la hora adelantada/atrasada para evitar una falta).
@@ -1255,6 +1263,129 @@ Deno.serve(async (req) => {
           status: 'pendiente',
         });
         return Response.json({ success: true, workOrder: created });
+      }
+
+      // ── VACACIONES ── 30 días naturales/año a prorrata desde el alta; lo no
+      // gastado se pierde el 31/12. Se guardan como Justificante type 'vacaciones'.
+      case 'vacacionesResumen': {
+        const year = Number(body.year) || Number(getLocalParts(new Date()).dateStr.slice(0, 4));
+        const y0 = `${year}-01-01`, y1 = `${year}-12-31`;
+        const dayN = (s) => Math.round(Date.parse(`${s}T12:00:00Z`) / 86400000);
+        const diasRango = (a, b) => {
+          const from = a < y0 ? y0 : a, to = b > y1 ? y1 : b;
+          return to < from ? 0 : dayN(to) - dayN(from) + 1;
+        };
+        const yearDays = dayN(y1) - dayN(y0) + 1;
+        const derecho = (emp) => {
+          const alta = isYmd(emp.hire_date) ? emp.hire_date : y0;
+          if (alta > y1) return 0;
+          const desde = alta > y0 ? alta : y0;
+          return Math.round((30 * (dayN(y1) - dayN(desde) + 1)) / yearDays);
+        };
+        const all = (await base44.asServiceRole.entities.Justificante.filter({ type: 'vacaciones' }, '-date_from', 2000))
+          .filter(j => j.date_to >= y0 && j.date_from <= y1);
+        const hoy = getLocalParts(new Date()).dateStr;
+        const mapSol = (j) => ({
+          id: j.id, employee_id: j.employee_id, employee_name: j.employee_name,
+          date_from: j.date_from, date_to: j.date_to, reason: j.reason || '', status: j.status,
+          dias: diasRango(j.date_from, j.date_to),
+          antelacion: dayN(j.date_from) - dayN(String(j.created_date || hoy).slice(0, 10)),
+        });
+        const saldo = (emp) => {
+          const mias = all.filter(j => j.employee_id === emp.id);
+          const usados = mias.filter(j => j.status === 'aprobado').reduce((s, j) => s + diasRango(j.date_from, j.date_to), 0);
+          const pendientes = mias.filter(j => j.status === 'pendiente').reduce((s, j) => s + diasRango(j.date_from, j.date_to), 0);
+          const d = derecho(emp);
+          return { derecho: d, usados, pendientes, quedan: d - usados - pendientes };
+        };
+        const res = {
+          success: true, year,
+          mio: { ...saldo(caller), solicitudes: all.filter(j => j.employee_id === empId).map(mapSol) },
+        };
+        if (isAdmin) {
+          const emps = (await base44.asServiceRole.entities.Employee.filter({ is_active: true }))
+            .filter(e => e.role !== 'jefe' && !/tester/i.test(e.full_name || ''))
+            .sort((a, b) => String(a.full_name).localeCompare(String(b.full_name), 'es'));
+          res.empleados = emps.map(e => ({ id: e.id, full_name: e.full_name, ...saldo(e) }));
+          res.pendientes = all.filter(j => j.status === 'pendiente').map(mapSol)
+            .map(s => ({ ...s, quedan: res.empleados.find(e => e.id === s.employee_id)?.quedan ?? null }));
+        }
+        return Response.json(res);
+      }
+
+      // Ausencias del mes (vacaciones, bajas y permisos). Admin: todos; resto: solo las suyas.
+      case 'ausenciasMes': {
+        const month = /^\d{4}-\d{2}$/.test(String(body.month || '')) ? body.month : getLocalParts(new Date()).dateStr.slice(0, 7);
+        const m0 = `${month}-01`, m1 = `${month}-31`;
+        const js = (await base44.asServiceRole.entities.Justificante.list('-date_from', 2000))
+          .filter(j => j.date_from <= m1 && j.date_to >= m0 && j.status !== 'rechazado')
+          .filter(j => isAdmin || j.employee_id === empId)
+          .filter(j => j.type === 'vacaciones' ? true : j.status === 'aprobado')
+          .map(j => ({ id: j.id, employee_id: j.employee_id, employee_name: j.employee_name, type: j.type, status: j.status, date_from: j.date_from, date_to: j.date_to }));
+        return Response.json({ success: true, month, ausencias: js });
+      }
+
+      case 'solicitarVacaciones': {
+        const from = String(body.date_from || ''), to = String(body.date_to || '');
+        if (!isYmd(from) || !isYmd(to)) return Response.json({ error: 'Pon la fecha de inicio y la de fin.' }, { status: 400 });
+        if (to < from) return Response.json({ error: 'La fecha de fin es anterior a la de inicio.' }, { status: 400 });
+        if (from.slice(0, 4) !== to.slice(0, 4)) return Response.json({ error: 'Pide las vacaciones de cada año por separado (hasta el 31/12 y otra solicitud desde el 1/1).' }, { status: 400 });
+        const hoy = getLocalParts(new Date()).dateStr;
+        if (from < hoy) return Response.json({ error: 'No se pueden pedir vacaciones de días que ya han pasado.' }, { status: 400 });
+        const mias = await base44.asServiceRole.entities.Justificante.filter({ employee_id: empId, type: 'vacaciones' });
+        if (mias.some(j => j.status !== 'rechazado' && j.date_from <= to && j.date_to >= from)) {
+          return Response.json({ error: 'Ya tienes vacaciones pedidas o aprobadas en esas fechas.' }, { status: 400 });
+        }
+        // Saldo del año
+        const year = from.slice(0, 4), y0 = `${year}-01-01`, y1 = `${year}-12-31`;
+        const dayN = (s) => Math.round(Date.parse(`${s}T12:00:00Z`) / 86400000);
+        const dias = dayN(to) - dayN(from) + 1;
+        const alta = isYmd(caller.hire_date) ? caller.hire_date : y0;
+        const desde = alta > y0 ? alta : y0;
+        const derecho = alta > y1 ? 0 : Math.round((30 * (dayN(y1) - dayN(desde) + 1)) / (dayN(y1) - dayN(y0) + 1));
+        const ocupados = mias.filter(j => j.status !== 'rechazado' && j.date_to >= y0 && j.date_from <= y1)
+          .reduce((s, j) => s + (dayN(j.date_to > y1 ? y1 : j.date_to) - dayN(j.date_from < y0 ? y0 : j.date_from) + 1), 0);
+        const quedan = derecho - ocupados;
+        if (dias > quedan) return Response.json({ error: `Pides ${dias} días y solo te quedan ${quedan} en ${year}.` }, { status: 400 });
+        const antelacion = dayN(from) - dayN(hoy);
+        const created = await base44.asServiceRole.entities.Justificante.create({
+          employee_id: empId, employee_name: empName, type: 'vacaciones',
+          date_from: from, date_to: to, reason: typeof body.reason === 'string' ? body.reason.trim().slice(0, 500) : '',
+          status: 'pendiente',
+        });
+        try {
+          await notifyAdminsPush(base44, '🏖️ Solicitud de vacaciones',
+            `${empName} pide ${dias} días (${from.split('-').reverse().join('/')} – ${to.split('-').reverse().join('/')})${antelacion < 45 ? ` · con ${antelacion} días de antelación` : ''}.`,
+            { target_url: '/vacaciones' });
+        } catch (e) { console.error('push vacaciones', e?.message); }
+        return Response.json({ success: true, solicitud: created, dias, antelacion, aviso45: antelacion < 45 });
+      }
+
+      case 'cancelarVacaciones': {
+        const j = (await base44.asServiceRole.entities.Justificante.filter({ id: String(body.id || '') }))[0];
+        if (!j || j.type !== 'vacaciones') return Response.json({ error: 'Solicitud no encontrada' }, { status: 404 });
+        const propia = j.employee_id === empId && j.status === 'pendiente';
+        if (!propia && !isAdmin) return Response.json({ error: 'Solo puedes anular tus solicitudes pendientes.' }, { status: 403 });
+        await base44.asServiceRole.entities.Justificante.delete(j.id);
+        return Response.json({ success: true });
+      }
+
+      case 'resolverVacaciones': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const status = body.status === 'aprobado' ? 'aprobado' : body.status === 'rechazado' ? 'rechazado' : null;
+        if (!status) return Response.json({ error: 'Estado no válido' }, { status: 400 });
+        const j = (await base44.asServiceRole.entities.Justificante.filter({ id: String(body.id || '') }))[0];
+        if (!j || j.type !== 'vacaciones') return Response.json({ error: 'Solicitud no encontrada' }, { status: 404 });
+        await base44.asServiceRole.entities.Justificante.update(j.id, { status });
+        try {
+          await sendOneSignalPush({
+            externalUserIds: [j.employee_id],
+            heading: status === 'aprobado' ? '✅ Vacaciones aprobadas' : '❌ Vacaciones no aprobadas',
+            content: `${j.date_from.split('-').reverse().join('/')} – ${j.date_to.split('-').reverse().join('/')}${status === 'rechazado' ? '. Habla con tu encargado.' : ''}`,
+            url: '/vacaciones',
+          });
+        } catch (e) { console.error('push resolver vacaciones', e?.message); }
+        return Response.json({ success: true });
       }
 
       // Datos extra para el PDF del parte (formato de 1 hoja): obra vinculada y
