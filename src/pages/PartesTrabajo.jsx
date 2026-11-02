@@ -26,7 +26,8 @@ export default function PartesTrabajo() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [mailOrder, setMailOrder] = useState(null);
-  const canSendMail = isSecretaria(employee);
+  // Botón de correo: secretaría y administradores/jefes.
+  const canSendMail = isSecretaria(employee) || isAdmin;
   const emptyForm = { title: '', description: '', client_name: '', date: '', materials: '', notes: '', encargado_obra: '', encargado_email: '', obra_id: '' };
   const [form, setForm] = useState(emptyForm);
   const [obras, setObras] = useState([]);
