@@ -6,7 +6,6 @@ import { generateWorkOrderPdf } from '@/components/parts/WorkOrderPdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import ResponsiveSelect from '@/components/ui/responsive-select';
 import SignaturePadInput from '@/components/parts/SignaturePadInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
