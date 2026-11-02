@@ -53,11 +53,12 @@ export default function PartesTrabajo() {
 
   function selectObra(id) {
     const o = obras.find(x => x.id === id);
+    // La obra elegida es el "título" del parte y rellena el cliente.
     setForm(f => ({
       ...f,
       obra_id: id,
-      title: o && !f.title ? o.nombre : f.title,
-      client_name: o && !f.client_name ? o.cliente : f.client_name,
+      title: o ? o.nombre : '',
+      client_name: o && o.cliente ? o.cliente : f.client_name,
     }));
   }
 
@@ -102,6 +103,7 @@ export default function PartesTrabajo() {
   async function handleCreate() {
     // Antes el botón se quedaba bloqueado sin decir por qué: ahora se avisa de lo que falta.
     const falta = [];
+    if (!form.obra_id && !form.title.trim()) falta.push('la obra');
     if (!form.client_name.trim()) falta.push('el cliente');
     if (!form.date) falta.push('la fecha');
     if (validHoras.length === 0) falta.push('al menos un trabajador con sus horas (más de 0)');
@@ -112,10 +114,10 @@ export default function PartesTrabajo() {
     setCreating(true);
     try {
       // Se crea en el servidor (los operarios no tienen permiso directo sobre la tabla).
-      // Si no se pone título, se usa el nombre del cliente / obra.
+      // El título del parte es el nombre de la obra.
       const res = await authInvoke('trackTime', {
         operation: 'createWorkOrder',
-        workOrder: { ...form, title: form.title.trim() || form.client_name.trim(), horas_trabajadas: validHoras },
+        workOrder: { ...form, title: form.title.trim(), horas_trabajadas: validHoras },
         firmaDataUrl: firmaDataUrl || null,
       });
       if (res?.data?.error) throw new Error(res.data.error);
@@ -196,12 +198,11 @@ export default function PartesTrabajo() {
   }, [orders, filters]);
 
   const columns = [
-    { key: 'title', label: 'Título', render: r => <span className="font-medium">{r.title}</span> },
+    { key: 'title', label: 'Obra', render: r => <span className="font-medium">{r.title}</span> },
     { key: 'client_name', label: 'Cliente' },
     { key: 'assigned_name', label: 'Empleado' },
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
     { key: 'total_horas', label: 'Horas', render: r => (r.total_horas ? `${r.total_horas} h` : '—') },
-    { key: 'priority', label: 'Prioridad', render: r => <StatusBadge status={r.priority} /> },
     { key: 'status', label: 'Estado', render: r => <StatusBadge status={r.status} /> },
   ];
 
@@ -315,45 +316,35 @@ export default function PartesTrabajo() {
             <DialogTitle>Nuevo Parte de Trabajo</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            {obras.length > 0 && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1.5 block">Obra</label>
+            {/* Mismo orden que el PDF: Obra · Cliente · Fecha · Trabajo · Horas · Observaciones · Firma */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Obra *</label>
+              {obras.length > 0 && (
                 <select
                   value={form.obra_id}
                   onChange={e => selectObra(e.target.value)}
                   className="w-full h-10 rounded-md bg-secondary border border-border px-2 text-sm"
                 >
-                  <option value="">Sin obra asignada</option>
+                  <option value="">Otra obra (escribir el nombre)…</option>
                   {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}{o.cliente ? ` · ${o.cliente}` : ''}</option>)}
                 </select>
-              </div>
-            )}
-            <Input placeholder="Título (opcional)" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-secondary border-border" />
-            <Input placeholder="Cliente *" value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} className="bg-secondary border-border" />
-            <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
-            <ResponsiveSelect
-              value={form.priority}
-              onValueChange={v => setForm({ ...form, priority: v })}
-              options={[
-                { value: 'baja', label: 'Baja' },
-                { value: 'media', label: 'Media' },
-                { value: 'alta', label: 'Alta' },
-              ]}
-              className="bg-secondary border-border"
-            />
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Encargado de Obra</label>
-              <Input placeholder="Nombre del encargado" value={form.encargado_obra} onChange={e => setForm({ ...form, encargado_obra: e.target.value })} className="bg-secondary border-border" />
+              )}
+              {!form.obra_id && (
+                <Input placeholder="Nombre de la obra *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={`bg-secondary border-border ${obras.length > 0 ? 'mt-2' : ''}`} />
+              )}
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Correo donde enviar el parte</label>
-              <Input type="email" inputMode="email" placeholder="correo@encargado.com" value={form.encargado_email} onChange={e => setForm({ ...form, encargado_email: e.target.value })} className="bg-secondary border-border" />
+              <label className="text-xs text-muted-foreground mb-1.5 block">Cliente *</label>
+              <Input placeholder="Cliente" value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} className="bg-secondary border-border" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Firma del Encargado</label>
-              <SignaturePadInput onChange={setFirmaDataUrl} />
+              <label className="text-xs text-muted-foreground mb-1.5 block">Fecha *</label>
+              <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-secondary border-border" />
             </div>
-            <Textarea placeholder="Descripción" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-secondary border-border" />
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Trabajo realizado</label>
+              <Textarea placeholder="Qué se ha hecho hoy en la obra" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-secondary border-border" />
+            </div>
 
             <div className="rounded-lg border border-border p-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -387,9 +378,25 @@ export default function PartesTrabajo() {
               <Button type="button" variant="outline" size="sm" onClick={() => setHoras([...horas, { employee_id: '', horas: '8' }])} className="w-full gap-1 border-border">
                 <Plus size={14} /> Añadir trabajador
               </Button>
+              <p className="text-xs text-muted-foreground">Las horas extra no se ponen aquí: salen solas en el PDF a partir de las horas extra apuntadas en la app ese día.</p>
             </div>
-            <Input placeholder="Materiales" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
-            <Textarea placeholder="Notas" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Observaciones</label>
+              <Textarea placeholder="Observaciones" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-secondary border-border" />
+            </div>
+            <Input placeholder="Material utilizado" value={form.materials} onChange={e => setForm({ ...form, materials: e.target.value })} className="bg-secondary border-border" />
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Encargado de Obra</label>
+              <Input placeholder="Nombre del encargado" value={form.encargado_obra} onChange={e => setForm({ ...form, encargado_obra: e.target.value })} className="bg-secondary border-border" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Correo donde enviar el parte</label>
+              <Input type="email" inputMode="email" placeholder="correo@encargado.com" value={form.encargado_email} onChange={e => setForm({ ...form, encargado_email: e.target.value })} className="bg-secondary border-border" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Firma del Encargado</label>
+              <SignaturePadInput onChange={setFirmaDataUrl} />
+            </div>
             <Button onClick={handleCreate} disabled={creating} className="w-full h-11">
               {creating ? <><Loader2 size={16} className="animate-spin" /> Creando...</> : 'Crear Parte'}
             </Button>
