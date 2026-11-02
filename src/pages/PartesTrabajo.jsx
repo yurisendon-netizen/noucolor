@@ -27,7 +27,7 @@ export default function PartesTrabajo() {
   const [downloadingId, setDownloadingId] = useState(null);
   const [mailOrder, setMailOrder] = useState(null);
   const canSendMail = isSecretaria(employee);
-  const emptyForm = { title: '', description: '', client_name: '', date: '', priority: 'media', materials: '', notes: '', encargado_obra: '', encargado_email: '', obra_id: '' };
+  const emptyForm = { title: '', description: '', client_name: '', date: '', materials: '', notes: '', encargado_obra: '', encargado_email: '', obra_id: '' };
   const [form, setForm] = useState(emptyForm);
   const [obras, setObras] = useState([]);
   const [firmaDataUrl, setFirmaDataUrl] = useState(null);
