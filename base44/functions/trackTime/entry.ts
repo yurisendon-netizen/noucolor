@@ -1366,6 +1366,26 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, solicitud: created, dias, antelacion, aviso45: antelacion < 45 });
       }
 
+      // Admin: apuntar vacaciones ya hechas (o fijadas por la empresa) a un trabajador,
+      // directamente aprobadas. Sirve para cargar las de este año anteriores a la app.
+      case 'adminVacaciones': {
+        if (!isAdmin) return Response.json({ error: 'Prohibido' }, { status: 403 });
+        const from = String(body.date_from || ''), to = String(body.date_to || '');
+        if (!isYmd(from) || !isYmd(to) || to < from) return Response.json({ error: 'Fechas no válidas.' }, { status: 400 });
+        if (from.slice(0, 4) !== to.slice(0, 4)) return Response.json({ error: 'Apúntalas por años por separado.' }, { status: 400 });
+        const emp = (await base44.asServiceRole.entities.Employee.filter({ id: String(body.employee_id || '') }))[0];
+        if (!emp) return Response.json({ error: 'Trabajador no encontrado' }, { status: 404 });
+        const prev = await base44.asServiceRole.entities.Justificante.filter({ employee_id: emp.id, type: 'vacaciones' });
+        if (prev.some(j => j.status !== 'rechazado' && j.date_from <= to && j.date_to >= from)) {
+          return Response.json({ error: 'Ese trabajador ya tiene vacaciones en esas fechas.' }, { status: 400 });
+        }
+        await base44.asServiceRole.entities.Justificante.create({
+          employee_id: emp.id, employee_name: emp.full_name, type: 'vacaciones',
+          date_from: from, date_to: to, reason: 'Apuntadas por la empresa', status: 'aprobado',
+        });
+        return Response.json({ success: true });
+      }
+
       case 'cancelarVacaciones': {
         const j = (await base44.asServiceRole.entities.Justificante.filter({ id: String(body.id || '') }))[0];
         if (!j || j.type !== 'vacaciones') return Response.json({ error: 'Solicitud no encontrada' }, { status: 404 });
