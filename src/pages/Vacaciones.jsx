@@ -81,6 +81,8 @@ export default function Vacaciones() {
   const [form, setForm] = useState({ date_from: '', date_to: '', reason: '' });
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ employee_id: '', date_from: '', date_to: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,6 +132,20 @@ export default function Vacaciones() {
     } catch (e) {
       toast({ title: 'Error', description: errMsg(e), variant: 'destructive' });
     } finally { setBusyId(null); }
+  }
+
+  async function apuntar() {
+    setSaving(true);
+    try {
+      const res = await authInvoke('trackTime', { operation: 'adminVacaciones', ...addForm });
+      if (res.data?.error) throw new Error(res.data.error);
+      toast({ title: 'Vacaciones apuntadas' });
+      setAddOpen(false);
+      setAddForm({ employee_id: '', date_from: '', date_to: '' });
+      load(); loadCal();
+    } catch (e) {
+      toast({ title: 'No se ha podido apuntar', description: errMsg(e), variant: 'destructive' });
+    } finally { setSaving(false); }
   }
 
   async function cancelar(id) {
@@ -255,7 +271,10 @@ export default function Vacaciones() {
       {/* ── ADMIN: días de cada trabajador */}
       {isAdmin && (data?.empleados || []).length > 0 && (
         <section className="bg-card rounded-xl border border-border p-4 sm:p-5">
-          <h2 className="font-semibold mb-3">Días de cada trabajador · {year}</h2>
+          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+            <h2 className="font-semibold">Días de cada trabajador · {year}</h2>
+            <Button size="sm" variant="outline" onClick={() => setAddOpen(true)} className="gap-1"><Plus size={15} /> Apuntar vacaciones ya hechas</Button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -340,6 +359,31 @@ export default function Vacaciones() {
             </div>
             <Button onClick={pedir} disabled={saving || !diasPedidos || (mio && diasPedidos > mio.quedan)} className="w-full h-11">
               {saving ? <Loader2 size={16} className="animate-spin" /> : 'Enviar solicitud'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Admin: apuntar vacaciones a un trabajador (ya aprobadas) */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="bg-card border-border max-w-md w-[calc(100vw-1.5rem)]">
+          <DialogHeader><DialogTitle>Apuntar vacaciones</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-1">
+            <p className="text-xs text-muted-foreground">Para cargar las vacaciones que ya ha hecho este año (antes de la app) o las que fija la empresa. Quedan aprobadas directamente.</p>
+            <select value={addForm.employee_id} onChange={e => setAddForm(f => ({ ...f, employee_id: e.target.value }))}
+              className="w-full h-10 rounded-md bg-secondary border border-border px-2 text-sm">
+              <option value="">Trabajador…</option>
+              {(data?.empleados || []).map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+            </select>
+            <div className="grid grid-cols-2 gap-3">
+              <Input type="date" value={addForm.date_from} onChange={e => setAddForm(f => ({ ...f, date_from: e.target.value }))} className="bg-secondary border-border" />
+              <Input type="date" min={addForm.date_from} value={addForm.date_to} onChange={e => setAddForm(f => ({ ...f, date_to: e.target.value }))} className="bg-secondary border-border" />
+            </div>
+            {addForm.date_from && addForm.date_to && addForm.date_to >= addForm.date_from && (
+              <p className="text-sm">{dayN(addForm.date_to) - dayN(addForm.date_from) + 1} días naturales</p>
+            )}
+            <Button onClick={apuntar} disabled={saving || !addForm.employee_id || !addForm.date_from || !addForm.date_to} className="w-full h-11">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : 'Guardar'}
             </Button>
           </div>
         </DialogContent>
