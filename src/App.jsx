@@ -10,6 +10,7 @@ import { CustomAuthProvider, useCustomAuth } from '@/lib/CustomAuthContext';
 import { ThemeProvider } from 'next-themes';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PushNavListener from '@/components/PushNavListener';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 import Login from '@/pages/Login';
 import TelefonoEmpresa from '@/pages/TelefonoEmpresa';
@@ -45,6 +46,12 @@ function TerminalGate({ children }) {
   return children;
 }
 
+// Se reinicia al cambiar de página, para que un fallo en una no bloquee las demás.
+function PageErrorBoundary({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>;
+}
+
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
@@ -56,6 +63,7 @@ function App() {
             <ScrollToTop />
             <PushNavListener />
             <TerminalGate>
+            <PageErrorBoundary>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/terminal" element={<TelefonoEmpresa />} />
@@ -85,6 +93,7 @@ function App() {
               </Route>
               <Route path="*" element={<PageNotFound />} />
             </Routes>
+            </PageErrorBoundary>
             </TerminalGate>
           </Router>
           <Toaster />
