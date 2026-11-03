@@ -10,7 +10,12 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// Yuri (03/11/2026): ya no se envían correos por cada incumplimiento.
+// Los incumplimientos se siguen registrando y se ven en la app.
+const EMAIL_ACTIVO = false;
+
 Deno.serve(async (req) => {
+  if (!EMAIL_ACTIVO) return Response.json({ success: true, skipped: 'aviso por correo desactivado' });
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
