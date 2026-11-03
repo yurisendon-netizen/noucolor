@@ -66,8 +66,11 @@ Deno.serve(async (req) => {
       terminales = { sent: false, error: err?.message || String(err) };
     }
 
-    if (pending.length === 0) {
-      return Response.json({ success: true, date: today, sent: 0, terminales, message: 'Todos los empleados ya han fichado' });
+    // Yuri (03/11/2026): el recordatorio de las 8:00 llega SOLO al teléfono de
+    // empresa (terminal), no al móvil personal de cada trabajador.
+    const SOLO_TERMINAL = true;
+    if (SOLO_TERMINAL || pending.length === 0) {
+      return Response.json({ success: true, date: today, sent: 0, pending: pending.length, terminales, message: SOLO_TERMINAL ? 'Aviso solo a los terminales' : 'Todos los empleados ya han fichado' });
     }
 
     const results = [];
