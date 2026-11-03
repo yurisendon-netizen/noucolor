@@ -528,7 +528,13 @@ export default function TelefonoEmpresa() {
           </button>
         )}
         {avisos === 'denied' && (
-          <p className="mb-4 rounded-xl bg-white/10 px-4 py-2 text-sm text-white/85">Los avisos están bloqueados en este teléfono. Actívalos en los ajustes del navegador para esta web.</p>
+          <p className="mb-4 rounded-xl bg-red-600/80 px-4 py-2 text-sm font-semibold">Avisos bloqueados en este teléfono. Permite las notificaciones para esta web en los ajustes del navegador y vuelve a abrir.</p>
+        )}
+        {avisos === 'granted' && (
+          <p className="mb-4 text-center text-sm text-emerald-300">✓ Avisos para fichar activados en este teléfono</p>
+        )}
+        {avisos === 'unsupported' && (
+          <p className="mb-4 rounded-xl bg-white/10 px-4 py-2 text-sm text-white/85">Este navegador no admite avisos. En iPhone: Compartir → «Añadir a pantalla de inicio» y abre la app desde ese icono.</p>
         )}
         {loading && workers.length === 0 && <p className="text-center flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={18} /> Cargando…</p>}
         <div className="grid grid-cols-2 gap-3">
