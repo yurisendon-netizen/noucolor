@@ -20,6 +20,13 @@ Deno.serve(async (req) => {
   return await runCronTracked(base44, 'notifyMissingClockIn', async () => {
     const today = todayLocalDate();
 
+    // Yuri (03/11/2026): ya no se envía el correo de "recuerda fichar" a cada
+    // trabajador. El aviso llega al teléfono de empresa (onesignalClockInReminder).
+    const CORREO_ACTIVO = false;
+    if (!CORREO_ACTIVO) {
+      return Response.json({ success: true, date: today, sent: 0, message: 'Correo de recordatorio desactivado' });
+    }
+
     // Empleados activos con email — los jefes están exentos de fichar (ver ControlHorario)
     const employees = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
     const recipients = employees.filter(e => e.role !== 'jefe' && !e.horario_flexible && e.email);
