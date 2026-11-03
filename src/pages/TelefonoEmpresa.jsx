@@ -3,6 +3,12 @@ import { base44 } from '@/api/base44Client';
 import { Loader2, CheckCircle2, ArrowLeft, AlertTriangle, LogIn, LogOut, MapPin, Lock, ClipboardList, PenLine } from 'lucide-react';
 import SignaturePadInput from '@/components/parts/SignaturePadInput';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
+import { linkOneSignalExternalUser, requestPushPermission } from '@/lib/onesignal';
+
+// Estado del permiso de notificaciones del navegador ('granted' | 'denied' | 'default' | 'unsupported')
+const pushPerm = () => {
+  try { return typeof Notification === 'undefined' ? 'unsupported' : Notification.permission; } catch { return 'unsupported'; }
+};
 
 // =====================================================================
 // MODO TERMINAL DE FICHAJE — móvil compartido del taller (rol Terminal).
@@ -86,6 +92,9 @@ export default function TelefonoEmpresa() {
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [listErr, setListErr] = useState('');
+  const [terminalId, setTerminalId] = useState('');
+  const [avisos, setAvisos] = useState(pushPerm);
+  const linkedRef = useRef('');
 
   // view: 'list' | 'pin' | 'status' | 'ok'
   const [view, setView] = useState('list');
@@ -122,6 +131,12 @@ export default function TelefonoEmpresa() {
       setWorkers(res.data?.workers || []);
       if (res.data?.phone) setPhoneName(res.data.phone);
       setFija(res.data?.ubicacion_fija === true);
+      // Vincula este terminal a los avisos push (recordatorio de fichar de las 8:00)
+      const tid = res.data?.terminal_id;
+      if (tid) {
+        setTerminalId(tid);
+        if (linkedRef.current !== tid) { linkedRef.current = tid; linkOneSignalExternalUser(`terminal_${tid}`); }
+      }
       base44.functions.invoke('trackTime', { operation: 'kioskPartes', sessionToken: token })
         .then((r) => setPartes(r.data?.partes || [])).catch(() => {});
     } catch (e) {
@@ -500,6 +515,21 @@ export default function TelefonoEmpresa() {
       <main className="flex-1 p-4 w-full max-w-3xl mx-auto">
         <p className="text-lg font-semibold text-center mb-4">Toca tu nombre para fichar</p>
         {listErr && <p className="mb-3 rounded-xl bg-red-600/90 px-4 py-2 text-base font-semibold">{listErr}</p>}
+        {avisos === 'default' && (
+          <button type="button"
+            onClick={async () => {
+              await requestPushPermission();
+              if (terminalId) await linkOneSignalExternalUser(`terminal_${terminalId}`);
+              setAvisos(pushPerm());
+            }}
+            className="mb-4 w-full rounded-xl px-4 py-3 text-base font-bold active:scale-[0.98] transition"
+            style={{ background: NARANJA, color: '#ffffff' }}>
+            Activar avisos para fichar
+          </button>
+        )}
+        {avisos === 'denied' && (
+          <p className="mb-4 rounded-xl bg-white/10 px-4 py-2 text-sm text-white/85">Los avisos están bloqueados en este teléfono. Actívalos en los ajustes del navegador para esta web.</p>
+        )}
         {loading && workers.length === 0 && <p className="text-center flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={18} /> Cargando…</p>}
         <div className="grid grid-cols-2 gap-3">
           {workers.map((w) => (
