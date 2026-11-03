@@ -464,7 +464,7 @@ Deno.serve(async (req) => {
               entrada: open ? open.clock_in : (closed ? closed.clock_in : null),
             };
           });
-        return Response.json({ success: true, phone: kiosk.nombre, ubicacion_fija: kiosk.ubicacion_fija === true, date: todayStr, workers });
+        return Response.json({ success: true, phone: kiosk.nombre, terminal_id: kiosk.id, ubicacion_fija: kiosk.ubicacion_fija === true, date: todayStr, workers });
       }
       // kioskClockIn / kioskClockOut: el trabajador elige su nombre y mete su PIN.
       const worker = (await base44.asServiceRole.entities.Employee.filter({ id: String(body.employeeId || '') }))[0];
