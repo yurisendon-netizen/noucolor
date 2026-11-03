@@ -151,9 +151,8 @@ export function CustomAuthProvider({ children }) {
       sessionStorage.setItem('noucolor_pin_ok', '1');
       setEmployee(result.data.employee);
       linkOneSignalExternalUser(result.data.employee.id);
-      // Dentro del gesto del clic de login: pide permiso de notificaciones push
-      // (web). En nativo se ignora. No bloquea el flujo de login.
-      requestPushPermission();
+      // Yuri (03/11/2026): al entrar con el usuario personal ya NO se pregunta por
+      // las notificaciones; solo se pregunta en el teléfono de empresa (terminal).
       return result.data.employee;
     }
     return null;
