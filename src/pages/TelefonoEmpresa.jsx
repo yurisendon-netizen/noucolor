@@ -94,6 +94,7 @@ export default function TelefonoEmpresa() {
   const [listErr, setListErr] = useState('');
   const [terminalId, setTerminalId] = useState('');
   const [avisos, setAvisos] = useState(pushPerm);
+  const [avisosLuego, setAvisosLuego] = useState(false);
   const linkedRef = useRef('');
 
   // view: 'list' | 'pin' | 'status' | 'ok'
@@ -515,16 +516,34 @@ export default function TelefonoEmpresa() {
       <main className="flex-1 p-4 w-full max-w-3xl mx-auto">
         <p className="text-lg font-semibold text-center mb-4">Toca tu nombre para fichar</p>
         {listErr && <p className="mb-3 rounded-xl bg-red-600/90 px-4 py-2 text-base font-semibold">{listErr}</p>}
-        {avisos === 'default' && (
-          <button type="button"
-            onClick={async () => {
-              await requestPushPermission();
-              if (terminalId) await linkOneSignalExternalUser(`terminal_${terminalId}`);
-              setAvisos(pushPerm());
-            }}
-            className="mb-4 w-full rounded-xl px-4 py-3 text-base font-bold active:scale-[0.98] transition"
-            style={{ background: NARANJA, color: '#ffffff' }}>
-            Activar avisos para fichar
+        {/* Al entrar como terminal (encargado): pregunta si se activan las notificaciones */}
+        {avisos === 'default' && !avisosLuego && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center" style={{ color: GRANATE }}>
+              <p className="text-xl font-extrabold mb-2">¿Quieres activar las notificaciones?</p>
+              <p className="text-base mb-5 text-gray-700">Este teléfono avisará cada mañana de quién falta por fichar.</p>
+              <button type="button"
+                onClick={async () => {
+                  await requestPushPermission();
+                  if (terminalId) await linkOneSignalExternalUser(`terminal_${terminalId}`);
+                  setAvisos(pushPerm());
+                  setAvisosLuego(true);
+                }}
+                className="w-full rounded-xl px-4 py-4 text-lg font-bold text-white active:scale-[0.98] transition"
+                style={{ background: NARANJA }}>
+                Sí, activar
+              </button>
+              <button type="button" onClick={() => setAvisosLuego(true)}
+                className="mt-3 w-full rounded-xl px-4 py-3 text-base font-semibold text-gray-500">
+                Ahora no
+              </button>
+            </div>
+          </div>
+        )}
+        {avisos === 'default' && avisosLuego && (
+          <button type="button" onClick={() => setAvisosLuego(false)}
+            className="mb-4 w-full rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
+            Activar notificaciones en este teléfono
           </button>
         )}
         {avisos === 'denied' && (
