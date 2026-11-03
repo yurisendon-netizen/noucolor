@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authInvoke } from '@/lib/authInvoke';
-import { linkOneSignalExternalUser, requestPushPermission } from '@/lib/onesignal';
+import { linkOneSignalExternalUser } from '@/lib/onesignal';
 
 const AuthContext = createContext(null);
 
@@ -51,11 +51,9 @@ export function CustomAuthProvider({ children }) {
         localStorage.setItem(TERMINAL_KEYS.name, res.data.phone?.nombre || '');
       } catch { /* sin almacenamiento */ }
       const t = { token: res.data.sessionToken, nombre: res.data.phone?.nombre || '' };
-      // Avisos push en el terminal (recordatorio de fichar): se pide permiso aquí,
-      // dentro del gesto de pulsar "Iniciar sesión", y se vincula el terminal.
-      if (res.data.phone?.id) {
-        requestPushPermission().finally(() => linkOneSignalExternalUser(`terminal_${res.data.phone.id}`));
-      }
+      // Avisos push en el terminal: se vincula el terminal. El permiso se pide en la
+      // pantalla del terminal con la ventana "¿Quieres activar las notificaciones?".
+      if (res.data.phone?.id) linkOneSignalExternalUser(`terminal_${res.data.phone.id}`);
       setTerminal(t);
       return t;
     } catch { return null; }
