@@ -51,6 +51,11 @@ export function CustomAuthProvider({ children }) {
         localStorage.setItem(TERMINAL_KEYS.name, res.data.phone?.nombre || '');
       } catch { /* sin almacenamiento */ }
       const t = { token: res.data.sessionToken, nombre: res.data.phone?.nombre || '' };
+      // Avisos push en el terminal (recordatorio de fichar): se pide permiso aquí,
+      // dentro del gesto de pulsar "Iniciar sesión", y se vincula el terminal.
+      if (res.data.phone?.id) {
+        requestPushPermission().finally(() => linkOneSignalExternalUser(`terminal_${res.data.phone.id}`));
+      }
       setTerminal(t);
       return t;
     } catch { return null; }
