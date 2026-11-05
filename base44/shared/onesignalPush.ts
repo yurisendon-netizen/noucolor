@@ -29,7 +29,11 @@ export async function sendOneSignalPush({ externalUserIds, heading, content, dat
     headings: { en: heading, es: heading },
     contents: { en: content, es: content },
     url: url || 'https://noucolor.base44.app/control-horario',
-    data: data || {}
+    data: data || {},
+    // Logo de Noucolor en la notificación (Chrome/Android y web).
+    chrome_web_icon: 'https://noucolor.base44.app/icons/icon-192.png',
+    firefox_icon: 'https://noucolor.base44.app/icons/icon-192.png',
+    large_icon: 'https://noucolor.base44.app/icons/icon-192.png'
   };
 
   try {
