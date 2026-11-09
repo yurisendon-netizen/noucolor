@@ -845,14 +845,14 @@ export default function TelefonoEmpresa() {
         {avisos === 'unsupported' && (
           <p className="mb-4 rounded-xl bg-white/10 px-4 py-2 text-sm text-white/85">Este navegador no admite avisos. En iPhone: Compartir → «Añadir a pantalla de inicio» y abre la app desde ese icono.</p>
         )}
-        <p className={`mb-4 text-center text-sm flex items-center justify-center gap-1 ${gps.status === 'ok' ? 'text-emerald-300' : gps.status === 'denied' ? 'text-red-200 font-semibold' : 'text-white/70'}`}>
+        {!fija && <p className={`mb-4 text-center text-sm flex items-center justify-center gap-1 ${gps.status === 'ok' ? 'text-emerald-300' : gps.status === 'denied' ? 'text-red-200 font-semibold' : 'text-white/70'}`}>
           <MapPin size={14} />
           {gps.status === 'ok' ? `GPS activo siempre (±${gps.accuracy} m)`
             : gps.status === 'denied' ? 'Ubicación bloqueada: permítela siempre para esta web en los ajustes de Chrome'
             : gps.status === 'imprecise' ? `GPS poco preciso (±${gps.accuracy} m). Activa la ubicación exacta`
             : gps.status === 'unsupported' ? 'Este navegador no da ubicación'
             : 'Buscando GPS…'}
-        </p>
+        </p>}
         {loading && workers.length === 0 && <p className="text-center flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={18} /> Cargando…</p>}
         <div className="grid grid-cols-2 gap-3">
           {workers.map((w) => (
