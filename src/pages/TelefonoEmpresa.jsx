@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Loader2, CheckCircle2, ArrowLeft, AlertTriangle, LogIn, LogOut, MapPin, Lock, ClipboardList, PenLine } from 'lucide-react';
+import { Loader2, CheckCircle2, ArrowLeft, AlertTriangle, LogIn, LogOut, MapPin, Lock, ClipboardList, PenLine, Plus, Check } from 'lucide-react';
 import SignaturePadInput from '@/components/parts/SignaturePadInput';
 import { useCustomAuth } from '@/lib/CustomAuthContext';
 import { linkOneSignalExternalUser, requestPushPermission } from '@/lib/onesignal';
@@ -21,6 +21,10 @@ const GRANATE = '#5a123e';
 const NARANJA = '#e6671a';
 const IDLE_MS = 20000;      // sin tocar nada 20 s → vuelve a la lista
 const IDLE_PARTES_MS = 120000; // leyendo/firmando un parte: 2 min
+const IDLE_FORM_MS = 600000;   // escribiendo un parte nuevo: 10 min
+const hoyAndorra = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Andorra', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const ymdMinus = (s, n) => { const d = new Date(`${s}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+const emptyNp = () => ({ date: hoyAndorra(), title: '', client_name: '', description: '', horas: {}, materials: '', notes: '', encargado: '' });
 const OK_MS = 3000;         // confirmación verde 3 s
 const GPS_MAX_M = 200;      // misma regla que el backend (GPS_MAX_ACCEPT_M)
 const TZ = 'Europe/Andorra';
@@ -112,6 +116,11 @@ export default function TelefonoEmpresa() {
   const [encargadoNombre, setEncargadoNombre] = useState('');
   const [firma, setFirma] = useState(null);
 
+  // Parte nuevo desde el terminal: el operario se identifica con su PIN y lo rellena
+  const [npAutor, setNpAutor] = useState(null);
+  const [np, setNp] = useState(emptyNp);
+  const [npFirma, setNpFirma] = useState(null);
+
   const posRef = useRef(null);
   const posErrRef = useRef('');
   const lastTouch = useRef(Date.now());
@@ -120,6 +129,7 @@ export default function TelefonoEmpresa() {
   const reset = useCallback(() => {
     setView('list'); setSel(null); setPin(''); setStatus(null); setErr(''); setOk(null); setBusy(false);
     setParteSel(null); setEncargadoNombre(''); setFirma(null);
+    setNpAutor(null); setNp(emptyNp()); setNpFirma(null);
     pinRef.current = ''; posRef.current = null; posErrRef.current = '';
   }, []);
 
@@ -171,7 +181,8 @@ export default function TelefonoEmpresa() {
     window.addEventListener('pointerdown', touch);
     window.addEventListener('keydown', touch);
     const t = setInterval(() => {
-      const limite = (view === 'partes' || view === 'parte') ? IDLE_PARTES_MS : IDLE_MS;
+      const limite = view === 'np_form' ? IDLE_FORM_MS
+        : (view === 'partes' || view === 'parte' || view === 'np_who' || view === 'np_pin') ? IDLE_PARTES_MS : IDLE_MS;
       if (view !== 'list' && view !== 'ok' && !busy && Date.now() - lastTouch.current > limite) reset();
     }, 1000);
     return () => { window.removeEventListener('pointerdown', touch); window.removeEventListener('keydown', touch); clearInterval(t); };
@@ -308,6 +319,95 @@ export default function TelefonoEmpresa() {
     }
   }
 
+  // ---------- Crear parte nuevo ----------
+  function nuevoParte() {
+    lastTouch.current = Date.now();
+    setErr(''); setNpAutor(null); setNp(emptyNp()); setNpFirma(null); setPin(''); pinRef.current = '';
+    setView('np_who');
+  }
+
+  function npPick(w) {
+    lastTouch.current = Date.now();
+    setNpAutor(w); setPin(''); setErr(''); pinRef.current = '';
+    setView('np_pin');
+  }
+
+  async function npOnPin(v) {
+    setPin(v);
+    setErr('');
+    if (v.length !== 4 || busy) return;
+    setBusy(true);
+    try {
+      const res = await base44.functions.invoke('trackTime', { operation: 'kioskCheckPin', sessionToken: token, employeeId: npAutor.id, pin: v });
+      if (res.data?.success) {
+        pinRef.current = v;
+        setNp({ ...emptyNp(), horas: { [npAutor.id]: '8' } });
+        setNpFirma(null);
+        setView('np_form');
+      } else {
+        setErr(res.data?.error || 'PIN incorrecto');
+        setPin('');
+      }
+    } catch (e) {
+      if (isAuthErr(e)) { terminalLogout(); return; }
+      setErr(errMsg(e));
+      setPin('');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const npSet = (patch) => setNp((f) => ({ ...f, ...patch }));
+  const npToggle = (id) => setNp((f) => {
+    const horas = { ...f.horas };
+    if (horas[id] !== undefined) delete horas[id]; else horas[id] = '8';
+    return { ...f, horas };
+  });
+  const npNum = (v) => Number(String(v ?? '').replace(',', '.')) || 0;
+
+  async function npGuardar() {
+    if (busy || !npAutor) return;
+    setErr('');
+    if (!np.title.trim()) { setErr('Pon la obra.'); return; }
+    if (!np.client_name.trim()) { setErr('Pon el cliente.'); return; }
+    if (!np.description.trim()) { setErr('Describe el trabajo realizado.'); return; }
+    const filas = Object.entries(np.horas).map(([id, h]) => ({ employee_id: id, horas: npNum(h) }));
+    if (filas.length === 0) { setErr('Marca al menos un trabajador.'); return; }
+    if (filas.some((r) => r.horas <= 0 || r.horas > 24)) { setErr('Revisa las horas: entre 0,25 y 24 por trabajador.'); return; }
+    if (npFirma && !np.encargado.trim()) { setErr('Pon el nombre del encargado que firma.'); return; }
+    setBusy(true);
+    try {
+      const res = await base44.functions.invoke('trackTime', {
+        operation: 'kioskCreateParte', sessionToken: token, employeeId: npAutor.id, pin: pinRef.current,
+        workOrder: {
+          date: np.date,
+          title: np.title.trim(),
+          client_name: np.client_name.trim(),
+          description: np.description.trim(),
+          horas_trabajadas: filas,
+          materials: np.materials.trim(),
+          notes: np.notes.trim(),
+          encargado_obra: np.encargado.trim(),
+        },
+        firmaDataUrl: npFirma || null,
+      });
+      if (res.data?.success) {
+        pinRef.current = '';
+        setOk({ parte: true, creado: true, nombre: np.title.trim(), hora: '' });
+        setView('ok');
+        load();
+        setTimeout(reset, OK_MS);
+      } else {
+        setErr(res.data?.error || 'No se pudo guardar el parte');
+      }
+    } catch (e) {
+      if (isAuthErr(e)) { terminalLogout(); return; }
+      setErr(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Salida oculta para mantenimiento: mantener pulsado el logo 3 s
   const pressTimer = useRef(null);
   const startPress = () => {
@@ -331,7 +431,7 @@ export default function TelefonoEmpresa() {
     return (
       <div className={`${shell} items-center justify-center p-6 text-center`} style={{ background: '#15803d' }}>
         <CheckCircle2 size={110} className="mb-5" />
-        <h1 className="text-3xl font-extrabold">{ok.parte ? 'Parte firmado' : `${ok.entrando ? 'Entrada registrada' : 'Salida registrada'} ${ok.hora}`}</h1>
+        <h1 className="text-3xl font-extrabold">{ok.parte ? (ok.creado ? 'Parte creado' : 'Parte firmado') : `${ok.entrando ? 'Entrada registrada' : 'Salida registrada'} ${ok.hora}`}</h1>
         <p className="text-2xl mt-3 font-semibold">{ok.nombre}</p>
         {ok.ya && <p className="text-base mt-4 text-white/85">Ya tenías la entrada abierta hoy.</p>}
         {ok.tarde && <p className="mt-4 text-lg font-semibold flex items-center gap-2"><AlertTriangle size={20} /> Entrada con retraso</p>}
@@ -347,6 +447,11 @@ export default function TelefonoEmpresa() {
           <ArrowLeft size={22} /> Volver
         </button>
         <div className="flex-1 w-full max-w-2xl mx-auto mt-4">
+          <button type="button" onClick={nuevoParte}
+            className="w-full h-16 mb-6 rounded-2xl text-xl font-extrabold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition"
+            style={{ background: NARANJA, color: '#ffffff' }}>
+            <Plus size={26} /> CREAR PARTE NUEVO
+          </button>
           <h1 className="text-3xl font-extrabold text-center">Partes por firmar</h1>
           <p className="text-base text-white/75 text-center mt-1 mb-5">El encargado de la obra toca el parte, lo revisa y firma</p>
           <ErrorBox />
@@ -438,6 +543,156 @@ export default function TelefonoEmpresa() {
             {busy ? <><Loader2 size={28} className="animate-spin" /> Firmando…</> : <><PenLine size={28} /> FIRMAR PARTE</>}
           </button>
           <p className="mt-3 text-sm text-white/70 text-center">Al firmar confirmas que el trabajo y las horas son correctos.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Parte nuevo: ¿quién lo hace? ----------
+  if (view === 'np_who') {
+    return (
+      <div className={`${shell} p-5`} style={bg}>
+        <button type="button" onClick={() => { setErr(''); setView('partes'); }}
+          className="self-start inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-lg font-semibold active:bg-white/20">
+          <ArrowLeft size={22} /> Volver
+        </button>
+        <div className="flex-1 w-full max-w-3xl mx-auto mt-4">
+          <h1 className="text-3xl font-extrabold text-center">Parte nuevo</h1>
+          <p className="text-lg text-white/80 text-center mt-1 mb-5">¿Quién hace el parte? Toca tu nombre</p>
+          <div className="grid grid-cols-2 gap-3">
+            {workers.map((w) => (
+              <button key={w.id} type="button" onClick={() => npPick(w)}
+                className="min-h-[88px] rounded-2xl bg-white/10 border-2 border-white/15 px-3 py-4 text-center text-lg font-bold leading-tight uppercase active:scale-[0.97] active:bg-white/20 transition">
+                {w.full_name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Parte nuevo: PIN del autor ----------
+  if (view === 'np_pin' && npAutor) {
+    return (
+      <div className={`${shell} p-5`} style={bg}>
+        <button type="button" onClick={() => { setErr(''); setPin(''); setView('np_who'); }} disabled={busy}
+          className="self-start inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-lg font-semibold active:bg-white/20">
+          <ArrowLeft size={22} /> Volver
+        </button>
+        <div className="flex-1 flex flex-col items-center justify-center text-center w-full max-w-sm mx-auto">
+          <h1 className="text-3xl font-extrabold">{npAutor.full_name}</h1>
+          <p className="text-lg text-white/80 mt-2 mb-6">Introduce tu PIN para hacer el parte</p>
+          <Keypad value={pin} onChange={npOnPin} disabled={busy} />
+          <div className="min-h-[2rem] mt-4">
+            {busy && <p className="text-base flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Comprobando…</p>}
+          </div>
+          <ErrorBox />
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Parte nuevo: formulario ----------
+  if (view === 'np_form' && npAutor) {
+    const hoy = hoyAndorra();
+    const inp = 'mt-1 w-full rounded-xl bg-white text-[#1a1a1a] px-4 text-lg font-semibold outline-none';
+    const lbl = 'text-sm font-semibold text-white/60 uppercase';
+    const total = Object.values(np.horas).reduce((s, h) => s + npNum(h), 0);
+    return (
+      <div className={`${shell} p-5`} style={bg}>
+        <button type="button" onClick={reset} disabled={busy}
+          className="self-start inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-lg font-semibold active:bg-white/20">
+          <ArrowLeft size={22} /> Cancelar
+        </button>
+        <div className="flex-1 w-full max-w-2xl mx-auto mt-4 pb-10 space-y-4">
+          <div>
+            <h1 className="text-3xl font-extrabold">Parte nuevo</h1>
+            <p className="text-base text-white/75 mt-1">Lo hace {npAutor.full_name}</p>
+          </div>
+
+          <div className="rounded-2xl bg-white/10 p-4 space-y-4">
+            <div>
+              <label htmlFor="np-date" className={lbl}>Fecha</label>
+              <input id="np-date" type="date" value={np.date} min={ymdMinus(hoy, 14)} max={hoy}
+                onChange={(e) => npSet({ date: e.target.value })} className={`${inp} h-14`} />
+            </div>
+            <div>
+              <label htmlFor="np-title" className={lbl}>Obra *</label>
+              <input id="np-title" value={np.title} onChange={(e) => npSet({ title: e.target.value })}
+                placeholder="Nombre o dirección de la obra" maxLength={200} className={`${inp} h-14`} />
+            </div>
+            <div>
+              <label htmlFor="np-client" className={lbl}>Cliente *</label>
+              <input id="np-client" value={np.client_name} onChange={(e) => npSet({ client_name: e.target.value })}
+                placeholder="Nombre del cliente" maxLength={200} className={`${inp} h-14`} />
+            </div>
+            <div>
+              <label htmlFor="np-desc" className={lbl}>Trabajo realizado *</label>
+              <textarea id="np-desc" value={np.description} onChange={(e) => npSet({ description: e.target.value })}
+                rows={4} placeholder="Qué se ha hecho hoy" className={`${inp} py-3`} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/10 p-4">
+            <p className={lbl}>Trabajadores y horas *</p>
+            <div className="space-y-2 mt-2">
+              {workers.map((w) => {
+                const on = np.horas[w.id] !== undefined;
+                return (
+                  <div key={w.id} className="flex items-stretch gap-2">
+                    <button type="button" onClick={() => npToggle(w.id)}
+                      className="flex-1 min-h-[60px] rounded-xl border-2 px-3 py-2 text-base font-bold uppercase leading-tight flex items-center gap-2 text-left transition active:scale-[0.98]"
+                      style={on ? { background: NARANJA, color: '#fff', borderColor: NARANJA } : { background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.2)' }}>
+                      <span className="w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center" style={{ borderColor: on ? '#fff' : 'rgba(255,255,255,0.5)' }}>
+                        {on && <Check size={16} />}
+                      </span>
+                      {w.full_name}
+                    </button>
+                    {on && (
+                      <div className="flex items-center gap-1">
+                        <input inputMode="decimal" value={np.horas[w.id]} aria-label={`Horas de ${w.full_name}`}
+                          onChange={(e) => setNp((f) => ({ ...f, horas: { ...f.horas, [w.id]: e.target.value } }))}
+                          className="w-20 h-full min-h-[60px] rounded-xl bg-white text-[#1a1a1a] text-center text-xl font-bold outline-none" />
+                        <span className="text-base font-semibold">h</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-base font-bold" style={{ color: NARANJA }}>Total: {fmtH(total)}</p>
+          </div>
+
+          <div className="rounded-2xl bg-white/10 p-4 space-y-4">
+            <div>
+              <label htmlFor="np-mat" className={lbl}>Materiales</label>
+              <textarea id="np-mat" value={np.materials} onChange={(e) => npSet({ materials: e.target.value })}
+                rows={2} className={`${inp} py-3`} />
+            </div>
+            <div>
+              <label htmlFor="np-notes" className={lbl}>Observaciones</label>
+              <textarea id="np-notes" value={np.notes} onChange={(e) => npSet({ notes: e.target.value })}
+                rows={2} className={`${inp} py-3`} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/10 p-4">
+            <label htmlFor="np-enc" className={lbl}>Encargado de la obra (si firma ahora)</label>
+            <input id="np-enc" value={np.encargado} onChange={(e) => npSet({ encargado: e.target.value })}
+              placeholder="Nombre y apellido" maxLength={200} className={`${inp} h-14`} />
+            <p className={`${lbl} mt-4 mb-1`}>Firma con el dedo (opcional, se puede firmar luego)</p>
+            <div className="[&_canvas]:h-44 [&_button]:text-white [&_button]:bg-white/10">
+              <SignaturePadInput key={npAutor.id} onChange={setNpFirma} />
+            </div>
+          </div>
+
+          <ErrorBox />
+          <button type="button" onClick={npGuardar} disabled={busy}
+            className="w-full h-20 rounded-3xl text-2xl font-extrabold tracking-wide shadow-2xl active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-3"
+            style={{ background: NARANJA, color: '#ffffff' }}>
+            {busy ? <><Loader2 size={28} className="animate-spin" /> Guardando…</> : <><ClipboardList size={28} /> GUARDAR PARTE</>}
+          </button>
         </div>
       </div>
     );
