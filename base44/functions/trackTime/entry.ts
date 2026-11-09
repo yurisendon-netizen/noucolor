@@ -392,7 +392,7 @@ Deno.serve(async (req) => {
       if (!kiosk) {
         return Response.json({ error: 'No autorizado' }, { status: 401 });
       }
-      if (!['kioskWorkers', 'kioskCheckPin', 'kioskClockIn', 'kioskClockOut', 'kioskPartes', 'kioskFirmarParte'].includes(operation)) {
+      if (!['kioskWorkers', 'kioskCheckPin', 'kioskClockIn', 'kioskClockOut', 'kioskPartes', 'kioskFirmarParte', 'kioskCreateParte'].includes(operation)) {
         return Response.json({ error: 'No autorizado' }, { status: 403 });
       }
       const todayStr = getLocalParts(new Date()).dateStr;
@@ -493,6 +493,29 @@ Deno.serve(async (req) => {
       if (Number(worker.pin_fails) > 0 || worker.pin_lock_until) {
         await base44.asServiceRole.entities.Employee.update(worker.id, { pin_fails: 0, pin_lock_until: '' });
       }
+      // Parte nuevo desde el terminal: el operario (identificado con SU código) lo
+      // crea a su nombre con la MISMA lógica de createWorkOrder. Los nombres de los
+      // trabajadores del parte salen siempre de la base de datos.
+      if (operation === 'kioskCreateParte') {
+        const f = body.workOrder && typeof body.workOrder === 'object' ? body.workOrder : {};
+        const fecha = typeof f.date === 'string' ? f.date : '';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || fecha > todayStr || fecha < desdeFirma) {
+          return Response.json({ success: false, error: 'La fecha del parte tiene que ser de los últimos 14 días.' }, { status: 400 });
+        }
+        const emps = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
+        const byId = new Map(emps.map(e => [e.id, e]));
+        const seen = new Set();
+        f.horas_trabajadas = (Array.isArray(f.horas_trabajadas) ? f.horas_trabajadas : [])
+          .filter(h => h && byId.has(String(h.employee_id)) && !seen.has(String(h.employee_id)) && seen.add(String(h.employee_id)))
+          .map(h => ({ employee_id: String(h.employee_id), employee_name: byId.get(String(h.employee_id)).full_name, horas: h.horas }));
+        delete f.obra_id;
+        body.workOrder = f;
+        caller = worker;
+        empId = worker.id;
+        empName = worker.full_name;
+        isAdmin = false;
+        op = 'createWorkOrder';
+      } else {
       // PIN correcto: devolver solo el estado de HOY de ese trabajador.
       if (operation === 'kioskCheckPin') {
         const today = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: worker.id, date: todayStr });
@@ -533,6 +556,7 @@ Deno.serve(async (req) => {
         op = 'clockOut';
       } else {
         op = 'clockIn';
+      }
       }
     }
 
