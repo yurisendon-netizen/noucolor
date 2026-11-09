@@ -130,7 +130,7 @@ export default function TelefonoEmpresa() {
     setView('list'); setSel(null); setPin(''); setStatus(null); setErr(''); setOk(null); setBusy(false);
     setParteSel(null); setEncargadoNombre(''); setFirma(null);
     setNpAutor(null); setNp(emptyNp()); setNpFirma(null);
-    pinRef.current = ''; posRef.current = null; posErrRef.current = '';
+    pinRef.current = '';
   }, []);
 
   const load = useCallback(async () => {
@@ -188,9 +188,44 @@ export default function TelefonoEmpresa() {
     return () => { window.removeEventListener('pointerdown', touch); window.removeEventListener('keydown', touch); clearInterval(t); };
   }, [view, busy, reset]);
 
+  // GPS SIEMPRE encendido: el teléfono de empresa se queda en la obra con la app
+  // abierta, así que se sigue la ubicación de forma continua y al fichar ya está lista.
+  const [gps, setGps] = useState({ status: 'searching', accuracy: null });
+  useEffect(() => {
+    if (!navigator.geolocation) { setGps({ status: 'unsupported', accuracy: null }); return undefined; }
+    let id = null;
+    let retry = null;
+    const start = () => {
+      if (id !== null) navigator.geolocation.clearWatch(id);
+      clearTimeout(retry);
+      id = navigator.geolocation.watchPosition(
+        (p) => {
+          const r = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, at: Date.now() };
+          const prev = posRef.current;
+          if (!(prev && Date.now() - prev.at < 15000 && prev.accuracy < r.accuracy)) posRef.current = r;
+          posErrRef.current = '';
+          setGps({ status: posRef.current.accuracy <= GPS_MAX_M ? 'ok' : 'imprecise', accuracy: Math.round(posRef.current.accuracy) });
+        },
+        (err) => {
+          if (err.code === 1) {
+            posErrRef.current = 'Sin permiso de ubicación. Activa la ubicación (exacta) para esta app en los ajustes del terminal. No se puede fichar.';
+            setGps({ status: 'denied', accuracy: null });
+            return;
+          }
+          retry = setTimeout(start, 15000);
+        },
+        { enableHighAccuracy: true, timeout: 60000, maximumAge: 0 },
+      );
+    };
+    start();
+    const onVis = () => { if (document.visibilityState === 'visible') start(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { document.removeEventListener('visibilitychange', onVis); if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(retry); };
+  }, []);
+
   function warmGps() {
-    posRef.current = null;
-    posErrRef.current = '';
+    // Con el GPS continuo ya hay lectura; solo se pide una si no hay ninguna reciente.
+    if (posRef.current && Date.now() - posRef.current.at < 60000) return;
     getPosition().then((p) => { posRef.current = p; }).catch((e) => { posErrRef.current = e.message; });
   }
 
@@ -810,6 +845,14 @@ export default function TelefonoEmpresa() {
         {avisos === 'unsupported' && (
           <p className="mb-4 rounded-xl bg-white/10 px-4 py-2 text-sm text-white/85">Este navegador no admite avisos. En iPhone: Compartir → «Añadir a pantalla de inicio» y abre la app desde ese icono.</p>
         )}
+        <p className={`mb-4 text-center text-sm flex items-center justify-center gap-1 ${gps.status === 'ok' ? 'text-emerald-300' : gps.status === 'denied' ? 'text-red-200 font-semibold' : 'text-white/70'}`}>
+          <MapPin size={14} />
+          {gps.status === 'ok' ? `GPS activo siempre (±${gps.accuracy} m)`
+            : gps.status === 'denied' ? 'Ubicación bloqueada: permítela siempre para esta web en los ajustes de Chrome'
+            : gps.status === 'imprecise' ? `GPS poco preciso (±${gps.accuracy} m). Activa la ubicación exacta`
+            : gps.status === 'unsupported' ? 'Este navegador no da ubicación'
+            : 'Buscando GPS…'}
+        </p>
         {loading && workers.length === 0 && <p className="text-center flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={18} /> Cargando…</p>}
         <div className="grid grid-cols-2 gap-3">
           {workers.map((w) => (
