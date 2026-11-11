@@ -277,6 +277,7 @@ Deno.serve(async (req) => {
       ...(precioHoraExtra !== undefined ? { precioHoraExtra } : {}),
       role: data.cargo || 'operario',
       ...(typeof data.horario_flexible === 'boolean' ? { horario_flexible: data.horario_flexible } : {}),
+      ...(typeof data.fichaje_movil_autorizado === 'boolean' ? { fichaje_movil_autorizado: data.fichaje_movil_autorizado } : {}),
       ...(data.user ? { user } : {}),
       ...(data.pass ? { pass: hashedPass } : {}),
     };
