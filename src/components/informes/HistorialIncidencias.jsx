@@ -7,6 +7,7 @@ import moment from 'moment';
 const TYPE_LABELS = {
   entrada_tardia: 'Entrada tardía',
   sin_fichar: 'Sin fichar',
+  salida_no_fichada: 'Salida no fichada',
 };
 
 export default function HistorialIncidencias({ month, year, isAdmin, employee, periodLabel }) {
