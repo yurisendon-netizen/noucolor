@@ -375,7 +375,8 @@ export default function ControlHorario() {
   const earlyExit = !flexible && hour < 16;
   const showProximo = !openEntry && !canClockIn;
   // Los operarios SOLO fichan en el terminal del taller (también bloqueado en el backend).
-  const terminalOnly = employee?.role === 'operario' && employee?.user !== 'googletester';
+  // Excepción: operarios con autorización firmada para fichar desde su móvil personal.
+  const terminalOnly = employee?.role === 'operario' && employee?.user !== 'googletester' && employee?.fichaje_movil_autorizado !== true;
 
   const columns = [
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
