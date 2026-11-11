@@ -1,6 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireCronSecret } from '../../shared/cronAuth.ts';
-import { runCronTracked } from '../../shared/cronMonitor.ts';
+import { runCronTracked, notifyAdminsPush } from '../../shared/cronMonitor.ts';
+
+// Yuri (11/11/2026): desde el 12/11/2026 la salida es OBLIGATORIA y se ficha en el
+// teléfono de empresa. Si no se ficha, el cierre automático deja una incidencia.
+const SALIDA_OBLIGATORIA_DESDE = '2026-11-12';
 
 // Cierre automático de fichajes abiertos — misma lógica que
 // shared/timeEntryAutoClose.ts (usada por trackTime/autoCloseAll), duplicada
@@ -80,20 +84,38 @@ async function autoCloseEntry(base44, entry) {
     });
   } catch (e) { console.error('FichajeHistorial', e?.message); }
   await deactivateLocation(base44, entry.employee_id);
+  if (entry.date >= SALIDA_OBLIGATORIA_DESDE) {
+    try {
+      const ya = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: entry.employee_id, date: entry.date, type: 'salida_no_fichada' });
+      if (ya.length === 0) {
+        await base44.asServiceRole.entities.Incumplimiento.create({
+          employee_id: entry.employee_id, employee_name: entry.employee_name, date: entry.date,
+          type: 'salida_no_fichada', status: 'pendiente',
+          description: 'No fichó la salida en el teléfono de empresa. Cerrado automáticamente a las 16:00, sin horas extra y sin ubicación de salida.'
+        });
+      }
+    } catch (e) { console.error('Incumplimiento salida', e?.message); }
+  }
 }
 
 async function autoCloseAllOpenEntries(base44) {
   const now = new Date();
   const openEntries = await base44.asServiceRole.entities.TimeEntry.filter({ status: 'abierto' });
   let closed = 0;
+  const sinSalida = [];
   for (const entry of openEntries) {
     if (!canAutoClose(entry, now)) continue;
     try {
       await autoCloseEntry(base44, entry);
       closed++;
+      if (entry.date >= SALIDA_OBLIGATORIA_DESDE) sinSalida.push(entry.employee_name);
     } catch (e) {
       console.error(`Error cerrando fichaje ${entry.id}:`, e.message);
     }
+  }
+  if (sinSalida.length > 0) {
+    await notifyAdminsPush(base44, `⚠️ No han fichado la salida (${sinSalida.length})`,
+      `${sinSalida.join(', ')}. Cerrado a las 16:00 sin ubicación de salida.`, { target_url: '/registro-fichajes' });
   }
   return closed;
 }
