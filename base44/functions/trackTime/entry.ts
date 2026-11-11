@@ -789,6 +789,26 @@ Deno.serve(async (req) => {
         }
 
         await upsertLocation(base44, empId, empName, false, lat, lng, acc);
+
+        // Control de obra también en la SALIDA: si ficha la salida lejos de la obra asignada, aviso.
+        try {
+          const asigOut = (await base44.asServiceRole.entities.Asignacion.filter({ employee_id: empId }, '-date', 50))
+            .filter(x => x.date <= entry.date);
+          if (asigOut.length > 0 && !fixedLoc) {
+            const a = asigOut[0];
+            const d = distMeters(lat, lng, a.lat, a.lng);
+            const radio = Number(a.radio_m) || 300;
+            if (d > radio) {
+              await notifyAdminsPush(
+                base44,
+                `📍 ${empName} ha fichado la SALIDA fuera de la obra`,
+                `Ha fichado la salida a ${d} m de «${a.obra_nombre}» (máx. ${radio} m).`,
+                { target_url: '/registro-fichajes' }
+              );
+            }
+          }
+        } catch (e) { console.error('control obra salida', e); }
+
         return Response.json({ success: true, clockOut, totalHours: regularHours, overtimeHours });
       }
 
@@ -1075,11 +1095,24 @@ Deno.serve(async (req) => {
               distancia = distMeters(t.clock_in_lat, t.clock_in_lng, a.lat, a.lng);
               fuera = distancia > (Number(a.radio_m) || 300);
             }
+            // Salida: solo cuenta la fichada de verdad (no el cierre automático, que no tiene GPS).
+            const salidaReal = !!(t && t.clock_out && !t.auto_closed && t.clock_out_lat != null);
+            let distancia_salida = null, fuera_salida = false;
+            if (salidaReal && a && !t.clock_out_fallback) {
+              distancia_salida = distMeters(t.clock_out_lat, t.clock_out_lng, a.lat, a.lng);
+              fuera_salida = distancia_salida > (Number(a.radio_m) || 300);
+            }
             return {
               id: e.id, full_name: e.full_name, estado_laboral: e.estado_laboral || 'activo',
               clock_in: t ? t.clock_in : null, clock_out: t ? t.clock_out : null,
               lat: t ? t.clock_in_lat ?? null : null, lng: t ? t.clock_in_lng ?? null : null,
               accuracy: t ? t.clock_in_accuracy ?? null : null,
+              salida_real: salidaReal,
+              salida_auto: !!(t && t.auto_closed),
+              out_lat: salidaReal ? t.clock_out_lat : null, out_lng: salidaReal ? t.clock_out_lng : null,
+              out_accuracy: salidaReal ? t.clock_out_accuracy ?? null : null,
+              salida_desde: salidaReal ? (t.fichado_desde_salida || (t.origen_salida === 'personal' ? 'Móvil personal' : '')) : '',
+              distancia_salida, fuera_salida,
               asignacion: a ? { id: a.id, obra_nombre: a.obra_nombre, lat: a.lat, lng: a.lng, radio_m: Number(a.radio_m) || 300, desde: a.date, heredada: a.date !== date } : null,
               distancia, fuera,
             };
