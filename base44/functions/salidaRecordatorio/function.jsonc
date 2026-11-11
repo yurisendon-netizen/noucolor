@@ -1,0 +1,15 @@
+{
+  "name": "salidaRecordatorio",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "type": "scheduled",
+      "name": "recordatorio_fichar_salida_1600",
+      "description": "Push a los teléfonos de empresa a las 16:00 hora de Andorra con quién falta por fichar la salida (corre 14:00 y 15:00 UTC; solo actúa la que cae a las 16 h locales)",
+      "is_active": true,
+      "schedule_mode": "recurring",
+      "schedule_type": "cron",
+      "cron_expression": "0 14,15 * * 1-5"
+    }
+  ]
+}
