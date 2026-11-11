@@ -35,6 +35,11 @@
       "format": "date",
       "type": "string"
     },
+    "fichaje_movil_autorizado": {
+      "default": false,
+      "description": "Operario autorizado (con autorizaci\u00f3n firmada) a fichar desde su m\u00f3vil personal, adem\u00e1s del tel\u00e9fono de empresa",
+      "type": "boolean"
+    },
     "horario_flexible": {
       "default": false,
       "description": "Horario de entrada flexible (p. ej. pluriempleo): puede fichar la entrada entre 7:00 y 15:00 sin que cuente como retraso ni falta; jornada de 8 h desde que entra",
