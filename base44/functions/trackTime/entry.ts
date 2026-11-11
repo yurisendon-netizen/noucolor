@@ -562,7 +562,9 @@ Deno.serve(async (req) => {
 
     // Los operarios SOLO fichan en el terminal del taller, nunca desde su usuario personal.
     // (googletester queda fuera: es la cuenta de revisión de Google Play, no un trabajador.)
-    if (!kiosk && (op === 'clockIn' || op === 'clockOut') && caller.role === 'operario' && caller.user !== 'googletester' && caller.fichaje_movil_autorizado !== true) {
+    if (!kiosk && (op === 'clockIn' || op === 'clockOut') && caller.role === 'operario' && caller.user !== 'googletester'
+      // Fichaje desde el móvil personal con autorización firmada: activo desde el 12/11/2026.
+      && !(caller.fichaje_movil_autorizado === true && getLocalParts(new Date()).dateStr >= '2026-11-12')) {
       return Response.json({ error: 'El fichaje se realiza en el terminal del taller.' }, { status: 403 });
     }
 
