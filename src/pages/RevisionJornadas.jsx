@@ -13,11 +13,13 @@ import moment from 'moment';
 const typeLabels = {
   entrada_tardia: 'Entrada tardía',
   sin_fichar: 'Sin fichar',
+  salida_no_fichada: 'Salida no fichada',
 };
 
 const typeStyles = {
   entrada_tardia: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
   sin_fichar: 'bg-red-500/15 text-red-400 border-red-500/20',
+  salida_no_fichada: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
 };
 
 export default function RevisionJornadas() {
@@ -195,6 +197,7 @@ export default function RevisionJornadas() {
             filterOptions={[
               { value: 'entrada_tardia', label: 'Entrada tardía' },
               { value: 'sin_fichar', label: 'Sin fichar' },
+              { value: 'salida_no_fichada', label: 'Salida no fichada' },
             ]}
             emptyMessage="No hay incumplimientos registrados"
           />
