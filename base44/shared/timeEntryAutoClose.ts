@@ -12,6 +12,8 @@
 // - Hora de Andorra calculada con horario de verano/invierno (no offset fijo).
 
 export const AUTO_CLOSE_FROM_HOUR = 21;
+// Yuri (11/11/2026): desde el 12/11/2026 la salida es OBLIGATORIA (teléfono de empresa).
+export const SALIDA_OBLIGATORIA_DESDE = '2026-11-12';
 
 export function andorraOffsetMinutes(instant) {
   try {
@@ -90,6 +92,18 @@ export async function autoCloseEntry(base44, entry, closedBy = null) {
     motivo: 'Salida no fichada: se cierra a las 16:00 (horario ordinario), sin horas extra'
   });
   await deactivateLocation(base44, entry.employee_id);
+  if (entry.date >= SALIDA_OBLIGATORIA_DESDE) {
+    try {
+      const ya = await base44.asServiceRole.entities.Incumplimiento.filter({ employee_id: entry.employee_id, date: entry.date, type: 'salida_no_fichada' });
+      if (ya.length === 0) {
+        await base44.asServiceRole.entities.Incumplimiento.create({
+          employee_id: entry.employee_id, employee_name: entry.employee_name, date: entry.date,
+          type: 'salida_no_fichada', status: 'pendiente',
+          description: 'No fichó la salida en el teléfono de empresa. Cerrado automáticamente a las 16:00, sin horas extra y sin ubicación de salida.'
+        });
+      }
+    } catch (e) { console.error('Incumplimiento salida', e?.message); }
+  }
 }
 
 export async function autoCloseAllOpenEntries(base44, now = new Date()) {
