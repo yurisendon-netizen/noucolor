@@ -82,7 +82,12 @@ export default function ControlDia() {
   const activos = rows.filter(r => r.estado_laboral === 'activo');
   const sinFichar = activos.filter(r => !r.clock_in);
   const fuera = rows.filter(r => r.fuera);
+  const fueraSalida = rows.filter(r => r.fuera_salida);
   const esHoy = date === todayAndorra();
+  // Desde el 12/11/2026 la salida es obligatoria desde el teléfono de empresa.
+  const horaAndorra = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Andorra', hour: '2-digit', hour12: false }).format(new Date()));
+  const pasada16 = !esHoy || horaAndorra >= 16;
+  const sinSalida = date >= '2026-11-12' && pasada16 ? rows.filter(r => r.clock_in && !r.salida_real) : [];
 
   function openDialog(employeeId) {
     setSel(employeeId ? [employeeId] : []);
@@ -210,8 +215,20 @@ export default function ControlDia() {
         </div>
       </div>
 
-      {(sinFichar.length > 0 || fuera.length > 0) && (
+      {(sinFichar.length > 0 || fuera.length > 0 || fueraSalida.length > 0 || sinSalida.length > 0) && (
         <div className="mb-3 space-y-2">
+          {fueraSalida.length > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <span><strong>Salida fuera de la obra:</strong> {fueraSalida.map(r => `${r.full_name} (${fDist(r.distancia_salida)})`).join(', ')}</span>
+            </div>
+          )}
+          {sinSalida.length > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-500">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <span><strong>{esHoy ? 'Falta fichar la salida:' : 'No fichó la salida:'}</strong> {sinSalida.map(r => r.full_name).join(', ')}</span>
+            </div>
+          )}
           {fuera.length > 0 && (
             <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-500">
               <AlertTriangle size={16} className="mt-0.5 shrink-0" />
@@ -244,10 +261,30 @@ export default function ControlDia() {
                 {r.clock_in && r.asignacion && !r.fuera && <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-500">En obra · {fDist(r.distancia)}</span>}
                 {r.lat != null && (
                   <a href={mapsUrl(r.lat, r.lng)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                    <ExternalLink size={12} /> Dónde fichó
+                    <ExternalLink size={12} /> Dónde fichó la entrada
                   </a>
                 )}
               </div>
+              {r.clock_in && (
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  {r.salida_real ? (
+                    <>
+                      <span className="tabular-nums text-muted-foreground">Salió {hora(r.clock_out)}{r.salida_desde ? ` · ${r.salida_desde}` : ''}</span>
+                      {r.fuera_salida && <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">SALIDA FUERA · {fDist(r.distancia_salida)}</span>}
+                      {r.asignacion && !r.fuera_salida && r.distancia_salida != null && <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-500">Salida en obra · {fDist(r.distancia_salida)}</span>}
+                      {r.out_lat != null && (
+                        <a href={mapsUrl(r.out_lat, r.out_lng)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <ExternalLink size={12} /> Dónde fichó la salida
+                        </a>
+                      )}
+                    </>
+                  ) : r.salida_auto ? (
+                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-500">Salida NO fichada (cerrada automática a las 16:00)</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Salida: pendiente</span>
+                  )}
+                </div>
+              )}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                 {r.asignacion ? (
                   <>
@@ -271,7 +308,7 @@ export default function ControlDia() {
         })}
       </div>
       <p className="text-xs text-muted-foreground mt-2">
-        {fDate(date)} · La obra asignada se mantiene cada día hasta que la cambies. Si asignas una obra y el trabajador ficha a más distancia de la permitida, sale en rojo y te llega un aviso al móvil.
+        {fDate(date)} · La obra asignada se mantiene cada día hasta que la cambies. Si asignas una obra y el trabajador ficha la entrada o la salida a más distancia de la permitida, sale en rojo y te llega un aviso al móvil. La salida se ficha en el teléfono de empresa.
       </p>
 
       <Dialog open={dlg} onOpenChange={setDlg}>
