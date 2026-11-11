@@ -18,7 +18,8 @@
         "entrada_tardia",
         "sin_fichar",
         "ubicacion_denegada",
-        "gps_sin_senal"
+        "gps_sin_senal",
+        "salida_no_fichada"
       ],
       "default": "entrada_tardia"
     },
