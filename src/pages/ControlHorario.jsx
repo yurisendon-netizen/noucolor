@@ -376,7 +376,10 @@ export default function ControlHorario() {
   const showProximo = !openEntry && !canClockIn;
   // Los operarios SOLO fichan en el terminal del taller (también bloqueado en el backend).
   // Excepción: operarios con autorización firmada para fichar desde su móvil personal.
-  const terminalOnly = employee?.role === 'operario' && employee?.user !== 'googletester' && employee?.fichaje_movil_autorizado !== true;
+  // Activo desde el 12/11/2026 (fecha de Andorra).
+  const hoyAndorraStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Andorra' }).format(now);
+  const movilAutorizado = employee?.fichaje_movil_autorizado === true && hoyAndorraStr >= '2026-11-12';
+  const terminalOnly = employee?.role === 'operario' && employee?.user !== 'googletester' && !movilAutorizado;
 
   const columns = [
     { key: 'date', label: 'Fecha', render: r => moment(r.date).format('DD/MM/YYYY') },
