@@ -96,6 +96,9 @@ function computeEntryHours(dateStr, clockInIso, clockOutIso, flexible = false) {
   const endRegular = outD < sixteen ? outD : sixteen;
   let regular = (endRegular.getTime() - inD.getTime()) / 3600000;
   regular = parseFloat(Math.min(Math.max(regular, 0), 8).toFixed(2));
+  // Jornada completa: si sale a las 16:00 o después, la jornada cuenta SIEMPRE 8 h
+  // (aunque haya entrado tarde). Solo una salida antes de las 16:00 cuenta menos.
+  if (outD >= sixteen) regular = 8;
   const after = Math.max(0, (outD.getTime() - Math.max(sixteen.getTime(), inD.getTime())) / 3600000);
   const overtime = Math.floor(after / OVERTIME_STEP_H + 1e-9) * OVERTIME_STEP_H;
   return { regular, overtime: parseFloat(overtime.toFixed(2)) };
