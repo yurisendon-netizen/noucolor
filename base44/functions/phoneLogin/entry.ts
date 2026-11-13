@@ -27,7 +27,10 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Este teléfono todavía no está activado. Avisa a un administrador.' });
     }
     const { token, tokenHash } = await generateSessionToken();
-    await base44.asServiceRole.entities.TelefonoEmpresa.update(phone.id, { session_token: tokenHash });
+    // Varios móviles pueden usar el mismo usuario a la vez: se guardan los 5 últimos tokens
+    const previos = String(phone.session_token || '').split(',').filter(Boolean);
+    const tokens = [...previos, tokenHash].slice(-5).join(',');
+    await base44.asServiceRole.entities.TelefonoEmpresa.update(phone.id, { session_token: tokens });
     return Response.json({ success: true, role: 'terminal', phone: { id: phone.id, nombre: phone.nombre }, sessionToken: token });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
