@@ -34,9 +34,9 @@ export async function hashPin(pin, salt) {
 export async function verifyPhoneSession(base44, sessionToken) {
   if (!sessionToken || typeof sessionToken !== 'string') return null;
   const tokenHash = await sha256Hex(sessionToken);
-  const phones = await base44.asServiceRole.entities.TelefonoEmpresa.filter({ session_token: tokenHash });
-  if (phones.length === 0) return null;
-  const phone = phones[0];
+  const all = await base44.asServiceRole.entities.TelefonoEmpresa.list('user', 50);
+  const phone = all.find(p => String(p.session_token || '').split(',').includes(tokenHash));
+  if (!phone) return null;
   if (phone.activo !== true) return null;
   return phone;
 }
