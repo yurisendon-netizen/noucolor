@@ -74,7 +74,7 @@ export async function autoCloseEntry(base44, entry, closedBy = null) {
   const clockOut = andorraLocalToUtc(entry.date, '16:00');
 
   let totalHours = (clockOut.getTime() - clockIn.getTime()) / 3600000;
-  totalHours = Math.min(Math.max(totalHours, 0), 8);
+  totalHours = 8; // salida a las 16:00 = jornada completa: siempre 8 h
 
   await base44.asServiceRole.entities.TimeEntry.update(entry.id, {
     clock_out: clockOut.toISOString(),
