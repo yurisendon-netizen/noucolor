@@ -357,12 +357,12 @@ export default function ControlHorario() {
   const hasClosedToday = todayEntry && todayEntry.status === 'cerrado';
   const hasAbsenceToday = todayEntry && todayEntry.status === 'ausencia_injustificada';
   // El botón verde de entrada solo aparece dentro de la ventana de fichaje
-  // (7:45 - 8:30); fuera de ese tramo se muestra en gris "Próximo fichaje".
+  // (7:00 - 8:30); fuera de ese tramo se muestra en gris "Próximo fichaje".
   // Horario flexible (p. ej. pluriempleo): entrada de 7:00 a 15:00, sin retraso.
   const flexible = !!employee?.horario_flexible;
   const inClockInWindow = flexible
     ? (hour >= 7 && hour < 15 && !(hour === 12 && minutes >= 30))
-    : ((hour === 7 && minutes >= 45) || (hour === 8 && minutes <= 30));
+    : (hour === 7 || (hour === 8 && minutes <= 30));
   const showBanner = !flexible && hour === 8 && minutes < 30 && !openEntry && !hasAbsenceToday;
   const canClockIn = !openEntry && !hasClosedToday && inClockInWindow;
   // Salida: se puede fichar a la hora REAL (compte d'hores, art. 59) desde las
@@ -492,7 +492,7 @@ export default function ControlHorario() {
           ) : showProximo ? (
             <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-secondary text-muted-foreground text-base font-medium">
               <Clock size={20} />
-              <span>{flexible ? 'Entrada de 7:00 a 15:00' : 'Próximo fichaje a las 7:45'}</span>
+              <span>{flexible ? 'Entrada de 7:00 a 15:00' : 'Próximo fichaje a las 7:00'}</span>
             </div>
           ) : (
             <Button
