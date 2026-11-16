@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   <div style="background:#fffbeb;border-left:3px solid #f59e0b;padding:14px 16px;border-radius:0 6px 6px 0;">
     <p style="color:#666;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 6px;">Normativa de fichaje</p>
     <p style="color:#333;font-size:13px;line-height:1.6;margin:0;">
-      Entrada <strong>7:45 - 8:15</strong> (falta si no fichas antes de las <strong>8:30</strong>, no descuenta sueldo) ·
+      Entrada <strong>7:00 - 8:15</strong> (falta si no fichas antes de las <strong>8:30</strong>, no descuenta sueldo) ·
       Salida <strong>16:00 - 16:30</strong> · Cierre automático a las <strong>16:00</strong> ·
       <strong>+2h extras</strong> si fichas salida después de las 16:00.
     </p>
