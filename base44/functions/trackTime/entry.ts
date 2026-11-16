@@ -610,13 +610,13 @@ Deno.serve(async (req) => {
         const { hour, minutes, dateStr: date } = getLocalParts(now);
         const totalMinutes = hour * 60 + minutes;
         const flexible = !!caller.horario_flexible;
-        // Ventana de fichaje de entrada: 7:45 (465) – 8:30 (510). Fuera de este
+        // Ventana de fichaje de entrada: 7:00 (420) – 8:30 (510). Fuera de este
         // tramo no se puede fichar la entrada. Con horario flexible: 7:00 – 15:00
         // y nunca cuenta como retraso.
-        const openMin = flexible ? 420 : 465;
+        const openMin = 420;
         const closeMin = flexible ? 900 : 510;
         if (totalMinutes < openMin) {
-          return Response.json({ error: `El fichaje de entrada abre a las ${flexible ? '7:00' : '7:45'}` }, { status: 400 });
+          return Response.json({ error: `El fichaje de entrada abre a las 7:00` }, { status: 400 });
         }
         if (totalMinutes > closeMin) {
           return Response.json({ error: `El fichaje de entrada se cerró a las ${flexible ? '15:00' : '8:30'}. Contacta con tu encargado.` }, { status: 400 });
