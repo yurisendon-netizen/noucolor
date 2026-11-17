@@ -133,6 +133,7 @@ export default function TelefonoEmpresa() {
     pinRef.current = '';
   }, []);
 
+  const partesAtRef = useRef(0);
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
@@ -148,11 +149,20 @@ export default function TelefonoEmpresa() {
         setTerminalId(tid);
         if (linkedRef.current !== tid) { linkedRef.current = tid; linkOneSignalExternalUser(`terminal_${tid}`); }
       }
-      base44.functions.invoke('trackTime', { operation: 'kioskPartes', sessionToken: token })
-        .then((r) => setPartes(r.data?.partes || [])).catch(() => {});
+      // Los partes por firmar se piden como mucho cada 3 min (ahorra peticiones)
+      if (Date.now() - partesAtRef.current > 180000) {
+        partesAtRef.current = Date.now();
+        base44.functions.invoke('trackTime', { operation: 'kioskPartes', sessionToken: token })
+          .then((r) => setPartes(r.data?.partes || [])).catch(() => {});
+      }
     } catch (e) {
       if (isAuthErr(e)) { terminalLogout(); return; }
-      setListErr(errMsg(e));
+      // Límite de peticiones: no se muestra el error rojo; se conserva la lista y se reintenta solo
+      if (/rate limit|too many|429/i.test(String(e?.message || e?.response?.data?.error || errMsg(e)))) {
+        setTimeout(() => load(), 9000);
+      } else {
+        setListErr(errMsg(e));
+      }
     } finally {
       setLoading(false);
     }
