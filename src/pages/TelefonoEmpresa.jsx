@@ -135,6 +135,7 @@ export default function TelefonoEmpresa() {
 
   const partesAtRef = useRef(0);
   const workersRef = useRef([]);
+  const retryRef = useRef(null);
   const load = useCallback(async () => {
     if (!token) return;
     // En las recargas automáticas no se toca la pantalla: solo se muestra "Cargando" la primera vez
@@ -144,6 +145,7 @@ export default function TelefonoEmpresa() {
       const nuevos = res.data?.workers || [];
       if (JSON.stringify(nuevos) !== JSON.stringify(workersRef.current)) { workersRef.current = nuevos; setWorkers(nuevos); }
       setListErr('');
+      clearTimeout(retryRef.current);
       if (res.data?.phone) setPhoneName(res.data.phone);
       setFija(res.data?.ubicacion_fija === true);
       // Vincula este terminal a los avisos push (recordatorio de fichar de las 8:00)
@@ -160,12 +162,12 @@ export default function TelefonoEmpresa() {
       }
     } catch (e) {
       if (isAuthErr(e)) { terminalLogout(); return; }
-      // Límite de peticiones: no se muestra el error rojo; se conserva la lista y se reintenta solo
-      if (/rate limit|too many|429/i.test(String(e?.message || e?.response?.data?.error || errMsg(e)))) {
-        setTimeout(() => load(), 9000);
-      } else {
-        setListErr(errMsg(e));
-      }
+      // Cualquier fallo al cargar la lista (límite de peticiones, red, etc.): se conserva la
+      // lista que ya había y se reintenta solo cada 10 s. Sin lista, un aviso suave (no hace
+      // falta recargar la app a mano).
+      if (workersRef.current.length === 0) setListErr('Conectando… reintentando solo, no hace falta tocar nada.');
+      clearTimeout(retryRef.current);
+      retryRef.current = setTimeout(() => load(), 10000);
     } finally {
       setLoading(false);
     }
