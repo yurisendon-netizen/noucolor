@@ -134,13 +134,16 @@ export default function TelefonoEmpresa() {
   }, []);
 
   const partesAtRef = useRef(0);
+  const workersRef = useRef([]);
   const load = useCallback(async () => {
     if (!token) return;
-    setLoading(true);
-    setListErr('');
+    // En las recargas automáticas no se toca la pantalla: solo se muestra "Cargando" la primera vez
+    if (workersRef.current.length === 0) setLoading(true);
     try {
       const res = await base44.functions.invoke('trackTime', { operation: 'kioskWorkers', sessionToken: token });
-      setWorkers(res.data?.workers || []);
+      const nuevos = res.data?.workers || [];
+      if (JSON.stringify(nuevos) !== JSON.stringify(workersRef.current)) { workersRef.current = nuevos; setWorkers(nuevos); }
+      setListErr('');
       if (res.data?.phone) setPhoneName(res.data.phone);
       setFija(res.data?.ubicacion_fija === true);
       // Vincula este terminal a los avisos push (recordatorio de fichar de las 8:00)
@@ -214,7 +217,9 @@ export default function TelefonoEmpresa() {
           const prev = posRef.current;
           if (!(prev && Date.now() - prev.at < 15000 && prev.accuracy < r.accuracy)) posRef.current = r;
           posErrRef.current = '';
-          setGps({ status: posRef.current.accuracy <= GPS_MAX_M ? 'ok' : 'imprecise', accuracy: Math.round(posRef.current.accuracy) });
+          // Solo se actualiza si cambia algo (evita repintar la pantalla cada segundo = parpadeo)
+          const nuevo = { status: posRef.current.accuracy <= GPS_MAX_M ? 'ok' : 'imprecise', accuracy: Math.round(posRef.current.accuracy) };
+          setGps((g) => (g.status === nuevo.status && g.accuracy === nuevo.accuracy ? g : nuevo));
         },
         (err) => {
           if (err.code === 1) {
@@ -499,7 +504,7 @@ export default function TelefonoEmpresa() {
           </button>
           <h1 className="text-3xl font-extrabold text-center">Partes por firmar</h1>
           <p className="text-base text-white/75 text-center mt-1 mb-5">El encargado de la obra toca el parte, lo revisa y firma</p>
-          <ErrorBox />
+          {ErrorBox()}
           {partes.length === 0 && !err && (
             <p className="text-center text-lg text-white/80 mt-10">No hay partes pendientes de firma.</p>
           )}
@@ -581,7 +586,7 @@ export default function TelefonoEmpresa() {
             </div>
           </div>
 
-          <ErrorBox />
+          {ErrorBox()}
           <button type="button" onClick={firmarParte} disabled={busy}
             className="mt-5 w-full h-20 rounded-3xl text-2xl font-extrabold tracking-wide shadow-2xl active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-3"
             style={{ background: NARANJA, color: '#ffffff' }}>
@@ -632,7 +637,7 @@ export default function TelefonoEmpresa() {
           <div className="min-h-[2rem] mt-4">
             {busy && <p className="text-base flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Comprobando…</p>}
           </div>
-          <ErrorBox />
+          {ErrorBox()}
         </div>
       </div>
     );
@@ -732,7 +737,7 @@ export default function TelefonoEmpresa() {
             </div>
           </div>
 
-          <ErrorBox />
+          {ErrorBox()}
           <button type="button" onClick={npGuardar} disabled={busy}
             className="w-full h-20 rounded-3xl text-2xl font-extrabold tracking-wide shadow-2xl active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-3"
             style={{ background: NARANJA, color: '#ffffff' }}>
@@ -758,7 +763,7 @@ export default function TelefonoEmpresa() {
           <div className="min-h-[2rem] mt-4">
             {busy && <p className="text-base flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Comprobando…</p>}
           </div>
-          <ErrorBox />
+          {ErrorBox()}
         </div>
       </div>
     );
@@ -795,7 +800,7 @@ export default function TelefonoEmpresa() {
             </button>
           )}
           {!baja && !terminado && <p className="mt-3 text-sm text-white/70 flex items-center gap-1"><MapPin size={14} /> {fija ? 'Terminal fijo del taller: se guarda la ubicación del taller' : 'Se guarda la ubicación GPS del terminal'}</p>}
-          <ErrorBox />
+          {ErrorBox()}
         </div>
       </div>
     );
