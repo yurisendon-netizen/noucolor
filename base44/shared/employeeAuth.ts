@@ -31,13 +31,22 @@ export async function hashPin(pin, salt) {
 }
 
 // Teléfono de empresa: verifica su token de sesión. Devuelve el registro TelefonoEmpresa o null.
+// Caché corta (20 s) del resultado: el terminal llama cada pocos segundos y cada
+// llamada gastaba peticiones del límite compartido de la app (140 por minuto).
+const phoneSessionCache = new Map<string, { t: number; phone: any }>();
+const PHONE_CACHE_MS = 20000;
+
 export async function verifyPhoneSession(base44, sessionToken) {
   if (!sessionToken || typeof sessionToken !== 'string') return null;
   const tokenHash = await sha256Hex(sessionToken);
+  const hit = phoneSessionCache.get(tokenHash);
+  if (hit && Date.now() - hit.t < PHONE_CACHE_MS) return hit.phone;
   const all = await base44.asServiceRole.entities.TelefonoEmpresa.list('user', 50);
   const phone = all.find(p => String(p.session_token || '').split(',').includes(tokenHash));
   if (!phone) return null;
   if (phone.activo !== true) return null;
+  if (phoneSessionCache.size > 50) phoneSessionCache.clear();
+  phoneSessionCache.set(tokenHash, { t: Date.now(), phone });
   return phone;
 }
 
