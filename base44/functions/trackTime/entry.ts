@@ -451,6 +451,12 @@ Deno.serve(async (req) => {
         return Response.json({ success: true });
       }
       if (operation === 'kioskWorkers') {
+        // Caché de 8 s: varios terminales/refrescos seguidos no repiten las consultas
+        // (el límite de 140 peticiones/minuto es compartido por toda la app).
+        const cached = (globalThis as any).__kioskWorkersCache;
+        if (cached && cached.date === todayStr && cached.kioskId === kiosk.id && Date.now() - cached.t < 8000) {
+          return Response.json(cached.body);
+        }
         const emps = await base44.asServiceRole.entities.Employee.filter({ is_active: true });
         const entries = await base44.asServiceRole.entities.TimeEntry.filter({ date: todayStr });
         const workers = emps
@@ -467,8 +473,12 @@ Deno.serve(async (req) => {
               entrada: open ? open.clock_in : (closed ? closed.clock_in : null),
             };
           });
-        return Response.json({ success: true, phone: kiosk.nombre, terminal_id: kiosk.id, ubicacion_fija: kiosk.ubicacion_fija === true, date: todayStr, workers });
+        const body = { success: true, phone: kiosk.nombre, terminal_id: kiosk.id, ubicacion_fija: kiosk.ubicacion_fija === true, date: todayStr, workers };
+        (globalThis as any).__kioskWorkersCache = { t: Date.now(), date: todayStr, kioskId: kiosk.id, body };
+        return Response.json(body);
       }
+      // Un fichaje cambia la lista: se descarta la caché para que se vea al momento.
+      if (operation === 'kioskClockIn' || operation === 'kioskClockOut') (globalThis as any).__kioskWorkersCache = null;
       // kioskClockIn / kioskClockOut: el trabajador elige su nombre y mete su PIN.
       const worker = (await base44.asServiceRole.entities.Employee.filter({ id: String(body.employeeId || '') }))[0];
       if (!worker || worker.is_active === false || worker.role !== 'operario') {
