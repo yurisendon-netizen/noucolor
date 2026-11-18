@@ -90,7 +90,8 @@ function computeEntryHours(dateStr, clockInIso, clockOutIso, flexible = false) {
     const worked = Math.max(0, (outD.getTime() - inD.getTime()) / 3600000);
     const regularF = parseFloat(Math.min(worked, 8).toFixed(2));
     const extraF = Math.floor(Math.max(0, worked - 8) / OVERTIME_STEP_H + 1e-9) * OVERTIME_STEP_H;
-    return { regular: regularF, overtime: parseFloat(extraF.toFixed(2)) };
+    void extraF; // Las horas extra ya no se calculan solas por la hora de salida: las crea un admin.
+    return { regular: regularF, overtime: 0 };
   }
   const sixteen = andorraLocalToUtc(dateStr, '16:00');
   const endRegular = outD < sixteen ? outD : sixteen;
@@ -101,7 +102,8 @@ function computeEntryHours(dateStr, clockInIso, clockOutIso, flexible = false) {
   if (outD >= sixteen) regular = 8;
   const after = Math.max(0, (outD.getTime() - Math.max(sixteen.getTime(), inD.getTime())) / 3600000);
   const overtime = Math.floor(after / OVERTIME_STEP_H + 1e-9) * OVERTIME_STEP_H;
-  return { regular, overtime: parseFloat(overtime.toFixed(2)) };
+  void overtime; // Las horas extra ya no se calculan solas por la hora de salida: las crea un admin.
+  return { regular, overtime: 0 };
 }
 
 // Fichaje PRECISO obligatorio: una lectura con más margen de error que esto es
@@ -771,9 +773,10 @@ Deno.serve(async (req) => {
         // Sábado/domingo: todo lo trabajado ese día.
         const dow = new Date(`${entry.date}T12:00:00Z`).getUTCDay();
         const isWeekendDay = dow === 0 || dow === 6;
-        const pendingHours = isWeekendDay
-          ? Math.floor(((now.getTime() - new Date(entry.clock_in).getTime()) / 3600000) / OVERTIME_STEP_H + 1e-9) * OVERTIME_STEP_H
-          : overtimeHours;
+        // Ya NO se crean horas extra solas por fichar la salida más tarde: normalmente no hay
+        // extras. Si las hay, las registra un admin a mano en Horas Extras.
+        const pendingHours = 0;
+        void isWeekendDay;
         if (pendingHours > 0) {
           try {
             const { hour: oh, minutes: om } = getLocalParts(now);
