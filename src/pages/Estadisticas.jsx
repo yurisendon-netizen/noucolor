@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { authInvoke } from '@/lib/authInvoke';
-import { Clock, CalendarClock, Timer, CalendarCheck } from 'lucide-react';
+import { Clock, CalendarClock, Timer, UserCheck } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Input } from '@/components/ui/input';
 import ResponsiveSelect from '@/components/ui/responsive-select';
@@ -15,7 +15,7 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 const COLOR_MAROON = '#5a123e';
 const COLOR_ORANGE = '#e6671a';
 
-function KpiCard({ icon: Icon, label, value, color }) {
+function KpiCard({ icon: Icon, label, value, color, hint }) {
   return (
     <div className="bg-card rounded-xl border border-border p-5">
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${color}`}>
@@ -23,6 +23,7 @@ function KpiCard({ icon: Icon, label, value, color }) {
       </div>
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-sm text-muted-foreground mt-1">{label}</p>
+      {hint && <p className="text-xs text-muted-foreground mt-1 leading-snug">{hint}</p>}
     </div>
   );
 }
@@ -30,6 +31,7 @@ function KpiCard({ icon: Icon, label, value, color }) {
 export default function Estadisticas() {
   const { employee, loading, isAdmin } = useEmployeeProfile();
   const [entries, setEntries] = useState([]);
+  const [workers, setWorkers] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
@@ -38,8 +40,12 @@ export default function Estadisticas() {
     if (!employee) return;
     async function load() {
       try {
-        const res = await authInvoke('trackTime', { operation: 'listAllEntries', limit: 500 });
+        const [res, emps] = await Promise.all([
+          authInvoke('trackTime', { operation: 'listAllEntries', limit: 500 }),
+          authInvoke('trackTime', { operation: 'listEmployeesAdmin' }).catch(() => null),
+        ]);
         setEntries(res.data?.entries || []);
+        setWorkers(emps?.data?.employees || []);
       } catch (e) { console.error(e); }
       finally { setDataLoading(false); }
     }
@@ -100,6 +106,17 @@ export default function Estadisticas() {
     };
   }, [perEmployee]);
 
+  // Fichados hoy (día actual en hora de Andorra), sobre los trabajadores que fichan
+  const fichadosHoy = useMemo(() => {
+    const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Andorra' }).format(new Date());
+    const ids = new Set(entries
+      .filter(e => e.date === hoy && e.status !== 'ausencia_injustificada')
+      .map(e => e.employee_id));
+    const total = workers.length;
+    const faltan = workers.filter(w => !ids.has(w.id)).map(w => (w.full_name || '').split(' ')[0]);
+    return { fichados: total ? workers.filter(w => ids.has(w.id)).length : ids.size, total, faltan };
+  }, [entries, workers]);
+
   // Datos para el gráfico (nombre corto)
   const chartData = useMemo(() => {
     return perEmployee.map(e => ({
@@ -156,7 +173,13 @@ export default function Estadisticas() {
         <KpiCard icon={Clock} label="Horas trabajadas" value={`${kpis.total.toFixed(1)}h`} color="bg-[#5a123e]/15 text-[#5a123e] dark:text-[#d98ba6]" />
         <KpiCard icon={CalendarClock} label="Horas normales" value={`${kpis.normales.toFixed(1)}h`} color="bg-[#5a123e]/15 text-[#5a123e] dark:text-[#d98ba6]" />
         <KpiCard icon={Timer} label="Horas extra" value={`${kpis.extra.toFixed(1)}h`} color="bg-[#e6671a]/15 text-[#e6671a] dark:text-[#f0a06a]" />
-        <KpiCard icon={CalendarCheck} label="Días fichados" value={kpis.dias} color="bg-[#e6671a]/15 text-[#e6671a] dark:text-[#f0a06a]" />
+        <KpiCard
+          icon={UserCheck}
+          label="Fichados hoy"
+          value={fichadosHoy.total ? `${fichadosHoy.fichados} / ${fichadosHoy.total}` : fichadosHoy.fichados}
+          hint={fichadosHoy.faltan.length > 0 ? `Falta: ${fichadosHoy.faltan.join(', ')}` : (fichadosHoy.total ? 'Han fichado todos' : null)}
+          color="bg-[#e6671a]/15 text-[#e6671a] dark:text-[#f0a06a]"
+        />
       </div>
 
       {/* Gráfico de barras agrupadas */}
