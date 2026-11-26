@@ -330,13 +330,15 @@ function isYmd(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s
 // sábado y domingo solo si ficharon ese día. El parte es automático: horas,
 // entrada/salida y obra salen de los fichajes y la asignación; el trabajador
 // solo puede añadir una nota opcional.
-async function buildParteSemana(base44, employeeId, weekStart, today) {
-  const parte = (await base44.asServiceRole.entities.ParteSemanal.filter({ employee_id: employeeId, week_start: weekStart }))[0] || null;
+// `pre` (opcional): datos ya cargados de este trabajador para no consultar la BD
+// otra vez (lo usa listPartesSemana para toda la plantilla de golpe).
+async function buildParteSemana(base44, employeeId, weekStart, today, pre = null) {
+  const parte = pre ? pre.parte : ((await base44.asServiceRole.entities.ParteSemanal.filter({ employee_id: employeeId, week_start: weekStart }))[0] || null);
   const saved = {};
   for (const d of (parte?.dias || [])) saved[d.date] = d;
-  const entries = await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: employeeId, date: { $gte: weekStart, $lte: ymdAdd(weekStart, 6) } }, 'date', 20);
-  const asig = (await base44.asServiceRole.entities.Asignacion.filter({ employee_id: employeeId }, '-date', 60));
-  const extrasAprobadas = (await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: employeeId, date: { $gte: weekStart, $lte: ymdAdd(weekStart, 6) } }, 'date', 50))
+  const entries = pre ? pre.entries : await base44.asServiceRole.entities.TimeEntry.filter({ employee_id: employeeId, date: { $gte: weekStart, $lte: ymdAdd(weekStart, 6) } }, 'date', 20);
+  const asig = pre ? pre.asig : (await base44.asServiceRole.entities.Asignacion.filter({ employee_id: employeeId }, '-date', 60));
+  const extrasAprobadas = (pre ? pre.extras : await base44.asServiceRole.entities.OvertimeHour.filter({ employee_id: employeeId, date: { $gte: weekStart, $lte: ymdAdd(weekStart, 6) } }, 'date', 50))
     .filter(o => o.status === 'aprobado');
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -1223,9 +1225,30 @@ Deno.serve(async (req) => {
         const weekStart = mondayOf(isYmd(body.date) ? body.date : today);
         const emps = (await base44.asServiceRole.entities.Employee.list('full_name', 200))
           .filter(e => e.is_active !== false && e.role === 'operario' && e.estado_laboral !== 'baja' && !/tester/i.test(e.full_name || ''));
+        // Todo de golpe (4 consultas en total, no 4 por trabajador) para no pasar
+        // el límite de 140 consultas/minuto de Base44.
+        const weekEnd = ymdAdd(weekStart, 6);
+        const db = base44.asServiceRole.entities;
+        const [allPartes, allEntries, allAsig, allExtras] = await Promise.all([
+          db.ParteSemanal.filter({ week_start: weekStart }, 'employee_id', 1000),
+          db.TimeEntry.filter({ date: { $gte: weekStart, $lte: weekEnd } }, 'date', 3000),
+          db.Asignacion.filter({ date: { $lte: weekEnd } }, '-date', 5000),
+          db.OvertimeHour.filter({ date: { $gte: weekStart, $lte: weekEnd } }, 'date', 1000),
+        ]);
+        const groupBy = (arr) => {
+          const m = new Map();
+          for (const x of arr) { if (!m.has(x.employee_id)) m.set(x.employee_id, []); m.get(x.employee_id).push(x); }
+          return m;
+        };
+        const gPartes = groupBy(allPartes), gEntries = groupBy(allEntries), gAsig = groupBy(allAsig), gExtras = groupBy(allExtras);
         const rows = [];
         for (const e of emps) {
-          const v = await buildParteSemana(base44, e.id, weekStart, today);
+          const v = await buildParteSemana(base44, e.id, weekStart, today, {
+            parte: (gPartes.get(e.id) || [])[0] || null,
+            entries: gEntries.get(e.id) || [],
+            asig: gAsig.get(e.id) || [],
+            extras: gExtras.get(e.id) || [],
+          });
           rows.push({ employee_id: e.id, employee_name: e.full_name, days: v.days });
         }
         return Response.json({ success: true, week_start: weekStart, week_end: ymdAdd(weekStart, 6), today, rows });
